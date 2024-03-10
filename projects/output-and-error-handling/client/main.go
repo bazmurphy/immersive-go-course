@@ -15,6 +15,7 @@ import (
 // They can all be removed at the end to clean it up
 
 func handleOKResponse(response *http.Response) {
+	// try to read the response body
 	responseBody, err := io.ReadAll(response.Body)
 
 	// use the defer keyword early to close the body regardless
@@ -75,10 +76,11 @@ func handleTooManyRequestsResponse(response *http.Response, url string) {
 		fmt.Fprintln(os.Stderr, "Things may be a bit slow because we're doing a retry after 1 second...")
 		time.Sleep(1 * time.Second)
 		makeGetRequest(url)
+	// 0 is the fail condition
 	case retryAfter == 0:
 		fmt.Fprintln(os.Stderr, "Giving up. We can't get you the Weather.")
 	}
-	// do we actually need a default here...?
+	// I don't believe we need a default here(?)
 }
 
 func handleResponse(response *http.Response, url string) {
@@ -87,27 +89,32 @@ func handleResponse(response *http.Response, url string) {
 	case http.StatusOK:
 		handleOKResponse(response)
 	case http.StatusTooManyRequests:
+		// pass through the url
 		handleTooManyRequestsResponse(response, url)
 	}
 }
 
 func makeGetRequest(url string) {
+	// try to make the get request
 	response, err := http.Get(url)
 
+	// if the request fails
 	if err != nil {
 		// fmt.Fprintln(os.Stderr, "Request Failed. Error:", err)
 		// deliberately without explicit error message
 		fmt.Fprintln(os.Stderr, "Request Failed.")
 		return
 	}
-	// pass through the url for the second handler
+
+	// otherwise handle the response
+	// (pass through the url for the second handler)
 	handleResponse(response, url)
 }
 
 func main() {
-	// just for testing purposes, make an infinite loop
+	// for testing purposes, make an infinite loop
 	for {
-		// make the GET Request
+		// make the get request
 		makeGetRequest("http://localhost:8080")
 		// sleep for 1 second
 		time.Sleep(1 * time.Second)
