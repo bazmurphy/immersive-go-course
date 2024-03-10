@@ -33,9 +33,9 @@ func makeGetRequest(url string) {
 		return
 	}
 
-	// handle the various response status codes (switch/case extensible for more status codes)
+	// switch/case extensible for more status code handlers
 	switch response.StatusCode {
-	case http.StatusOK:
+	case 200:
 		// fmt.Println("200 OK")
 
 		// use the defer keyword early to close the body at the end of the scoped block regardless
@@ -55,7 +55,7 @@ func makeGetRequest(url string) {
 		// deliberately/explicitly using os.Stdout not fmt.Println even though unnecessary (for the sake of the exercise)
 		fmt.Fprintln(os.Stdout, string(responseBody))
 
-	case http.StatusTooManyRequests:
+	case 429:
 		// fmt.Println("429 Too Many Requests")
 
 		// have a look at the header to try read the "Retry-After"
@@ -65,9 +65,7 @@ func makeGetRequest(url string) {
 		retryAfterHeaderString := response.Header.Get("Retry-After")
 		// fmt.Fprintln(os.Stderr, "Retry After:", retryAfterHeaderString)
 
-		// (I want a more elegant way to handle the attempted conversion of each variant of the Retry-After Header String)
-
-		// i think this could/should handle more than "a while"
+		// i think this could handle more than "a while"
 		if retryAfterHeaderString == "a while" {
 			// we should give up and tell the user we can't get them the weather
 			fmt.Fprintln(os.Stderr, "Giving up. We can't get you the Weather.")
@@ -79,8 +77,6 @@ func makeGetRequest(url string) {
 
 		if err != nil {
 			// fmt.Println("Retry-After is not an integer")
-
-			// (the following is bad, because we should not do any logic beyond error handling in this scoped block)
 
 			// try to get a timestamp from the retryAfter string
 			// temporarily not use the err
@@ -110,12 +106,13 @@ func makeGetRequest(url string) {
 			retryAfterInteger = timeDifferenceInSeconds
 		}
 
-		// handle the various retry after durations
-		switch {
-		case retryAfterInteger > 5:
+		if retryAfterInteger > 5 {
+			// Retry-After greater than 5 seconds
 			// we should give up and tell the user we can't get them the weather
 			fmt.Fprintln(os.Stderr, "Giving up. We can't get you the Weather.")
-		case retryAfterInteger > 1:
+			return
+		} else if retryAfterInteger > 1 {
+			// Retry-After greater than 1 second
 			// we should notify the user that things may be a bit slow because we're doing a retry
 			fmt.Fprintf(os.Stderr, "Things may be a bit slow because we're doing a retry after %d seconds...\n", retryAfterInteger)
 
@@ -124,7 +121,10 @@ func makeGetRequest(url string) {
 
 			// make the request again
 			makeGetRequest(url)
-		default:
+
+			// exit from the function (can't do 'return getWeather()' like in js/ts ?)
+			return
+		} else {
 			// retry after 1 second
 			fmt.Fprintln(os.Stderr, "Retrying after 1 second...")
 
@@ -133,6 +133,9 @@ func makeGetRequest(url string) {
 
 			// make the request again
 			makeGetRequest(url)
+
+			// exit from the function (can't do 'return getWeather()' like in js/ts ?)
+			return
 		}
 	}
 }
