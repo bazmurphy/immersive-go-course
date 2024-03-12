@@ -14,6 +14,10 @@ import (
 // I write a lot of comments, it has helped me the entire course to learn, understand and remember
 // They can all be removed at the end to clean it up
 
+// Error Messages ----------
+// The Errors are deliberately numbered [x] so I could follow them up the call stack
+// They can be replaced with "user friendly" messages later
+
 func parseResponseBody(response *http.Response) (string, error) {
 	// try to read the response body
 	responseBody, err := io.ReadAll(response.Body)
@@ -31,10 +35,9 @@ func parseResponseBody(response *http.Response) (string, error) {
 
 // returned integer is the retry duration in seconds
 func parseRetryAfterHeader(retryAfterHeaderString string) (int, error) {
-
 	// first condition "a while"
 	if retryAfterHeaderString == "a while" {
-		return 0, fmt.Errorf("[3] retry-after header is 'a while': %s", retryAfterHeaderString)
+		return 0, fmt.Errorf("[3] retry-after header is 'a while'")
 	}
 
 	// second condition an integer in string format
@@ -43,6 +46,7 @@ func parseRetryAfterHeader(retryAfterHeaderString string) (int, error) {
 	// should immediately error check here...
 	// but i need to be able to continue after...
 	// in order to check if it's a timestamp...?
+	// i am trying to avoid nested if logic
 
 	// if err != nil {
 	//  return 0, nil
@@ -69,7 +73,7 @@ func parseRetryAfterHeader(retryAfterHeaderString string) (int, error) {
 	return timestampDifferenceInSeconds, nil
 }
 
-// the return int is the delay in seconds (using an int here is not great... need to think of something better)
+// the return int is the retry duration in seconds (using an int here is not great... need to think of something better)
 func handleTooManyRequestsResponse(response *http.Response) (int, error) {
 	// get the Retry-After Header string
 	retryDuration, err := parseRetryAfterHeader(response.Header.Get("Retry-After"))
@@ -82,7 +86,7 @@ func handleTooManyRequestsResponse(response *http.Response) (int, error) {
 	// if we reach here, we have an retry delay integer
 	switch {
 	case retryDuration > 5:
-		return 0, fmt.Errorf("[2] retry-after is more than 5 seconds: %d", retryDuration)
+		return 0, fmt.Errorf("[2] retry-after is more than 5 seconds")
 	case retryDuration > 1:
 		return retryDuration, nil
 	case retryDuration == 1:
@@ -93,7 +97,7 @@ func handleTooManyRequestsResponse(response *http.Response) (int, error) {
 }
 
 // this is returning a responseBody, a retry duration in seconds, and an error
-// this breaks single responsibility... need to rethink it
+// this breaks single responsibility... need to rethink it... suggestions?
 func handleStatusCode(response *http.Response) (string, int, error) {
 	// handle the various response status codes (extensible for more status codes)
 	switch response.StatusCode {
@@ -156,20 +160,25 @@ func makeGetRequest(url string) (string, int, error) {
 }
 
 func main() {
-	response, retryDuration, err := makeGetRequest("http://localhost:8080")
-	// fmt.Printf("response %s\nretryDuration %d\nerr %v\n\n", response, retryDuration, err)
+	// loop until a successful response or an unrecoverable error
+	for {
+		response, retryDuration, err := makeGetRequest("http://localhost:8080")
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		// if we have an unrecoverable error
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+
+		// if we have a retry integer
+		if retryDuration > 0 {
+			fmt.Fprintf(os.Stderr, "Retrying after %d seconds...\n", retryDuration)
+			time.Sleep(time.Duration(retryDuration) * time.Second)
+			continue
+		}
+
+		// if we have a successful response
+		fmt.Fprintln(os.Stdout, response)
+		break
 	}
-
-	if retryDuration > 0 {
-		fmt.Printf("retry after %d seconds", retryDuration)
-		// how to effectively make a retry here?
-		// need to probably rewrite the main function
-		// to loop until there is a successful response (or an exit)
-	}
-
-	fmt.Fprintln(os.Stdout, response)
 }
