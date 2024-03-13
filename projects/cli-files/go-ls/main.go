@@ -8,12 +8,8 @@ import (
 )
 
 func main() {
-	// define a bool flag with the specific properties (name, value, usage)
+	// define a flag of type boolean with the specific properties (name, value, usage)
 	helpFlag := flag.Bool("h", false, "show help")
-
-	// define a bool flag with the specific properties (pointer to var above, name, value, usage)
-	// the var above stores the value (true/false)
-	flag.BoolVar(helpFlag, "help", false, "show help")
 
 	// parse the command line flags
 	flag.Parse()
@@ -55,7 +51,7 @@ func main() {
 
 	// if that directory doesn't exist
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "no directory found: %v\n", err)
+		fmt.Fprintf(os.Stderr, "no such file or directory: %v\n", err)
 		os.Exit(2)
 	}
 

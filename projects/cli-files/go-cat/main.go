@@ -13,7 +13,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	// if there is an argument given, get that argument
+	// if there is an argument provided then save that argument as the filename
 	filename := os.Args[1]
 
 	// print out the filename to check
@@ -23,34 +23,34 @@ func main() {
 	// fileInfo, err := os.Stat(filename)
 	_, err := os.Stat(filename)
 
-	// if it does not exist then error
+	// if the file does not exist then error
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "file does not exist: %s\n", filename)
+		fmt.Fprintf(os.Stderr, "no such file or directory: %s\n", filename)
 		os.Exit(1)
 	}
 
 	// print out the fileInfo to check
 	// fmt.Println("--- DEBUG fileInfo", fileInfo)
 
-	// check if the file can be opened
+	// attempt to open the file
 	file, err := os.Open(filename)
 
-	// if it cannot be opened then error
+	// if the file cannot be opened then error
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot open the file: %v\n", err)
 		os.Exit(1)
 	}
 
-	// print out the fileInfo to check
+	// print out the file to check
 	// fmt.Println("--- DEBUG file", file)
 
 	// make sure to close the file at the end of the function
 	defer file.Close()
 
-	// make a scanner and read from the file
+	// make a scanner to read from the file
 	scanner := bufio.NewScanner(file)
 
-	// read through the file, line by line, and print the line
+	// use the scanner to scan through the file, line by line, printing out each line
 	for scanner.Scan() {
 		fmt.Fprint(os.Stdout, scanner.Text(), "\n")
 	}
