@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -14,84 +15,121 @@ import (
 
 func TestParseResponseBody(t *testing.T) {
 	t.Run("response with valid body", func(t *testing.T) {
-		body := "Today it will be sunny!"
+		// expect back a string from the body
+		want := "Today it will be sunny!"
 
 		// io.NopCloser is a non-closing reader
-		response := &http.Response{Body: io.NopCloser(bytes.NewBufferString(body))}
+		response := &http.Response{Body: io.NopCloser(bytes.NewBufferString(want))}
 
-		result, err := parseResponseBody(response)
+		responseBody, err := parseResponseBody(response)
 
 		if err != nil {
 			t.Errorf("could not parse body")
 		}
 
-		if result != body {
-			t.Errorf("got %q | want %q", body, result)
+		if responseBody != want {
+			t.Errorf("got responseBody %q | want %q", responseBody, want)
 		}
 	})
 
-	t.Run("response with invalid body", func(t *testing.T) {
-		// this is how to make an http response with no body (without panicking nil deference)
-		response := &http.Response{Body: http.NoBody}
+	t.Run("response with no body", func(t *testing.T) {
+		// expect back an error
+		wantErr := errors.New("[2] there is no response body")
 
-		result, err := parseResponseBody(response)
+		// this is how to make an http response with no body (without panic nil pointer deference)
+		response := &http.Response{Body: nil}
 
-		want := "failed to read response body : EOF"
+		responseBody, err := parseResponseBody(response)
 
-		if result != "" {
-			t.Errorf("got %v | want %v", result, "")
+		// there should be an error
+		if err == nil {
+			t.Errorf("expected an error")
 		}
 
-		if err.Error() != want {
-			t.Errorf("got %v | want %v", err, want)
+		// the errors should match
+		if err.Error() != wantErr.Error() {
+			t.Errorf("got error %v | want %v", err, wantErr)
+		}
+
+		// the responseBody should be ""
+		if responseBody != "" {
+			t.Errorf("got responseBody %v | want %v", responseBody, "")
 		}
 	})
 }
 
 func TestParseRetryAfterHeader(t *testing.T) {
 	t.Run("a while", func(t *testing.T) {
+		// expect back an error
+		wantErr := errors.New("[3] retry-after header is 'a while'")
+
 		// pass it a retry header of "a while"
 		retryDuration, err := parseRetryAfterHeader("a while")
 
-		// expect back an error
-		want := errors.New("[3] retry-after header is 'a while'")
-
-		if retryDuration != 0 || err == nil {
+		// there should be an error
+		if err == nil {
 			t.Errorf("expected an error")
 		}
 
-		if err.Error() != want.Error() {
-			t.Errorf("got %q | want %q", err, want)
+		// the error should match
+		if err.Error() != wantErr.Error() {
+			t.Errorf("got error %q | want %q", err, wantErr)
+		}
+
+		// the retry duration should be 0
+		if retryDuration != 0 {
+			t.Errorf("got retryDuration %v | want %v", retryDuration, 0)
 		}
 	})
 
 	t.Run("string duration '3'", func(t *testing.T) {
+		// expect back 3 seconds (time.Duration)
+		want := 3 * time.Second
+
 		// pass it a retry header of "3"
 		retryDuration, err := parseRetryAfterHeader("3")
 
-		// expect back integer 3
-		want := 3
+		// there should not be an error
+		if err != nil {
+			t.Errorf("got error %v | want %v", err, nil)
+		}
 
-		if retryDuration != want || err != nil {
-			t.Errorf("got %v and %v | want %v and nil", retryDuration, err, want)
+		// the retry duration should match
+		if retryDuration != want {
+			t.Errorf("got retryDuration %v | want %v", retryDuration, want)
 		}
 	})
 
 	t.Run("string timestamp 4 seconds in the future'", func(t *testing.T) {
+		// expect back 5 seconds (time.Duration)
+		want := 5 * time.Second
+
 		// get the time
 		now := time.Now()
-		// add X seconds to it
-		futureTime := now.Add(4 * time.Second)
+		fmt.Println("--- DEBUG now", now)
+
+		// add 5 seconds to it
+		futureTime := now.Add(5 * time.Second)
+		fmt.Println("--- DEBUG futureTime", futureTime)
+
 		// create a timestamp from it
-		timestamp := futureTime.Format(time.RFC1123)
+		timestamp := futureTime.UTC().Format(http.TimeFormat)
+		fmt.Println("--- DEBUG timestamp", timestamp)
 
 		retryDuration, err := parseRetryAfterHeader(timestamp)
+		fmt.Println("--- DEBUG retryDuration", retryDuration)
 
-		// expect back integer 4
-		want := 4
+		// there should not be an error
+		if err != nil {
+			t.Errorf("got error %v | want %v", err, nil)
+		}
 
-		if retryDuration != want || err != nil {
-			t.Errorf("got %v and %v | want %v and nil", retryDuration, err, want)
+		// the retry duration should match
+		if retryDuration != want {
+			t.Errorf("got retryDuration %v | want %v", retryDuration, want)
+			// FAIL
+			// got retryDuration 4.622255471s | want 5s
+			// presumably because by the time the conversion and comparison happens time is lost (?)
 		}
 	})
 }
@@ -103,11 +141,17 @@ func TestHandleTooManyRequestsResponse(t *testing.T) {
 
 		retryDuration, err := handleTooManyRequestsResponse(response)
 
-		// expect back integer 4
-		want := 4
+		// expect back 4 seconds (time.Duration)
+		want := 4 * time.Second
 
-		if retryDuration != want || err != nil {
-			t.Errorf("got %v and %v | want %v and nil", retryDuration, err, want)
+		// there should not be an error
+		if err != nil {
+			t.Errorf("got err %v | want %v", err, nil)
+		}
+
+		// the retry duration should match
+		if retryDuration != want {
+			t.Errorf("got retryDuration %v | want %v", retryDuration, want)
 		}
 	})
 
@@ -117,9 +161,10 @@ func TestHandleTooManyRequestsResponse(t *testing.T) {
 
 		retryDuration, err := handleTooManyRequestsResponse(response)
 
+		// expect back an error
 		want := errors.New("[2] retry-after is more than 5 seconds")
 
-		// check the retryDuration is 0
+		// the retry duration should be 0
 		if retryDuration != 0 {
 			t.Errorf("got retryDuration %v and want %v ", retryDuration, 0)
 		}

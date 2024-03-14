@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -19,10 +18,15 @@ import (
 // They can be replaced with "user friendly" messages later
 
 func parseResponseBody(response *http.Response) (string, error) {
+	// check if there is a response body
+	if response.Body == nil {
+		return "", fmt.Errorf("[2] there is no response body")
+	}
+
 	// try to read the response body
 	responseBody, err := io.ReadAll(response.Body)
 
-	// handle any error immediately
+	// if we cannot read the response body then return an error
 	if err != nil {
 		return "", fmt.Errorf("[2] failed to read response body : %w", err)
 	}
@@ -33,8 +37,9 @@ func parseResponseBody(response *http.Response) (string, error) {
 	return string(responseBody), nil
 }
 
-// returned integer is the retry duration in seconds
-func parseRetryAfterHeader(retryAfterHeaderString string) (int, error) {
+func parseRetryAfterHeader(retryAfterHeaderString string) (time.Duration, error) {
+	// fmt.Println("--- DEBUG retryAfterHeaderString", retryAfterHeaderString)
+
 	// first condition "a while"
 	if retryAfterHeaderString == "a while" {
 		return 0, fmt.Errorf("[3] retry-after header is 'a while'")
@@ -43,54 +48,45 @@ func parseRetryAfterHeader(retryAfterHeaderString string) (int, error) {
 	// second condition an integer in string format
 	retryAfterInteger, err := strconv.Atoi(retryAfterHeaderString)
 
-	// should immediately error check here...
-	// but i need to be able to continue after...
-	// in order to check if it's a timestamp...?
-	// i am trying to avoid nested if logic
-
-	// if err != nil {
-	//  return 0, nil
-	// }
-
-	// if we successfully parse an integer return it
+	// if we successfully parse an integer
 	if err == nil {
-		return retryAfterInteger, nil
+		// convert the integer into seconds and return it
+		retryDuration := time.Duration(retryAfterInteger) * time.Second
+		return retryDuration, nil
 	}
 
 	// third condition a timestamp in string format
-	retryAfterTimeStamp, err := time.Parse(time.RFC1123, retryAfterHeaderString)
+	// (!) http.ParseTime can parse various formats
+	// specified in the RFCs for HTTP (RFC1123, RFC850, ANSI C etc)
+	// so it is a better choice than time.Parse(RFC1123, _)
+	retryAfterTimeStamp, err := http.ParseTime(retryAfterHeaderString)
 
-	// if we cannot parse the timestamp
+	// if we cannot parse the timestamp then return an error
 	if err != nil {
 		return 0, fmt.Errorf("[3] retry-after header is invalid: %w", err)
 	}
 
-	// otherwise calculate the difference and return it in seconds (rounded up)
-	now := time.Now()
-	difference := retryAfterTimeStamp.Sub(now)
-	timestampDifferenceInSeconds := int(math.Ceil(difference.Seconds()))
+	// if we can parse the timestamp then calculate the difference and return it
+	retryDuration := time.Until(retryAfterTimeStamp)
 
-	return timestampDifferenceInSeconds, nil
+	return retryDuration, nil
 }
 
-// the return int is the retry duration in seconds (using an int here is not great... need to think of something better)
-func handleTooManyRequestsResponse(response *http.Response) (int, error) {
-	// get the Retry-After Header string
+func handleTooManyRequestsResponse(response *http.Response) (time.Duration, error) {
+	// parse the Retry-After Header string
 	retryDuration, err := parseRetryAfterHeader(response.Header.Get("Retry-After"))
 
-	// if we cannot parse the Retry-After Header string
+	// if we cannot parse the Retry-After Header string then return an error
 	if err != nil {
 		return 0, fmt.Errorf("[2] failed to get a valid delay from retry-after header")
 	}
 
-	// if we reach here, we have an retry delay integer
+	// if we reach here we have a retry duration (of type time.Duration)
 	switch {
-	case retryDuration > 5:
+	case retryDuration > 5*time.Second:
 		return 0, fmt.Errorf("[2] retry-after is more than 5 seconds")
-	case retryDuration > 1:
+	case retryDuration > 0:
 		return retryDuration, nil
-	case retryDuration == 1:
-		return 1, nil
 	default:
 		return 0, fmt.Errorf("[2] retry-after condition not found")
 	}
@@ -98,7 +94,7 @@ func handleTooManyRequestsResponse(response *http.Response) (int, error) {
 
 // this is returning a responseBody, a retry duration in seconds, and an error
 // this breaks single responsibility... need to rethink it... suggestions?
-func handleStatusCode(response *http.Response) (string, int, error) {
+func handleStatusCode(response *http.Response) (string, time.Duration, error) {
 	// handle the various response status codes (extensible for more status codes)
 	switch response.StatusCode {
 	// 200
@@ -106,20 +102,20 @@ func handleStatusCode(response *http.Response) (string, int, error) {
 		// parse the response body
 		responseBody, err := parseResponseBody(response)
 
-		// if we cannot parse the body return an error
+		// if we cannot parse the response body then return an error
 		if err != nil {
 			return "", 0, fmt.Errorf("[1] parseResponseBody failed: %w", err)
 		}
 
-		// otherwise return the parsed body
+		// otherwise return the parsed response body
 		return responseBody, 0, nil
 
 	// 429
 	case http.StatusTooManyRequests:
-		// this retryDuration is an int (not a string)
+		// get the retry duration
 		retryDuration, err := handleTooManyRequestsResponse(response)
 
-		// if we cannot get a valid retryDuration
+		// if we cannot get a valid retry duration then return an error
 		if err != nil {
 			return "", 0, fmt.Errorf("[1] handleTooManyRequestsResponse failed: %w", err)
 		}
@@ -133,11 +129,11 @@ func handleStatusCode(response *http.Response) (string, int, error) {
 	}
 }
 
-func makeGetRequest(url string) (string, int, error) {
+func makeGetRequest(url string) (string, time.Duration, error) {
 	// try to make the get request
 	response, err := http.Get(url)
 
-	// if the request fails
+	// if the request fails then return an error
 	if err != nil {
 		return "", 0, fmt.Errorf("[0] request failed: %w", err)
 	}
@@ -155,7 +151,7 @@ func makeGetRequest(url string) (string, int, error) {
 		return "", retryDuration, nil
 	}
 
-	// we have a parsed response body
+	// return the parsed response body
 	return responseBody, 0, nil
 }
 
@@ -170,10 +166,10 @@ func main() {
 			os.Exit(2)
 		}
 
-		// if we have a retry integer
+		// if we have a retry duration
 		if retryDuration > 0 {
-			fmt.Fprintf(os.Stderr, "Retrying after %d seconds...\n", retryDuration)
-			time.Sleep(time.Duration(retryDuration) * time.Second)
+			fmt.Fprintf(os.Stderr, "Retrying after %v...\n", retryDuration)
+			time.Sleep(time.Duration(retryDuration))
 			continue
 		}
 
