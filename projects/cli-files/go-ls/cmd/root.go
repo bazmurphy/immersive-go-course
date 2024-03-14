@@ -55,8 +55,8 @@ func Execute() {
 
 	// if the path is not a directory (then it must be a file(?)) so print it back to the user
 	if !pathInfo.IsDir() {
-		fmt.Fprintf(os.Stdout, "%v\n", os.Args[1])
-		return
+		fmt.Fprintf(os.Stderr, "%v\n", os.Args[1])
+		os.Exit(1)
 	}
 
 	// read from that directory
