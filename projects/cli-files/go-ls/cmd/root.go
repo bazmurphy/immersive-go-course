@@ -14,10 +14,6 @@ func Execute() {
 	// parse the command line flags
 	flag.Parse()
 
-	// print out the value of helpFlag to check
-	// (!) deference the pointer with *
-	// fmt.Println("--- DEBUG helpFlag", *helpFlag)
-
 	// if the "-h" flag is provided
 	if *helpFlag {
 		fmt.Fprintf(os.Stdout, "go-ls help message\n")
@@ -25,33 +21,50 @@ func Execute() {
 	}
 
 	// initialise/default the directory path to where go-ls was called from
-	directoryPath := "."
+	directoryPath, err := os.Getwd()
+
+	// if we can't get the current working directory
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get the current working directory: %v\n", err)
+		os.Exit(2)
+	}
 
 	// if go-ls was called with an argument use that as the directory path instead
 	if len(os.Args) > 1 {
 		directoryPath = os.Args[1]
 	}
 
-	// print out the directory path to check
-	// fmt.Println("--- DEBUG directoryPath", directoryPath)
-
 	// get the absolute path of that directory
 	absolutePath, err := filepath.Abs(directoryPath)
 
+	// if we can't get the absolute path
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "absolute path not found: %v\n", err)
 		os.Exit(2)
 	}
 
-	// print out the absolute path to check
-	// fmt.Println("--- DEBUG absolutePath", absolutePath)
+	// get the "file" info
+	// to be able to establish if the absolute path is a file or directory
+	pathInfo, err := os.Stat(absolutePath)
+
+	// if we can't get the "file" info from the absolute path then error
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not read the file/directory information: %v\n", err)
+		os.Exit(2)
+	}
+
+	// if the path is not a directory (then it must be a file(?)) so print it back to the user
+	if !pathInfo.IsDir() {
+		fmt.Fprintf(os.Stdout, "%v\n", os.Args[1])
+		return
+	}
 
 	// read from that directory
 	directory, err := os.ReadDir(absolutePath)
 
-	// if that directory doesn't exist
+	// if there is an error reading from the directory
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "no such file or directory: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error reading from the directory: %v\n", err)
 		os.Exit(2)
 	}
 
