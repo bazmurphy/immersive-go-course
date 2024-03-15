@@ -68,12 +68,8 @@ func Execute() {
 		os.Exit(2)
 	}
 
-	// print out the directory to check
-	// fmt.Println("--- DEBUG directory", directory)
-
 	// loop over the files/directories in the "directory" slice
 	for _, file := range directory {
-		// fmt.Println("--- DEBUG file", file)
 		fmt.Fprintf(os.Stdout, "%v\n", file.Name())
 	}
 }

@@ -31,22 +31,23 @@ func Execute() {
 		filename = os.Args[1]
 	}
 
-	// check if the file exists
+	// try to get the file information
 	fileInfo, err := os.Stat(filename)
 
+	// if we cannot get the file information then error
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not read the file/directory information: %s\n", filename)
+		os.Exit(2)
+	}
+
+	// if the file is a directory then warn the user
 	if fileInfo.IsDir() {
 		fmt.Fprintf(os.Stderr, "%s : Is a directory\n", filename)
 		os.Exit(1)
 	}
 
-	// if the file does not exist then error
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "no such file or directory: %s\n", filename)
-		os.Exit(2)
-	}
-
-	// attempt to read the file
-	file, err := os.ReadFile(filename)
+	// try to read the file
+	fileContents, err := os.ReadFile(filename)
 
 	// if we cannot read the file then error
 	if err != nil {
@@ -54,13 +55,13 @@ func Execute() {
 		os.Exit(2)
 	}
 
-	// convert the file into a string
-	fileContents := string(file)
+	// convert the file contents to a string
+	fileContentsAsString := string(fileContents)
 
 	// if the -n flag was provided
 	if *numberFlag {
 		// split the string into lines using the newline delimiter
-		lines := strings.Split(fileContents, "\n")
+		lines := strings.Split(fileContentsAsString, "\n")
 		// loop over the lines printing them with a line number prefix
 		for index, line := range lines {
 			fmt.Fprintf(os.Stdout, "%d  %s\n", index+1, line)
@@ -68,8 +69,8 @@ func Execute() {
 		return
 	}
 
-	// directly print the file contents
-	fmt.Fprint(os.Stdout, fileContents)
+	// otherwise directly print the file contents
+	fmt.Fprint(os.Stdout, fileContentsAsString)
 
 	// ----------
 
