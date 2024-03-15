@@ -32,7 +32,12 @@ func parseJSON(file []byte) ([]Player, error) {
 
 	// if we fail to "unmarshal" the json file then error
 	if err != nil {
-		return nil, errors.New("the file is likely not [1] JSON")
+		return nil, errors.New("[2] the file is likely not [1] JSON")
+	}
+
+	// if the data slice is empty
+	if len(dataSlice) == 0 {
+		return nil, errors.New("[2] the file is likely empty")
 	}
 
 	return dataSlice, nil
@@ -45,6 +50,8 @@ func parseRepeatedJSON(file []byte) ([]Player, error) {
 
 	// convert the file to a string and then split it on a newline character
 	lines := strings.Split(string(file), "\n")
+
+	// (!) we need to error here if the lines is empty
 
 	// initialise a player struct to iteratively store each valid player
 	var player Player
@@ -67,7 +74,6 @@ func parseRepeatedJSON(file []byte) ([]Player, error) {
 
 		// if we can't parse a player struct from the line then error but keep going
 		if err != nil {
-			// fmt.Println("error unmarshaling json: ", err)
 			continue
 		}
 
@@ -75,8 +81,9 @@ func parseRepeatedJSON(file []byte) ([]Player, error) {
 		dataSlice = append(dataSlice, player)
 	}
 
+	// if the data slice is empty
 	if len(dataSlice) == 0 {
-		return nil, errors.New("the file is likely not [2] RepeatedJSON")
+		return nil, errors.New("[2] the file is likely empty")
 	}
 
 	return dataSlice, nil
@@ -91,12 +98,12 @@ func parseCSV(file []byte) ([]Player, error) {
 	// it means we have to use bytes.NewReader on the file... this is JANKY
 	reader := csv.NewReader(bytes.NewReader(file))
 
-	// try to parse the lines from the csv file
+	// try to read the lines from the csv file
 	lines, err := reader.ReadAll()
 
-	// if we can't
+	// if we can't read the lines from the csv file then error
 	if err != nil {
-		return nil, errors.New("the file is likely not [3] CSV")
+		return nil, errors.New("[2] the file is likely not [3] CSV")
 	}
 
 	// loop over each line
@@ -120,9 +127,9 @@ func parseCSV(file []byte) ([]Player, error) {
 		dataSlice = append(dataSlice, player)
 	}
 
-	// if the dataSlice is empty
+	// if the data slice is empty
 	if len(dataSlice) == 0 {
-		return nil, errors.New("the file is likely not [3] CSV")
+		return nil, errors.New("[2] the file is likely empty")
 	}
 
 	return dataSlice, nil
@@ -130,33 +137,30 @@ func parseCSV(file []byte) ([]Player, error) {
 
 func parseFile(file []byte) ([]Player, error) {
 	dataSlice, err := parseJSON(file)
-	if err != nil {
-		// temporary
-		fmt.Println(err)
-	}
+	// if err != nil {
+	// 	// fmt.Println(err)
+	// }
 	if err == nil {
 		return dataSlice, nil
 	}
 
 	dataSlice, err = parseRepeatedJSON(file)
-	if err != nil {
-		// temporary
-		fmt.Println(err)
-	}
+	// if err != nil {
+	// 	// fmt.Println(err)
+	// }
 	if err == nil {
 		return dataSlice, nil
 	}
 
 	dataSlice, err = parseCSV(file)
-	if err != nil {
-		// temporary
-		fmt.Println(err)
-	}
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
 	if err == nil {
 		return dataSlice, nil
 	}
 
-	return nil, errors.New("could not parse the file")
+	return nil, fmt.Errorf("[1] could not parse the file: %w", err)
 }
 
 // (!) implement an error here
@@ -184,11 +188,13 @@ func main() {
 	// [2] RepeatedJSON
 	// file, err := os.ReadFile("examples/repeated-json.txt")
 	// [3] CSV
-	file, err := os.ReadFile("examples/data.csv")
+	// file, err := os.ReadFile("examples/data.csv")
+
+	file, err := os.ReadFile("examples/empty.txt")
 
 	// if we can't read the file then error
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading the file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "[0] error reading the file: %v\n", err)
 		os.Exit(2)
 	}
 
@@ -196,7 +202,13 @@ func main() {
 
 	// if we can't parse the file then error
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing data from the file\n")
+		fmt.Fprintf(os.Stderr, "[0] error parsing data from the file: %v\n", err)
+		os.Exit(2)
+	}
+
+	// if the dataSlice is empty
+	if len(dataSlice) == 0 {
+		fmt.Fprintf(os.Stderr, "[0] the file likely contains no data\n")
 		os.Exit(2)
 	}
 
@@ -204,7 +216,7 @@ func main() {
 
 	// if we can't get the highest/lowest scoring players then error
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error getting the highest/lowest scoring players\n")
+		fmt.Fprintf(os.Stderr, "[0] error getting the highest/lowest scoring players: %v\n", err)
 		os.Exit(2)
 	}
 
