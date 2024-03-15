@@ -31,9 +31,6 @@ func parseResponseBody(response *http.Response) (string, error) {
 		return "", fmt.Errorf("[2] failed to read response body : %w", err)
 	}
 
-	// use the defer keyword early to close the body regardless
-	defer response.Body.Close()
-
 	return string(responseBody), nil
 }
 
@@ -137,6 +134,11 @@ func makeGetRequest(url string) (string, time.Duration, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("[0] request failed: %w", err)
 	}
+
+	// we must Close the body to signal to Go that we are done with the Response
+	// so it can release all the allocated resources
+	// use the defer keyword early to close the body regardless of the outcome
+	defer response.Body.Close()
 
 	// send the response to the status code handler
 	responseBody, retryDuration, err := handleStatusCode(response)
