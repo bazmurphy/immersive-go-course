@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -89,7 +90,7 @@ func parseRepeatedJSON(file []byte) ([]Player, error) {
 	return dataSlice, nil
 }
 
-// [2] CSV
+// [3] CSV
 func parseCSV(file []byte) ([]Player, error) {
 	// initialise a slice of structs
 	var dataSlice []Player
@@ -104,6 +105,10 @@ func parseCSV(file []byte) ([]Player, error) {
 	// if we can't read the lines from the csv file then error
 	if err != nil {
 		return nil, errors.New("[2] the file is likely not [3] CSV")
+	}
+
+	if len(lines) > 0 {
+		return nil, errors.New("[2] no lines found in the file")
 	}
 
 	// loop over each line
@@ -135,6 +140,74 @@ func parseCSV(file []byte) ([]Player, error) {
 	return dataSlice, nil
 }
 
+// BIG ENDIAN (starts with fe ff) (00 at the end is the null terminator)
+// data is displayed in groups of 2 bytes
+// each group representing a hexadecimal value
+// byte order where most significant byte is stored first
+
+// 0000000 [fe ff] [00 00 00 0a] 41 79 61 00 00 00 00 1e 50 72
+// 0000020 69 73 68 61 00 ff ff ff ff 43 68 61 72 6c 69 65
+// 0000040 00 00 00 00 19 4d 61 72 67 6f 74 [00]
+// 0000054
+
+// LITTLE ENDIAN (starts with ff fe) (00 at the end is the null terminator)
+// data is displayed in groups of 2 bytes
+// each group representing a hexadecimal value
+// byte order where least significant byte is stored first
+
+// 0000000 [ff fe] [0a 00 00 00] 41 79 61 00 1e 00 00 00 50 72
+// 0000020 69 73 68 61 00 ff ff ff ff 43 68 61 72 6c 69 65
+// 0000040 00 19 00 00 00 4d 61 72 67 6f 74 [00]
+// 0000054
+
+// [4] BINARY
+func parseBinary(file []byte) ([]Player, error) {
+	var bigEndian bool
+	var littleEndian bool
+	fmt.Println(bigEndian, littleEndian) // temporary
+
+	// check the first two bytes of the file
+	// if they are "fe ff" it is big endian
+	// if they are "ff fe" is is little endian
+	if file[0] == 0xfe && file[1] == 0xff {
+		fmt.Println("Big Endian")
+		bigEndian = true
+	} else if file[0] == 0xff && file[1] == 0xfe {
+		fmt.Println("Little Endian")
+		littleEndian = true
+	} else {
+		fmt.Println("could not establish Endianness")
+	}
+
+	// each record contains exactly four bytes
+	// representing the score as a signed 32-bit integer (in the above endian format)
+	// then the name of the player stored in UTF-8
+	// which may not contain a null character, followed by a null terminating character
+
+	var startIndex int
+	var EndIndex int
+	fmt.Println(startIndex, EndIndex) // temporary
+
+	// start at index 2 (skipping the first two bytes)
+	for index := 2; index < len(file); index++ {
+		// print out the bytes in the slice in various formats
+		fmt.Printf("slice index: %2d | Binary: %08b | Bytes (as an Integer): %3v | Hexadecimal: %2x | Decimal: %3d | ASCII : %c\n", index, file[index], file[index], file[index], file[index], file[index])
+	}
+
+	// test to extract the first score
+	var firstScore int32
+
+	if bigEndian {
+		firstScore = int32(binary.BigEndian.Uint32(file[2:6]))
+		fmt.Println("firstScore", firstScore)
+	} else if littleEndian {
+		firstScore = int32(binary.LittleEndian.Uint32(file[2:6]))
+		fmt.Println("firstScore", firstScore)
+	}
+
+	return nil, nil
+}
+
 func parseFile(file []byte) ([]Player, error) {
 	dataSlice, err := parseJSON(file)
 	// if err != nil {
@@ -153,6 +226,14 @@ func parseFile(file []byte) ([]Player, error) {
 	}
 
 	dataSlice, err = parseCSV(file)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	if err == nil {
+		return dataSlice, nil
+	}
+
+	dataSlice, err = parseBinary(file)
 	// if err != nil {
 	// 	fmt.Println(err)
 	// }
@@ -189,8 +270,10 @@ func main() {
 	// file, err := os.ReadFile("examples/repeated-json.txt")
 	// [3] CSV
 	// file, err := os.ReadFile("examples/data.csv")
-
-	file, err := os.ReadFile("examples/empty.txt")
+	// [4] Binary (Big Endian)
+	file, err := os.ReadFile("examples/custom-binary-be.bin")
+	// [4] Binary (Little Endian)
+	// file, err := os.ReadFile("examples/custom-binary-le.bin")
 
 	// if we can't read the file then error
 	if err != nil {
@@ -206,7 +289,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	// if the dataSlice is empty
+	// if the dataSlice is empty then error
 	if len(dataSlice) == 0 {
 		fmt.Fprintf(os.Stderr, "[0] the file likely contains no data\n")
 		os.Exit(2)
