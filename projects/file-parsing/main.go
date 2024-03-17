@@ -262,7 +262,30 @@ func attemptToParse(file []byte) ([]Player, error) {
 	return nil, fmt.Errorf("[2] could not parse the file: %w", err)
 }
 
-// (!) implement an error here
+func parseFile(filename string) ([]Player, error) {
+	// try to read the file
+	file, err := os.ReadFile(filename)
+
+	// if we can't read the file then error
+	if err != nil {
+		return nil, errors.New("[1] error reading the file")
+	}
+
+	dataSlice, err := attemptToParse(file)
+
+	// if we can't parse the file then error
+	if err != nil {
+		return nil, errors.New("[1] error parsing data from the file")
+	}
+
+	// if the dataSlice is empty then error
+	if len(dataSlice) == 0 {
+		return nil, errors.New("[1] the file likely contains no data")
+	}
+
+	return dataSlice, nil
+}
+
 func getHighestLowestScorePlayers(jsonDataSlice []Player) (Player, Player, error) {
 	// create two variables to hold the highest/lowest scoring players
 	var playerWithHighestScore Player
@@ -278,41 +301,6 @@ func getHighestLowestScorePlayers(jsonDataSlice []Player) (Player, Player, error
 	}
 
 	return playerWithHighestScore, playerWithLowestScore, nil
-}
-
-func parseFile(filename string) error {
-	// try to read the file
-	file, err := os.ReadFile(filename)
-
-	// if we can't read the file then error
-	if err != nil {
-		return errors.New("[1] error reading the file")
-	}
-
-	dataSlice, err := attemptToParse(file)
-
-	// if we can't parse the file then error
-	if err != nil {
-		return errors.New("[1] error parsing data from the file")
-	}
-
-	// if the dataSlice is empty then error
-	if len(dataSlice) == 0 {
-		return errors.New("[1] the file likely contains no data")
-	}
-
-	// try to get the highest/lowest scoring players
-	playerWithHighestScore, playerWithLowestScore, err := getHighestLowestScorePlayers(dataSlice)
-
-	// if we can't get the highest/lowest scoring players then error
-	if err != nil {
-		return errors.New("[1] error getting the highest/lowest scoring players")
-	}
-
-	// print the highest/lowest scoring players
-	fmt.Fprintf(os.Stdout, "%s had the highest score! (%d)\n%s had the lowest score! (%d)\n", playerWithHighestScore.Name, playerWithHighestScore.HighScore, playerWithLowestScore.Name, playerWithLowestScore.HighScore)
-
-	return nil
 }
 
 func main() {
@@ -332,12 +320,24 @@ func main() {
 		filePath := fmt.Sprintf("%s/%s", examplesDirectory, exampleFile.Name())
 
 		// try to parse the file
-		err := parseFile(filePath)
+		dataSlice, err := parseFile(filePath)
 
+		// if we can't parse the parse then error
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[0] error parsing data from the file: %v\n", err)
 			os.Exit(2)
 		}
-	}
 
+		// try to get the highest/lowest scoring players
+		playerWithHighestScore, playerWithLowestScore, err := getHighestLowestScorePlayers(dataSlice)
+
+		// if we can't get the highest/lowest scoring players then error
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[0] error getting the highest/lowest scoring players")
+			os.Exit(2)
+		}
+
+		// print the highest/lowest scoring players
+		fmt.Fprintf(os.Stdout, "%s had the highest score! (%d)\n%s had the lowest score! (%d)\n", playerWithHighestScore.Name, playerWithHighestScore.HighScore, playerWithLowestScore.Name, playerWithLowestScore.HighScore)
+	}
 }
