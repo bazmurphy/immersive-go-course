@@ -267,7 +267,7 @@ func attemptToParse(file []byte) ([]Player, error) {
 		return dataSlice, nil
 	}
 
-	return nil, fmt.Errorf("[2] could not parse the file: %w", err)
+	return nil, errors.New("[2] could not parse the file")
 }
 
 func parseFile(filename string) ([]Player, error) {
@@ -311,29 +311,29 @@ func getHighestLowestScorePlayers(jsonDataSlice []Player) (Player, Player, error
 	return playerWithHighestScore, playerWithLowestScore, nil
 }
 
-func main() {
-	examplesDirectory := "examples"
+func parseFilesFromDirectory(directory string) error {
+	// get a list of files from the directory
+	files, err := os.ReadDir(directory)
 
-	// get a list of files from the examples directory
-	exampleFiles, err := os.ReadDir(examplesDirectory)
-
+	// if we couldn't read the directory
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[0] cannot find any example files: %v\n", err)
-		os.Exit(2)
+		return errors.New("[0] cannot find that directory")
 	}
 
-	// loop over the example files and run parseFile()
-	for _, exampleFile := range exampleFiles {
+	// loop over the files and try to parse each
+	for _, file := range files {
+		// optional message
+		fmt.Fprintf(os.Stderr, "--> attempting to parse %s\n", file.Name())
+
 		// dynamically build the file path
-		filePath := fmt.Sprintf("%s/%s", examplesDirectory, exampleFile.Name())
+		filePath := fmt.Sprintf("%s/%s", directory, file.Name())
 
 		// try to parse the file
 		dataSlice, err := parseFile(filePath)
 
-		// if we can't parse the parse then error
+		// if we can't parse the file then error
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[0] error parsing data from the file: %v\n", err)
-			os.Exit(2)
+			return errors.New("[0] error parsing data from the file")
 		}
 
 		// try to get the highest/lowest scoring players
@@ -341,11 +341,20 @@ func main() {
 
 		// if we can't get the highest/lowest scoring players then error
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[0] error getting the highest/lowest scoring players")
-			os.Exit(2)
+			return errors.New("[0] error getting the highest/lowest scoring players")
 		}
 
 		// print the highest/lowest scoring players
 		fmt.Fprintf(os.Stdout, "%s had the highest score! (%d)\n%s had the lowest score! (%d)\n", playerWithHighestScore.Name, playerWithHighestScore.HighScore, playerWithLowestScore.Name, playerWithLowestScore.HighScore)
+	}
+
+	return nil
+}
+
+func main() {
+	err := parseFilesFromDirectory("examples")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", err)
+		os.Exit(2)
 	}
 }
