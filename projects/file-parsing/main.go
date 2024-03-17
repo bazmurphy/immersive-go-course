@@ -267,7 +267,7 @@ func attemptToParse(file []byte) ([]Player, error) {
 		return dataSlice, nil
 	}
 
-	return nil, errors.New("[2] could not parse the file")
+	return nil, fmt.Errorf("[2] could not parse the file: %w", err)
 }
 
 func parseFile(filename string) ([]Player, error) {
@@ -276,19 +276,19 @@ func parseFile(filename string) ([]Player, error) {
 
 	// if we can't read the file then error
 	if err != nil {
-		return nil, errors.New("[1] error reading the file")
+		return nil, fmt.Errorf("[1] error reading the file: %w", err)
 	}
 
 	dataSlice, err := attemptToParse(file)
 
 	// if we can't parse the file then error
 	if err != nil {
-		return nil, errors.New("[1] error parsing data from the file")
+		return nil, fmt.Errorf("[1] error parsing data from the file: %w", err)
 	}
 
 	// if the dataSlice is empty then error
 	if len(dataSlice) == 0 {
-		return nil, errors.New("[1] the file likely contains no data")
+		return nil, fmt.Errorf("[1] the file likely contains no data: %w", err)
 	}
 
 	return dataSlice, nil
@@ -317,7 +317,7 @@ func parseFilesFromDirectory(directory string) error {
 
 	// if we couldn't read the directory
 	if err != nil {
-		return errors.New("[0] cannot find that directory")
+		return fmt.Errorf("[0] cannot find that directory: %w", err)
 	}
 
 	// loop over the files and try to parse each
@@ -333,7 +333,7 @@ func parseFilesFromDirectory(directory string) error {
 
 		// if we can't parse the file then error
 		if err != nil {
-			return errors.New("[0] error parsing data from the file")
+			return fmt.Errorf("[0] error parsing data from the file: %w", err)
 		}
 
 		// try to get the highest/lowest scoring players
@@ -341,7 +341,7 @@ func parseFilesFromDirectory(directory string) error {
 
 		// if we can't get the highest/lowest scoring players then error
 		if err != nil {
-			return errors.New("[0] error getting the highest/lowest scoring players")
+			return fmt.Errorf("[0] error getting the highest/lowest scoring players: %w", err)
 		}
 
 		// print the highest/lowest scoring players
