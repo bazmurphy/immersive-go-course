@@ -21,7 +21,7 @@ type Player struct {
 
 // [1] JSON
 func parseJSON(file []byte, dataSlice *[]Player) error {
-	// try to "unmarshal" the data from the json file into the jsonDataSlice variable
+	// try to "unmarshal" the data from the json file into the data slice variable
 	err := json.Unmarshal(file, &dataSlice)
 
 	// if we fail to "unmarshal" the json file then error
@@ -43,7 +43,7 @@ func parseRepeatedJSON(file []byte, dataSlice *[]Player) error {
 	lines := strings.Split(string(file), "\n")
 
 	// if no lines were parsed then error
-	if len(lines) < 1 {
+	if len(lines) == 0 {
 		return errors.New("[3] could not parse any data in repeated JSON format")
 	}
 
@@ -117,7 +117,7 @@ func parseCSV(file []byte, dataSlice *[]Player) error {
 		name := line[0]
 
 		// the player has no name so skip
-		if len(name) < 1 {
+		if len(name) == 0 {
 			continue
 		}
 
