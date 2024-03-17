@@ -101,11 +101,18 @@ func parseCSV(file []byte, dataSlice *[]Player) error {
 		return errors.New("[3] could not parse any data in CSV format")
 	}
 
-	// (!!!) if we try to read one of the binary files it gives us this: [[��] [AyaPrisha����CharlieMargot]]
-	// which is NOT CSV but passes beyond the error check and then causes a panic
-
 	// loop over each line
 	for _, line := range lines {
+
+		// (!!!) if we try to read one of the binary files it gives us this: [[��] [AyaPrisha����CharlieMargot]]
+		// so we need to add an additional check here:
+
+		// if the line does not have 2 values (highscore, name) then skip
+		// ((!) this is brittle if a line has valid data but random extra values etc)
+		if len(line) != 2 {
+			continue
+		}
+
 		// get the player name
 		name := line[0]
 
@@ -225,36 +232,37 @@ func attemptToParse(file []byte) ([]Player, error) {
 	// initialise a slice of Player structs
 	var dataSlice []Player
 
-	// doing this sequentially isn't great... how to establish what type of file it is before attempting to parse it(?)
+	// doing this sequentially isn't great...
+	// how to establish what type of file it is before attempting to parse it?
 
 	err := parseJSON(file, &dataSlice)
-	if err != nil {
-		fmt.Println(err) // temporary
-	}
+	// if err != nil {
+	// 	fmt.Println(err) // temporary
+	// }
 	if err == nil {
 		return dataSlice, nil
 	}
 
 	err = parseRepeatedJSON(file, &dataSlice)
-	if err != nil {
-		fmt.Println(err) // temporary
-	}
+	// if err != nil {
+	// 	fmt.Println(err) // temporary
+	// }
 	if err == nil {
 		return dataSlice, nil
 	}
 
 	err = parseCSV(file, &dataSlice)
-	if err != nil {
-		fmt.Println(err) // temporary
-	}
+	// if err != nil {
+	// 	fmt.Println(err) // temporary
+	// }
 	if err == nil {
 		return dataSlice, nil
 	}
 
 	err = parseBinary(file, &dataSlice)
-	if err != nil {
-		fmt.Println(err) // temporary
-	}
+	// if err != nil {
+	// 	fmt.Println(err) // temporary
+	// }
 	if err == nil {
 		return dataSlice, nil
 	}
