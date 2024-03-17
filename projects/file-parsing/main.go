@@ -294,13 +294,18 @@ func parseFile(filename string) ([]Player, error) {
 	return dataSlice, nil
 }
 
-func getHighestLowestScorePlayers(jsonDataSlice []Player) (Player, Player, error) {
+func getHighestLowestScorePlayers(dataSlice []Player) (Player, Player, error) {
+	// check if the slice of structs is empty
+	if len(dataSlice) == 0 {
+		return Player{}, Player{}, errors.New("[1] the parsed data contains no players")
+	}
+
 	// create two variables to hold the highest/lowest scoring players
 	var playerWithHighestScore Player
 	var playerWithLowestScore Player
 
 	// loop over the slice of structs and establish the highest/lowest scoring players
-	for _, player := range jsonDataSlice {
+	for _, player := range dataSlice {
 		if player.HighScore > playerWithHighestScore.HighScore {
 			playerWithHighestScore = player
 		} else if player.HighScore < playerWithLowestScore.HighScore {
