@@ -101,7 +101,7 @@ func TestParseCSV(t *testing.T) {
 		err := parseCSV(validCSV, &dataSlice)
 
 		if err != nil {
-			t.Errorf("got %q | want no err", err)
+			t.Errorf("got %q | want no error", err)
 		}
 
 		if len(dataSlice) != 3 {
