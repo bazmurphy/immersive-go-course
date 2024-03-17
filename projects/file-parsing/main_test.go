@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -77,6 +78,50 @@ func TestParseRepeatedJSON(t *testing.T) {
 		err := parseRepeatedJSON(invalidRepeatedJSON, &dataSlice)
 
 		wantErr := errors.New("[3] could not parse any data in repeated JSON format")
+
+		if err == nil {
+			t.Errorf("got no error | want %q", wantErr)
+		}
+
+		if len(dataSlice) != 0 {
+			t.Errorf("got %d | want %d", len(dataSlice), 0)
+		}
+	})
+}
+
+func TestParseCSV(t *testing.T) {
+	t.Run("valid CSV", func(t *testing.T) {
+		validCSV := []byte(
+			`playerOne,50
+			playerTwo,0
+			playerThree,25`)
+
+		var dataSlice []Player
+
+		err := parseCSV(validCSV, &dataSlice)
+
+		if err != nil {
+			t.Errorf("got %q | want no err", err)
+		}
+
+		if len(dataSlice) != 3 {
+			t.Errorf("got %d | want %d", len(dataSlice), 3)
+		}
+
+	})
+	t.Run("invalid CSV", func(t *testing.T) {
+		invalidCSV := []byte(
+			`playerOne,50
+			playerTwo,0,anotherValue
+			playerThree,25`)
+
+		var dataSlice []Player
+
+		err := parseCSV(invalidCSV, &dataSlice)
+
+		fmt.Println(err)
+
+		wantErr := "[3] could not parse any data in CSV format"
 
 		if err == nil {
 			t.Errorf("got no error | want %q", wantErr)
