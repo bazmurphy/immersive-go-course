@@ -20,7 +20,7 @@ import (
 // (!) ` ` are struct tags, it provides metadata which can be used by Go packages like encoding/json, otherwise the unmarshal will use the field names
 type Player struct {
 	Name      string `json:"name"`
-	HighScore int    `json:"high_score"`
+	HighScore int32  `json:"high_score"`
 }
 
 // [1] JSON
@@ -113,23 +113,24 @@ func parseCSV(file []byte) ([]Player, error) {
 
 	// loop over each line
 	for _, line := range lines {
-		// intialise a player
-		var player Player
+		// get the player name
+		name := line[0]
 
-		// set the player name
-		player.Name = line[0]
+		if len(name) < 1 {
+			// the player has no name so skip
+			continue
+		}
 
-		// convert the string to an integer
-		// set the player high score
-		player.HighScore, err = strconv.Atoi(line[1])
+		//  parse the string to get the score ((!) this is of type int not int32)
+		highScore, err := strconv.Atoi(line[1])
 
 		if err != nil {
-			// player has no high score value then skip
+			// the player has no high score so skip
 			continue
 		}
 
 		// add the player to the dataSlice
-		dataSlice = append(dataSlice, player)
+		dataSlice = append(dataSlice, Player{Name: name, HighScore: int32(highScore)})
 	}
 
 	// if the data slice is empty
@@ -162,50 +163,71 @@ func parseCSV(file []byte) ([]Player, error) {
 
 // [4] BINARY
 func parseBinary(file []byte) ([]Player, error) {
-	var bigEndian bool
-	var littleEndian bool
-	fmt.Println(bigEndian, littleEndian) // temporary
-
-	// check the first two bytes of the file
-	// if they are "fe ff" it is big endian
-	// if they are "ff fe" is is little endian
-	if file[0] == 0xfe && file[1] == 0xff {
-		fmt.Println("Big Endian")
-		bigEndian = true
-	} else if file[0] == 0xff && file[1] == 0xfe {
-		fmt.Println("Little Endian")
-		littleEndian = true
-	} else {
-		fmt.Println("could not establish Endianness")
-	}
-
 	// each record contains exactly four bytes
 	// representing the score as a signed 32-bit integer (in the above endian format)
 	// then the name of the player stored in UTF-8
 	// which may not contain a null character, followed by a null terminating character
 
-	var startIndex int
-	var EndIndex int
-	fmt.Println(startIndex, EndIndex) // temporary
+	// // start at index 2 (skipping the first two bytes)
+	// for index := 2; index < len(file); index++ {
+	// 	// print out the bytes in the slice in various formats
+	// 	fmt.Printf("slice index: %2d | Binary: %08b | Bytes (as an Integer): %3v | Hexadecimal: %2x | Decimal: %3d | ASCII : %c\n", index, file[index], file[index], file[index], file[index], file[index])
+	// }
 
-	// start at index 2 (skipping the first two bytes)
-	for index := 2; index < len(file); index++ {
-		// print out the bytes in the slice in various formats
-		fmt.Printf("slice index: %2d | Binary: %08b | Bytes (as an Integer): %3v | Hexadecimal: %2x | Decimal: %3d | ASCII : %c\n", index, file[index], file[index], file[index], file[index], file[index])
+	// initialise a slice of structs
+	var dataSlice []Player
+
+	var bigEndian bool
+	var littleEndian bool
+
+	// check the first two bytes of the file (deliberately using byte() to be explicit)
+	// if they are "fe ff" it is big endian
+	// if they are "ff fe" is is little endian
+	if file[0] == byte(0xfe) && file[1] == byte(0xff) {
+		bigEndian = true
+	} else if file[0] == byte(0xff) && file[1] == byte(0xfe) {
+		littleEndian = true
+	} else {
+		// (!) early exit here
+		fmt.Println("could not establish Endianness")
 	}
 
-	// test to extract the first score
-	var firstScore int32
+	// set the start pointer to 2 to skip the first two bytes (which contain the Byte Order Mark BOM)
+	// then loop over the byte slice
+	for startIndex := 2; startIndex < len(file); {
+		// initialise a variable to store the high score
+		var highScore int32
 
-	if bigEndian {
-		firstScore = int32(binary.BigEndian.Uint32(file[2:6]))
-		fmt.Println("firstScore", firstScore)
-	} else if littleEndian {
-		firstScore = int32(binary.LittleEndian.Uint32(file[2:6]))
-		fmt.Println("firstScore", firstScore)
+		// parse the high score (signed 32-bit integer) based on the Endianness
+		// (!) but why are we using Uint32 method (when we know its "signed") and then converting it to int32 (presumably "signed").. where is the native xEndian.Int32 method?
+		if bigEndian {
+			highScore = int32(binary.BigEndian.Uint32(file[startIndex : startIndex+4]))
+		} else if littleEndian {
+			highScore = int32(binary.LittleEndian.Uint32(file[startIndex : startIndex+4]))
+		}
+
+		// increment the start pointer by 4
+		startIndex += 4
+
+		// set the end pointer to the start pointer
+		EndIndex := startIndex
+
+		// walk the end pointer along, while the value is not a null terminator (deliberately using byte() to be explicit)
+		for file[EndIndex] != byte(0x00) {
+			EndIndex++
+		}
+
+		// parse the player name (UTF-8)
+		name := string(file[startIndex:EndIndex])
+
+		// add the player to the dataSlice
+		dataSlice = append(dataSlice, Player{Name: name, HighScore: highScore})
+
+		// adjust the start pointer to skip past the null terminator
+		startIndex = EndIndex + 1
 	}
 
-	return nil, nil
+	return dataSlice, nil
 }
 
 func parseFile(file []byte) ([]Player, error) {
@@ -264,16 +286,11 @@ func getHighestLowestScorePlayers(jsonDataSlice []Player) (Player, Player, error
 
 func main() {
 	// try to read the file
-	// [1] JSON
 	// file, err := os.ReadFile("examples/json.txt")
-	// [2] RepeatedJSON
 	// file, err := os.ReadFile("examples/repeated-json.txt")
-	// [3] CSV
 	// file, err := os.ReadFile("examples/data.csv")
-	// [4] Binary (Big Endian)
-	file, err := os.ReadFile("examples/custom-binary-be.bin")
-	// [4] Binary (Little Endian)
-	// file, err := os.ReadFile("examples/custom-binary-le.bin")
+	// file, err := os.ReadFile("examples/custom-binary-be.bin")
+	file, err := os.ReadFile("examples/custom-binary-le.bin")
 
 	// if we can't read the file then error
 	if err != nil {
