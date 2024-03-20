@@ -14,7 +14,8 @@ func TestBytesBuffer(t *testing.T) {
 		want := []byte{1, 2, 3}
 
 		// create a new buffer instance with the bytes
-		b := bytes.NewBuffer(want)
+		// b := bytes.NewBuffer(want)
+		b := NewOurBuffer(want)
 
 		// get the bytes from the buffer using the Bytes() method
 		got := b.Bytes()
@@ -30,7 +31,8 @@ func TestBytesBuffer(t *testing.T) {
 		initialBytes := []byte{1, 2, 3}
 
 		// create a new buffer instance with the initial bytes
-		b := bytes.NewBuffer(initialBytes)
+		// b := bytes.NewBuffer(initialBytes)
+		b := NewOurBuffer(initialBytes)
 
 		// create a byte slice with extra bytes
 		extraBytes := []byte{4, 5, 6}
@@ -65,7 +67,8 @@ func TestBytesBuffer(t *testing.T) {
 		initialBytes := []byte{1, 2, 3}
 
 		// create a new buffer instance with the initial bytes
-		b := bytes.NewBuffer(initialBytes)
+		// b := bytes.NewBuffer(initialBytes)
+		b := NewOurBuffer(initialBytes)
 
 		// make a byte slice with a size of the buffer length
 		bytesStoreSlice := make([]byte, b.Len())
@@ -94,7 +97,8 @@ func TestBytesBuffer(t *testing.T) {
 		initialBytes := []byte{1, 2, 3, 4, 5, 6, 7}
 
 		// create a new buffer instance with the initial bytes
-		b := bytes.NewBuffer(initialBytes)
+		// b := bytes.NewBuffer(initialBytes)
+		b := NewOurBuffer(initialBytes)
 
 		// initialise some slices to keep track of:
 		var byteReadValueHistory [][]byte // the byte values read from the buffer each read
