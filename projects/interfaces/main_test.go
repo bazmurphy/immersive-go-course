@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-// ---------- Testing OurBytesBuffer
-
 func TestOurBytesBuffer(t *testing.T) {
 	t.Run("returns the same bytes it was created with", func(t *testing.T) {
 		// create a byte slice with bytes
