@@ -187,7 +187,7 @@ func TestFilteringPipe(t *testing.T) {
 			// get the output string from the buffer
 			got := someWriter.String()
 
-			// if the output (got) doesn't match the expected output (want)
+			// error if the output (got) doesn't match the expected output (want)
 			if got != testCase.want {
 				t.Errorf("got %v | want %v", got, testCase.want)
 			}
