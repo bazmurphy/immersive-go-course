@@ -1,13 +1,19 @@
 package main
 
-import "io"
+import (
+	"io"
+	"unicode"
+)
+
+// ---------- Implementing our own bytes.Buffer
 
 // the original Buffer type definition:
-// type Buffer struct {
-// 	buf      []byte // contents are the bytes buf[off : len(buf)]
-// 	off      int    // read at &buf[off], write at &buf[len(buf)]
-// 	lastRead readOp // last read operation, so that Unread* can work correctly.
-// }
+//
+//	type Buffer struct {
+//		buf      []byte // contents are the bytes buf[off : len(buf)]
+//		off      int    // read at &buf[off], write at &buf[len(buf)]
+//		lastRead readOp // last read operation, so that Unread* can work correctly.
+//	}
 type OurByteBuffer struct {
 	buf []byte
 }
@@ -69,4 +75,54 @@ func NewOurBuffer(initialByteSlice []byte) *OurByteBuffer {
 	// and populate the buffer with the initialByteSlice
 	// returning a pointer to the new OurByteBuffer instance
 	return &OurByteBuffer{buf: initialByteSlice}
+}
+
+// ---------- Implementing a custom filter
+
+// define a new struct
+// it's only field is a writer of type io.Writer
+type FilteringPipe struct {
+	writer io.Writer
+}
+
+// the original io.Writer Write() method
+// Write(p []byte) (n int, err error)
+func (fp *FilteringPipe) Write(p []byte) (int, error) {
+	// create a new slice to store the filtered bytes in
+	var filteredBytesSlice []byte
+
+	// loop through the slice of bytes (that was passed in as an argument)
+	for _, byte := range p {
+		// if the byte is not a digit
+		if !unicode.IsDigit(rune(byte)) {
+			// then append it to the slice
+			filteredBytesSlice = append(filteredBytesSlice, byte)
+		}
+	}
+
+	// check the filteredBytesSlice
+	// fmt.Println(string(filteredBytesSlice))
+
+	// but how to return the filteredBytesSlice correctly?
+
+	// Searched and found this.. but I _REALLY_ don't understand it...
+	return fp.writer.Write(filteredBytesSlice)
+
+	// This line calls the Write() method of the underlying writer (writer) that's embedded within the FilteringPipe struct.
+	// It passes the filteredBytesSlice to this writer, essentially sending the filtered data to the next stage in the pipeline.
+	// This allows you to chain multiple filters or write the filtered data to a file, network socket, or any other destination that supports writing.
+
+	// The Write() method of the FilteringPipe does not directly return the filtered bytes themselves.
+	// Instead, it returns the values returned by the Write() method of the embedded writer.
+
+	// The Write() method filters the input data, removes digits, and forwards the filtered bytes to the underlying writer.
+	// It propagates the return values from the underlying writer to provide information about the write operation's success or failure.
+	// This mechanism enables you to chain multiple filters or write the filtered data to any destination that implements the io.Writer interface.
+
+	// By returning the results of the underlying writer's Write() method, the FilteringPipe maintains consistency with the io.Writer interface and enables seamless integration with other parts of the Go I/O system.
+}
+
+// constructor for FilteringPipe, it takes in an io.Writer as an argument
+func NewFilteringPipe(w io.Writer) *FilteringPipe {
+	return &FilteringPipe{writer: w}
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestBytesBuffer(t *testing.T) {
+func TestOurBytesBuffer(t *testing.T) {
 
 	t.Run("returns the same bytes it was created with", func(t *testing.T) {
 		// create a byte slice with bytes
@@ -138,6 +138,7 @@ func TestBytesBuffer(t *testing.T) {
 		expectedByteReadNumberHistory := []int{2, 2, 2, 1}
 		expectedBytesRemaining := []byte{}
 
+		// reflect is resource intensive(?)... how else can i make object comparisons on pass by reference types: struct, slice, map, etc)
 		if !reflect.DeepEqual(byteReadNumberHistory, expectedByteReadNumberHistory) {
 			t.Errorf("byteReadNumberHistory: got %v | want %v", byteReadNumberHistory, expectedByteReadNumberHistory)
 		}
@@ -150,4 +151,34 @@ func TestBytesBuffer(t *testing.T) {
 			t.Errorf("bytesRemaining: got %v | want %v", bytesRemaining, expectedBytesRemaining)
 		}
 	})
+}
+
+func TestFilteringPipe(t *testing.T) {
+
+	type TestCase struct {
+		input string
+		want  string
+	}
+
+	testCases := []TestCase{
+		{input: "start=1, end=10", want: "start=, end="},
+		{input: "hello123 goodbye456", want: "hello goodbye"},
+		{input: "010101binary010101", want: "binary"},
+		{input: "010101", want: ""},
+		{input: "abcdef999999999", want: "abcdef"},
+	}
+
+	for _, testCase := range testCases {
+		someWriter := &bytes.Buffer{}
+
+		filteringPipe := NewFilteringPipe(someWriter)
+
+		filteringPipe.Write([]byte(testCase.input))
+
+		got := someWriter.String()
+
+		if string(got) != testCase.want {
+			t.Fatalf("got %v | want %v", got, testCase.want)
+		}
+	}
 }
