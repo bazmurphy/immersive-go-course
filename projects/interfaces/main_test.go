@@ -185,7 +185,7 @@ func TestFilteringPipe(t *testing.T) {
 		got := someWriter.String()
 
 		// if the output (got) doesn't match the expected output (want)
-		if string(got) != testCase.want {
+		if got != testCase.want {
 			t.Fatalf("got %v | want %v", got, testCase.want)
 		}
 	}
