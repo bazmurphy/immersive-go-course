@@ -38,7 +38,8 @@ func (b *OurByteBuffer) Write(p []byte) (int, error) {
 func (b *OurByteBuffer) Read(p []byte) (int, error) {
 	// if the buffer is empty then return 0 and io.EOF
 	if len(b.buf) == 0 {
-		// EOF stands for End of File
+		// Q: What is is.EOF ?
+		// A: EOF stands for End of File
 		// When a function returns io.EOF, it means that there's no more data to be read from the input source.
 		return 0, io.EOF
 	}
