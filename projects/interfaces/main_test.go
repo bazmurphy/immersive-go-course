@@ -7,8 +7,9 @@ import (
 	"testing"
 )
 
-func TestOurBytesBuffer(t *testing.T) {
+// ---------- Testing OurBytesBuffer
 
+func TestOurBytesBuffer(t *testing.T) {
 	t.Run("returns the same bytes it was created with", func(t *testing.T) {
 		// create a byte slice with bytes
 		want := []byte{1, 2, 3}
@@ -156,37 +157,40 @@ func TestOurBytesBuffer(t *testing.T) {
 func TestFilteringPipe(t *testing.T) {
 	// define a struct to hold the test cases
 	type TestCase struct {
+		name  string
 		input string
 		want  string
 	}
 
 	// create a slice of test cases (of type TestCase)
 	testCases := []TestCase{
-		{input: "start=1, end=10", want: "start=, end="},
-		{input: "hello123 and456 goodbye789", want: "hello and goodbye"},
-		{input: "010101binary010101", want: "binary"},
-		{input: "010101", want: ""},
-		{input: "abcdef999999999", want: "abcdef"},
+		{name: "digits after equals", input: "start=1, end=10", want: "start=, end="},
+		{name: "digits after every word", input: "hello123 and456 goodbye789", want: "hello and goodbye"},
+		{name: "digits wrapping a word", input: "010101binary010101", want: "binary"},
+		{name: "digit/character pattern", input: "1x2y3z", want: "xyz"},
+		{name: "all digits", input: "010101", want: ""},
+		{name: "no digits", input: "abcdef", want: "abcdef"},
 	}
 
 	// loop over the test cases
 	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// create a new bytes.Buffer (this implements the io.Writer interface)
+			someWriter := &bytes.Buffer{}
 
-		// create a new bytes.Buffer (this implements the io.Writer interface)
-		someWriter := &bytes.Buffer{}
+			// create a new NewFilterPipe instance passing it the bytes.Buffer (as the io.Writer(?))
+			filteringPipe := NewFilteringPipe(someWriter)
 
-		// create a new NewFilterPipe instance passing it the bytes.Buffer (as the io.Writer(?))
-		filteringPipe := NewFilteringPipe(someWriter)
+			// write the input to the filter pipe
+			filteringPipe.Write([]byte(testCase.input))
 
-		// write the input to the filter pipe
-		filteringPipe.Write([]byte(testCase.input))
+			// get the output string from the buffer
+			got := someWriter.String()
 
-		// get the output string from the buffer
-		got := someWriter.String()
-
-		// if the output (got) doesn't match the expected output (want)
-		if got != testCase.want {
-			t.Fatalf("got %v | want %v", got, testCase.want)
-		}
+			// if the output (got) doesn't match the expected output (want)
+			if got != testCase.want {
+				t.Errorf("got %v | want %v", got, testCase.want)
+			}
+		})
 	}
 }
