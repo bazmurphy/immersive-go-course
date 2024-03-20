@@ -154,29 +154,37 @@ func TestOurBytesBuffer(t *testing.T) {
 }
 
 func TestFilteringPipe(t *testing.T) {
-
+	// define a struct to hold the test cases
 	type TestCase struct {
 		input string
 		want  string
 	}
 
+	// create a slice of test cases (of type TestCase)
 	testCases := []TestCase{
 		{input: "start=1, end=10", want: "start=, end="},
-		{input: "hello123 goodbye456", want: "hello goodbye"},
+		{input: "hello123 and456 goodbye789", want: "hello and goodbye"},
 		{input: "010101binary010101", want: "binary"},
 		{input: "010101", want: ""},
 		{input: "abcdef999999999", want: "abcdef"},
 	}
 
+	// loop over the test cases
 	for _, testCase := range testCases {
+
+		// create a new bytes.Buffer (this implements the io.Writer interface)
 		someWriter := &bytes.Buffer{}
 
+		// create a new NewFilterPipe instance passing it the bytes.Buffer (as the io.Writer(?))
 		filteringPipe := NewFilteringPipe(someWriter)
 
+		// write the input to the filter pipe
 		filteringPipe.Write([]byte(testCase.input))
 
+		// get the output string from the buffer
 		got := someWriter.String()
 
+		// if the output (got) doesn't match the expected output (want)
 		if string(got) != testCase.want {
 			t.Fatalf("got %v | want %v", got, testCase.want)
 		}
