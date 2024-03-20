@@ -12,14 +12,14 @@ type OurByteBuffer struct {
 	buf []byte
 }
 
-// the original buffer.Bytes() method signature:
+// the original Buffer Bytes() method signature:
 // func (b *Buffer) Bytes() []byte
 func (b *OurByteBuffer) Bytes() []byte {
 	// simply return the buffer
 	return b.buf
 }
 
-// the original buffer Write() method signature:
+// the original Buffer Write() method signature:
 // func (b *Buffer) Write(p []byte) (n int, err error)
 func (b *OurByteBuffer) Write(p []byte) (int, error) {
 	// Q: Why is no error returned from append(?)
@@ -33,11 +33,13 @@ func (b *OurByteBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// the original buffer Read() method signature:
+// the original Buffer Read() method signature:
 // func (b *Buffer) Read(p []byte) (n int, err error)
 func (b *OurByteBuffer) Read(p []byte) (int, error) {
 	// if the buffer is empty then return 0 and io.EOF
 	if len(b.buf) == 0 {
+		// EOF stands for End of File
+		// When a function returns io.EOF, it means that there's no more data to be read from the input source.
 		return 0, io.EOF
 	}
 
@@ -52,7 +54,7 @@ func (b *OurByteBuffer) Read(p []byte) (int, error) {
 	return numberOfElementsCopied, nil
 }
 
-// the original buffer Len() method signature:
+// the original Buffer Len() method signature:
 // func (b *Buffer) Len() int
 func (b *OurByteBuffer) Len() int {
 	// return the length of the buffer
