@@ -140,7 +140,7 @@ func TestCacheWithConcurrency(t *testing.T) {
 	// define a wait group
 	var wg sync.WaitGroup
 
-	// spawn 100 go routines
+	// spawn 100 goroutines
 	for i := 0; i < 100; i++ {
 		// increment the wait group counter
 		wg.Add(1)
@@ -148,12 +148,12 @@ func TestCacheWithConcurrency(t *testing.T) {
 		// create a dynamic key
 		dynamicKey := fmt.Sprintf("key-%d", i)
 
-		// spawn a new go routine
+		// spawn a new goroutine
 		go func() {
 			// decrement the wait group counter
 			defer wg.Done()
 
-			// in each go routine run a Put() and a Get() on the cache 100 times
+			// in each goroutine run a Put() and a Get() on the cache 100 times
 			for j := 0; j < 100; j++ {
 
 				// create a dynamic value
