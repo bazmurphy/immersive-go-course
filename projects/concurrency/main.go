@@ -1,5 +1,9 @@
 package main
 
+import (
+	"sync"
+)
+
 // ---------- Generics Learning
 // Cache is the name of the generic type
 // The square brackets [] indicate that this is a generic type declaration
@@ -13,6 +17,9 @@ type Cache[K comparable, V any] struct {
 
 	// a map to store the cache data in
 	data map[K]V
+
+	// a mutex to control the concurrent access to the data map
+	mu sync.Mutex
 
 	// need some way to remember what key was last accessed
 
@@ -42,6 +49,10 @@ func NewCache[K comparable, V any](entryLimit int) Cache[K, V] {
 // If there was previously a value, it replaces that value with this one.
 // Any Put counts as a refresh in terms of LRU tracking.
 func (c *Cache[K, V]) Put(key K, value V) bool {
+	// use the mutex to lock and unlock access
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// check if the key exists in the data map
 	_, ok := c.data[key]
 
@@ -67,6 +78,10 @@ func (c *Cache[K, V]) Put(key K, value V) bool {
 // If not, nil is returned as the value.
 // Any Get counts as a refresh in terms of LRU tracking.
 func (c *Cache[K, V]) Get(key K) (*V, bool) {
+	// use the mutex to lock and unlock access
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// try to find the key in the data map
 	value, ok := c.data[key]
 
