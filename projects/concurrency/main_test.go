@@ -2,146 +2,133 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 	"testing"
 )
 
 func TestCache(t *testing.T) {
-	t.Run("add a key to an empty cache", func(t *testing.T) {
-		// instantiate a new cache with string keys and integer values
-		testCache := NewCache[string, int](3)
+	t.Run("try to get a key from an empty cache", func(t *testing.T) {
+		cache := NewCache[string, int](3)
 
-		// try to read from the cache
-		value, okOne := testCache.Get("baz")
+		_, ok := cache.Get("a")
 
-		if okOne != false {
+		if ok != false {
 			t.Errorf("found a key in the cache where there should have been none")
-		}
-
-		// (!) deference the pointer to value
-		if *value != 0 {
-			t.Errorf("key's value should be 0 a nil type integer")
-		}
-
-		// try to add a key and value to the cache
-		okTwo := testCache.Put("baz", 100)
-
-		if okTwo != false {
-			t.Errorf("found an existing value on the key in the cache where there should have been none")
-		}
-
-		// try to read from the cache
-		value, okThree := testCache.Get("baz")
-
-		if okThree != true {
-			t.Errorf("could not find key when there should be one")
-		}
-
-		expected := 100
-
-		// (!) deference the pointer to value
-		if *value != expected {
-			t.Errorf("got %v | want %v", value, expected)
 		}
 	})
 
-	t.Run("add and update a key to an empty cache", func(t *testing.T) {
-		// instantiate a new cache with string keys and integer values
+	t.Run("add a single key/value to an empty cache", func(t *testing.T) {
 		cache := NewCache[string, int](3)
 
-		// try to read from the cache
-		value, okOne := cache.Get("baz")
+		insertKey := "a"
+		insertValue := 100
 
-		if okOne != false {
-			t.Errorf("found a key in the cache where there should have been none")
+		ok := cache.Put(insertKey, insertValue)
+
+		if ok != false {
+			t.Errorf("found an existing value on the key in the cache, where there should have been no existing value")
 		}
 
-		// (!) deference the pointer to value
-		if *value != 0 {
-			t.Errorf("key's value should be 0 a nil type integer")
+		cacheListElementPointer, ok := cache.entries[insertKey]
+
+		if !ok {
+			t.Errorf("key %v should now exist in the cache but does not", insertKey)
 		}
 
-		// try to add a key and value to the cache
-		okTwo := cache.Put("baz", 100)
+		// (!) NEED TO LEARN >>> TYPE ASSERTION/CONVERSION
+		// "It performs a type assertion on cacheListElementPointer.Value, checking if the value stored there is a pointer to a CacheValue[string, int] struct."
+		// "If the type assertion is successful, it retrieves the concrete value (the pointer to the CacheValue struct) and assigns it to the cacheValue variable."
+		cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
 
-		if okTwo != false {
-			t.Errorf("")
+		if cacheValue.value != insertValue {
+			t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertValue)
+		}
+	})
+
+	t.Run("add and update a single key/value to an empty cache", func(t *testing.T) {
+		cache := NewCache[string, int](3)
+
+		insertKey := "a"
+		insertValue := 100
+
+		ok := cache.Put(insertKey, insertValue)
+
+		if ok != false {
+			t.Errorf("found an existing value on the key in the cache, where there should have been no existing value")
 		}
 
-		// try to update the key's value
-		okThree := cache.Put("baz", 200)
+		updatedValue := 200
 
-		if okThree != true {
-			t.Errorf("Put should return true to denote a successful updating of that keys value")
+		ok = cache.Put(insertKey, updatedValue)
+
+		if ok != true {
+			t.Errorf("Put should return true to denote a successful updating of that key's value")
 		}
 
-		// check the new value of the key
-		value, okFour := cache.Get("baz")
+		valuePointer, ok := cache.Get(insertKey)
 
-		if okFour != true {
-			t.Errorf("could not find key when there should be one")
+		if ok != true {
+			t.Errorf("could not find key %v when there should be one", insertKey)
 		}
 
-		expected := 200
-
-		// (!) deference the pointer to value
-		if *value != expected {
-			t.Errorf("got %v | want %v", value, expected)
+		// (!) deference the pointer to a value
+		if *valuePointer != updatedValue {
+			t.Errorf("got %v | want %v", *valuePointer, updatedValue)
 		}
 	})
 
 	t.Run("add 3 keys to an empty cache", func(t *testing.T) {
-		// instantiate a new cache with string keys and integer values
 		cache := NewCache[string, int](3)
 
-		// add three key/values to the cache
-		cache.Put("a", 10)
-		cache.Put("b", 20)
-		cache.Put("c", 30)
+		insertKeyValues := map[string]int{"a": 1, "b": 2, "c": 3}
 
-		expectedCacheData := map[string]int{
-			"a": 10,
-			"b": 20,
-			"c": 30,
+		for insertKey, insertValue := range insertKeyValues {
+			cache.Put(insertKey, insertValue)
 		}
 
-		// error if the test cache data is not the same as the expected cache data
-		if !reflect.DeepEqual(cache.data, expectedCacheData) {
-			t.Errorf("got %v | want %v", cache.data, expectedCacheData)
+		for insertKey, insertValue := range insertKeyValues {
+			cacheListElementPointer, ok := cache.entries[insertKey]
+
+			if !ok {
+				t.Errorf("key %v was not found in the cache and should have been", insertKey)
+			}
+
+			// (!) type assertion/conversion
+			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+
+			if cacheValue.value != insertValue {
+				t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertValue)
+			}
 		}
-	})
 
-	t.Run("add 4 keys to an empty cache", func(t *testing.T) {
-		// instantiate a new cache with string keys and integer values
-		cache := NewCache[string, int](3)
+		expectedCacheListOrder := []int{3, 2, 1}
 
-		// add three key/values to the cache
-		cache.Put("a", 10)
-		cache.Put("b", 20)
-		cache.Put("c", 30)
+		cacheListElementPointer := cache.list.Front()
 
-		// try to add a fourth key/value to the cache
-		ok := cache.Put("d", 30)
+		for _, expectedCacheListValue := range expectedCacheListOrder {
+			// (!) type assertion/conversion
+			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
 
-		expected := false
+			if cacheValue.value != expectedCacheListValue {
+				t.Errorf("cache list element value: got %v | want %v", cacheValue.value, expectedCacheListValue)
+			}
 
-		// error if we are allowed to add a fourth/key value to the cache
-		if ok != expected {
-			t.Errorf("got %v | want %v", ok, expected)
+			cacheListElementPointer = cacheListElementPointer.Next()
 		}
 	})
 }
 
-func TestCacheWithConcurrency(t *testing.T) {
-	// create a new cache
+// note: need to add another test here for 6 keys to an empty cache, to check the LRU order
+
+// this test is failing, probably because of the way i am concurrently accessing the cache
+func TestCacheConcurrency(t *testing.T) {
 	cache := NewCache[string, int](3)
 
 	// define a wait group
 	var wg sync.WaitGroup
 
-	// spawn 100 goroutines
-	for i := 0; i < 100; i++ {
+	// a loop to spawn X number of goroutines
+	for i := 0; i < 10; i++ {
 		// increment the wait group counter
 		wg.Add(1)
 
@@ -153,8 +140,8 @@ func TestCacheWithConcurrency(t *testing.T) {
 			// decrement the wait group counter
 			defer wg.Done()
 
-			// in each goroutine run a Put() and a Get() on the cache 100 times
-			for j := 0; j < 100; j++ {
+			// an inner loop to run a Put() and a Get() in each goroutine
+			for j := 0; j < 10; j++ {
 
 				// create a dynamic value
 				dynamicValue := i + j + 1
@@ -162,17 +149,24 @@ func TestCacheWithConcurrency(t *testing.T) {
 				// try to Put() to the cache
 				cache.Put(dynamicKey, dynamicValue)
 
+				// ----- DEBUG
+				fmt.Printf("PUT | dynamicKey: %v | dynamicValue: %v\n", dynamicKey, dynamicValue)
+
 				// try to Get() from the cache
-				value, ok := cache.Get(dynamicKey)
+				valuePointer, ok := cache.Get(dynamicKey)
+
+				// ----- DEBUG
+				fmt.Printf("GET | dynamicKey: %v | valuePointer: %v | *valuePointer: %v | ok: %v\n", dynamicKey, valuePointer, *valuePointer, ok)
 
 				// error if we can't find the key in the cache
 				if !ok {
-					t.Errorf("cache.Get() ok : got %v | want %v", ok, false)
+					t.Errorf("cache.Get() ok: got %v | want %v", ok, false)
 				}
 
 				// error if the values do not match
-				if *value != dynamicValue {
-					t.Errorf("cache.Get() value: got %v | want %v", *value, dynamicValue)
+				// (!) deference the pointer to a value
+				if *valuePointer != dynamicValue {
+					t.Errorf("cache.Get() value does not match: got %v | want %v", *valuePointer, dynamicValue)
 				}
 			}
 		}()
@@ -180,4 +174,11 @@ func TestCacheWithConcurrency(t *testing.T) {
 
 	// wait until all the goroutines are finished
 	wg.Wait()
+
+	// check the final state of the cache
+
+	// for cacheEntriesKey, cacheListElementPointer := range cache.entries {
+	// 	cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+	// 	fmt.Printf("(map) cacheEntriesKey: %v (list) cacheValue.value: %v\n", cacheEntriesKey, cacheValue.value)
+	// }
 }

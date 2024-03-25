@@ -1,98 +1,87 @@
 package main
 
 import (
+	"container/list"
 	"sync"
 )
 
-// ---------- Generics Learning
-// Cache is the name of the generic type
-// The square brackets [] indicate that this is a generic type declaration
-// K and V are type parameters which as as placeholders for the actual types that will be provided when using the Cache type
-// comparable is a constrain on the K type parameter, which means K must be a type that can be compared using the == and != operators
-// any is a constraint on the V type parameter which means that V can be any type including concrete types and interface types
-
 type Cache[K comparable, V any] struct {
-	// inside the Cache type you can use the type parameters K and V as if they were regular types
-	// this allows you to write generic code that works with different types without duplicating code or using type assertions
+	capacity int
+	entries  map[K]*list.Element
+	list     *list.List
+	mu       sync.Mutex
+}
 
-	// a map to store the cache data in
-	data map[K]V
-
-	// a mutex to control the concurrent access to the data map
-	mu sync.Mutex
-
-	// need some way to remember what key was last accessed
-
-	// if a new key is added when there are already 3
-	// we need to know which existing key to delete
-
-	// could use time(?)... no not good... too many operations and too fast
-
-	// use some sort of data structure?
-	// [0,1,2] and rearrange the indices based on last accessed(?)..
-	// but that involves moving the items in the array around a lot
-
-	// google LRU Cache data structures
-	// "hash map" and "(doubly) linked list"
+type CacheValue[K comparable, V any] struct {
+	// i don't like that i am duplicating the key here... but it is for easier lookup later
+	key   K
+	value V
 }
 
 func NewCache[K comparable, V any](entryLimit int) Cache[K, V] {
 	return Cache[K, V]{
-		// make a map using the generics K and V
-		// and use the entryLimit as the capacity of the map
-		data: make(map[K]V, entryLimit),
+		capacity: entryLimit,
+		entries:  make(map[K]*list.Element, entryLimit),
+		list:     list.New(),
 	}
 }
 
-// Put adds the value to the cache,
-// and returns a boolean to indicate whether a value already existed in the cache for that key.
-// If there was previously a value, it replaces that value with this one.
-// Any Put counts as a refresh in terms of LRU tracking.
 func (c *Cache[K, V]) Put(key K, value V) bool {
-	// use the mutex to lock and unlock access
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// check if the key exists in the data map
-	_, ok := c.data[key]
+	// check if there is a key in the entries map to update
+	listElement, ok := c.entries[key]
 
-	//if the key didn't exist before
-	if !ok {
-		// add the key and its value
-		c.data[key] = value
-
-		// return false (to denote that the key didn't exist)
-		return false
+	if ok {
+		// update the list element's value
+		listElement.Value = &CacheValue[K, V]{key, value}
+		// move the list element to the front of the list
+		c.list.MoveToFront(listElement)
+		return true
 	}
 
-	// if the key did exist before
-	// overwrite the existing key's value with the value passed into Put()
-	c.data[key] = value
+	if len(c.entries) == c.capacity {
+		// get the last list element
+		lastListElement := c.list.Back()
+		// get it's value (a struct with key and value)
+		lastListElementValue := lastListElement.Value.(*CacheValue[K, V])
+		// delete that key from the entries map
+		delete(c.entries, lastListElementValue.key)
+		// delete that list element from the list
+		c.list.Remove(lastListElement)
+	}
 
-	// return true (to denote that we overwrote the key's value)
-	return true
+	// if we reach here there is no key in the entries map
+
+	// create a new list element and put at the front of the list
+	listElement = c.list.PushFront(&CacheValue[K, V]{key, value})
+
+	// make a new key/value pair in the entries map whose value points to the new list element
+	c.entries[key] = listElement
+
+	return false
 }
 
-// Get returns the value associated with the passed key,
-// and a boolean to indicate whether a value was known or not.
-// If not, nil is returned as the value.
-// Any Get counts as a refresh in terms of LRU tracking.
 func (c *Cache[K, V]) Get(key K) (*V, bool) {
-	// use the mutex to lock and unlock access
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// try to find the key in the data map
-	value, ok := c.data[key]
+	// check if there is a key in the entries map to get the value of
+	listElement, ok := c.entries[key]
 
-	// if we can't find the key return a nil value and false (to denote an unsuccessful lookup)
 	if !ok {
-		// we have to make a nil value on the Generic Type V
 		var nilValue V
-		// before we can return it
 		return &nilValue, false
 	}
 
-	// if we can find the key return it's value and true (to denote a successful lookup)
-	return &value, true
+	// if we reach here there is a key in the entries map
+
+	// move the list.Element the front of the list
+	c.list.MoveToFront(listElement)
+
+	// get the value from the list element
+	cacheValue := listElement.Value.(*CacheValue[K, V])
+
+	return &cacheValue.value, true
 }
