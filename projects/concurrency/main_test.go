@@ -2,9 +2,33 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 )
+
+type TestKeyValue struct {
+	key   string
+	value int
+}
+
+func DisplayCacheContents(c *Cache[string, int]) {
+	for cacheEntriesKey, cacheListElementPointer := range c.entries {
+		cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+		fmt.Printf("(map) cacheEntriesKey: %v (list) cacheValue.value: %v\n", cacheEntriesKey, cacheValue.value)
+	}
+}
+
+func PrintCacheStats(c *Cache[string, int]) {
+	fmt.Println("----- Cache Stats ------")
+	fmt.Printf("%-22s %v\n", "Successful Reads:", c.stats.successfulReads)
+	fmt.Printf("%-22s %v\n", "Failed Reads:", c.stats.failedReads)
+	fmt.Printf("%-22s %v\n", "Successful Writes:", c.stats.successfulWrites)
+	fmt.Printf("%-22s %v\n", "Failed Writes:", c.stats.failedWrites)
+	fmt.Printf("%-22s %v\n", "Successful Overwrites:", c.stats.successfulOverwrites)
+	fmt.Printf("%-22s %v\n", "Successful Removes:", c.stats.successfulRemoves)
+	fmt.Println("------------------------")
+}
 
 func TestCache(t *testing.T) {
 	t.Run("try to get a key from an empty cache", func(t *testing.T) {
@@ -15,24 +39,29 @@ func TestCache(t *testing.T) {
 		if ok != false {
 			t.Errorf("found a key in the cache where there should have been none")
 		}
+
+		expectedFailedReads := 1
+
+		if cache.stats.failedReads != expectedFailedReads {
+			t.Errorf("failedReads: got %v | want %v", cache.stats.failedReads, expectedFailedReads)
+		}
 	})
 
-	t.Run("add a single key/value to an empty cache", func(t *testing.T) {
+	t.Run("add a single new key/value to an empty cache", func(t *testing.T) {
 		cache := NewCache[string, int](3)
 
-		insertKey := "a"
-		insertValue := 100
+		insertKeyValue := TestKeyValue{"a", 100}
 
-		ok := cache.Put(insertKey, insertValue)
+		ok := cache.Put(insertKeyValue.key, insertKeyValue.value)
 
 		if ok != false {
 			t.Errorf("found an existing value on the key in the cache, where there should have been no existing value")
 		}
 
-		cacheListElementPointer, ok := cache.entries[insertKey]
+		cacheListElementPointer, ok := cache.entries[insertKeyValue.key]
 
 		if !ok {
-			t.Errorf("key %v should now exist in the cache but does not", insertKey)
+			t.Errorf("key %v should now exist in the cache but does not", insertKeyValue.key)
 		}
 
 		// (!) NEED TO LEARN >>> TYPE ASSERTION/CONVERSION
@@ -40,18 +69,23 @@ func TestCache(t *testing.T) {
 		// "If the type assertion is successful, it retrieves the concrete value (the pointer to the CacheValue struct) and assigns it to the cacheValue variable."
 		cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
 
-		if cacheValue.value != insertValue {
-			t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertValue)
+		if cacheValue.value != insertKeyValue.value {
+			t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertKeyValue.value)
+		}
+
+		expectedSuccessfulWrites := 1
+
+		if cache.stats.successfulWrites != expectedSuccessfulWrites {
+			t.Errorf("successfulWrites: got %v | want %v", cache.stats.successfulWrites, expectedSuccessfulWrites)
 		}
 	})
 
-	t.Run("add and update a single key/value to an empty cache", func(t *testing.T) {
+	t.Run("add and update a single new key/value to an empty cache", func(t *testing.T) {
 		cache := NewCache[string, int](3)
 
-		insertKey := "a"
-		insertValue := 100
+		insertKeyValue := TestKeyValue{"a", 100}
 
-		ok := cache.Put(insertKey, insertValue)
+		ok := cache.Put(insertKeyValue.key, insertKeyValue.value)
 
 		if ok != false {
 			t.Errorf("found an existing value on the key in the cache, where there should have been no existing value")
@@ -59,45 +93,65 @@ func TestCache(t *testing.T) {
 
 		updatedValue := 200
 
-		ok = cache.Put(insertKey, updatedValue)
+		ok = cache.Put(insertKeyValue.key, updatedValue)
 
 		if ok != true {
 			t.Errorf("Put should return true to denote a successful updating of that key's value")
 		}
 
-		valuePointer, ok := cache.Get(insertKey)
+		valuePointer, ok := cache.Get(insertKeyValue.key)
 
 		if ok != true {
-			t.Errorf("could not find key %v when there should be one", insertKey)
+			t.Errorf("could not find key %v when there should be one", insertKeyValue.key)
 		}
 
 		// (!) deference the pointer to a value
 		if *valuePointer != updatedValue {
 			t.Errorf("got %v | want %v", *valuePointer, updatedValue)
 		}
-	})
 
-	t.Run("add 3 keys to an empty cache", func(t *testing.T) {
-		cache := NewCache[string, int](3)
+		expectedSuccessfulWrites := 1
+		expectedSuccessfulOverwrites := 1
+		expectedSuccessfulReads := 1
 
-		insertKeyValues := map[string]int{"a": 1, "b": 2, "c": 3}
-
-		for insertKey, insertValue := range insertKeyValues {
-			cache.Put(insertKey, insertValue)
+		if cache.stats.successfulWrites != expectedSuccessfulWrites {
+			t.Errorf("successfulWrites: got %v | want %v", cache.stats.successfulWrites, expectedSuccessfulWrites)
 		}
 
-		for insertKey, insertValue := range insertKeyValues {
-			cacheListElementPointer, ok := cache.entries[insertKey]
+		if cache.stats.successfulOverwrites != expectedSuccessfulOverwrites {
+			t.Errorf("successfulOverwrites: got %v | want %v", cache.stats.successfulOverwrites, expectedSuccessfulOverwrites)
+		}
+
+		if cache.stats.successfulReads != expectedSuccessfulReads {
+			t.Errorf("successfulReads: got %v | want %v", cache.stats.successfulReads, expectedSuccessfulReads)
+		}
+	})
+
+	t.Run("add 3 new keys to an empty cache", func(t *testing.T) {
+		cache := NewCache[string, int](3)
+
+		insertKeyValues := []TestKeyValue{
+			{key: "a", value: 1},
+			{key: "b", value: 2},
+			{key: "c", value: 3},
+		}
+
+		for _, insertKeyValue := range insertKeyValues {
+			cache.Put(insertKeyValue.key, insertKeyValue.value)
+		}
+
+		for _, insertKeyValue := range insertKeyValues {
+			cacheListElementPointer, ok := cache.entries[insertKeyValue.key]
 
 			if !ok {
-				t.Errorf("key %v was not found in the cache and should have been", insertKey)
+				t.Errorf("key %v was not found in the cache and should have been", insertKeyValue.key)
 			}
 
 			// (!) type assertion/conversion
 			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
 
-			if cacheValue.value != insertValue {
-				t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertValue)
+			if cacheValue.value != insertKeyValue.value {
+				t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertKeyValue.value)
 			}
 		}
 
@@ -115,20 +169,83 @@ func TestCache(t *testing.T) {
 
 			cacheListElementPointer = cacheListElementPointer.Next()
 		}
+
+		expectedSuccessfulWrites := 3
+
+		if cache.stats.successfulWrites != expectedSuccessfulWrites {
+			t.Errorf("successfulWrites: got %v | want %v", cache.stats.successfulWrites, expectedSuccessfulWrites)
+		}
+	})
+
+	t.Run("add 6 new keys to an empty cache, to check removes", func(t *testing.T) {
+		cache := NewCache[string, int](3)
+
+		insertKeyValues := []TestKeyValue{
+			{key: "a", value: 1},
+			{key: "b", value: 2},
+			{key: "c", value: 3},
+			{key: "d", value: 4},
+			{key: "e", value: 5},
+			{key: "f", value: 6},
+		}
+
+		for _, insertKeyValue := range insertKeyValues {
+			cache.Put(insertKeyValue.key, insertKeyValue.value)
+		}
+
+		// note: loop from index 3 to index 5
+		for _, insertKeyValue := range insertKeyValues[3:] {
+			cacheListElementPointer, ok := cache.entries[insertKeyValue.key]
+
+			if !ok {
+				t.Errorf("key %v was not found in the cache and should have been", insertKeyValue.key)
+			}
+
+			// (!) type assertion/conversion
+			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+
+			if cacheValue.value != insertKeyValue.value {
+				t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertKeyValue.value)
+			}
+		}
+
+		expectedCacheListOrder := []int{6, 5, 4}
+
+		cacheListElementPointer := cache.list.Front()
+
+		for _, expectedCacheListValue := range expectedCacheListOrder {
+			// (!) type assertion/conversion
+			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+
+			if cacheValue.value != expectedCacheListValue {
+				t.Errorf("cache list element value: got %v | want %v", cacheValue.value, expectedCacheListValue)
+			}
+
+			cacheListElementPointer = cacheListElementPointer.Next()
+		}
+
+		expectedSuccessfulWrites := 6
+		expectedSuccessfulRemoves := 3
+
+		if cache.stats.successfulWrites != expectedSuccessfulWrites {
+			t.Errorf("successfulWrites: got %v | want %v", cache.stats.successfulWrites, expectedSuccessfulWrites)
+		}
+
+		if cache.stats.successfulRemoves != expectedSuccessfulRemoves {
+			t.Errorf("successfulRemoves: got %v | want %v", cache.stats.successfulRemoves, expectedSuccessfulRemoves)
+		}
 	})
 }
 
-// note: need to add another test here for 6 keys to an empty cache, to check the LRU order
-
 // this test is failing, probably because of the way i am concurrently accessing the cache
-func TestCacheConcurrency(t *testing.T) {
+func TestCachePutConcurrency(t *testing.T) {
 	cache := NewCache[string, int](3)
 
 	// define a wait group
 	var wg sync.WaitGroup
 
-	// a loop to spawn X number of goroutines
-	for i := 0; i < 10; i++ {
+	// an outer loop to spawn X number of goroutines
+	for i := 1; i <= 100; i++ {
 		// increment the wait group counter
 		wg.Add(1)
 
@@ -140,34 +257,13 @@ func TestCacheConcurrency(t *testing.T) {
 			// decrement the wait group counter
 			defer wg.Done()
 
-			// an inner loop to run a Put() and a Get() in each goroutine
-			for j := 0; j < 10; j++ {
-
-				// create a dynamic value
-				dynamicValue := i + j + 1
+			// an inner loop to run Put() X number of times
+			for j := 1; j <= 100; j++ {
+				// generate a dynamic value
+				dynamicValue := i + j
 
 				// try to Put() to the cache
 				cache.Put(dynamicKey, dynamicValue)
-
-				// ----- DEBUG
-				fmt.Printf("PUT | dynamicKey: %v | dynamicValue: %v\n", dynamicKey, dynamicValue)
-
-				// try to Get() from the cache
-				valuePointer, ok := cache.Get(dynamicKey)
-
-				// ----- DEBUG
-				fmt.Printf("GET | dynamicKey: %v | valuePointer: %v | *valuePointer: %v | ok: %v\n", dynamicKey, valuePointer, *valuePointer, ok)
-
-				// error if we can't find the key in the cache
-				if !ok {
-					t.Errorf("cache.Get() ok: got %v | want %v", ok, false)
-				}
-
-				// error if the values do not match
-				// (!) deference the pointer to a value
-				if *valuePointer != dynamicValue {
-					t.Errorf("cache.Get() value does not match: got %v | want %v", *valuePointer, dynamicValue)
-				}
 			}
 		}()
 	}
@@ -175,10 +271,73 @@ func TestCacheConcurrency(t *testing.T) {
 	// wait until all the goroutines are finished
 	wg.Wait()
 
-	// check the final state of the cache
+	expectedSuccessfulWritesAndOverwrites := 10000
 
-	// for cacheEntriesKey, cacheListElementPointer := range cache.entries {
-	// 	cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
-	// 	fmt.Printf("(map) cacheEntriesKey: %v (list) cacheValue.value: %v\n", cacheEntriesKey, cacheValue.value)
-	// }
+	if cache.stats.successfulWrites+cache.stats.successfulOverwrites != expectedSuccessfulWritesAndOverwrites {
+		t.Errorf("successfulWrites+successfulOverwrites: got %v | want %v", (cache.stats.successfulWrites + cache.stats.successfulOverwrites), expectedSuccessfulWritesAndOverwrites)
+	}
+
+	// check the final state of the cache
+	for cacheEntriesKey, cacheListElementPointer := range cache.entries {
+		cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+		fmt.Printf("(map) cacheEntriesKey: %v (list) cacheValue.value: %v\n", cacheEntriesKey, cacheValue.value)
+	}
+
+	DisplayCacheContents(&cache)
+	PrintCacheStats(&cache)
+}
+
+func TestCacheGetConcurrency(t *testing.T) {
+	cache := NewCache[string, int](3)
+
+	// PUT 3 key/values to the cache (to then GET from)
+	for i := 1; i <= 3; i++ {
+		dynamicKey := fmt.Sprintf("key-%d", i)
+		dynamicValue := i * 10
+		cache.Put(dynamicKey, dynamicValue)
+	}
+
+	// define a wait group
+	var wg sync.WaitGroup
+
+	// an outer loop to spawn X number of goroutines
+	for i := 1; i <= 100; i++ {
+		// increment the wait group counter
+		wg.Add(1)
+
+		// spawn a new goroutine
+		go func() {
+			// decrement the wait group counter
+			defer wg.Done()
+
+			// generate a random number between 1-3
+			randomKeyNumber := rand.Intn(3) + 1
+
+			// create a key
+			dynamicKey := fmt.Sprintf("key-%d", randomKeyNumber)
+
+			// an inner loop to run Get() X number of times
+			for i := 1; i <= 100; i++ {
+				// try to Get() from the cache
+				cache.Get(dynamicKey)
+			}
+		}()
+	}
+
+	// wait until all the goroutines are finished
+	wg.Wait()
+
+	expectedSuccessfulWrites := 3
+	expectedSuccessfulReads := 10000
+
+	if cache.stats.successfulWrites != expectedSuccessfulWrites {
+		t.Errorf("successfulWrites: got %v | want %v", cache.stats.successfulWrites, expectedSuccessfulWrites)
+	}
+
+	if cache.stats.successfulReads != expectedSuccessfulReads {
+		t.Errorf("successfulRemoves: got %v | want %v", cache.stats.successfulReads, expectedSuccessfulReads)
+	}
+
+	DisplayCacheContents(&cache)
+	PrintCacheStats(&cache)
 }
