@@ -2,19 +2,16 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 )
 
-// NOTES ----------
-
-// In Go, when handling HTTP requests,
-// you typically set the HTTP response body
-// by writing to the http.ResponseWriter object passed into your handler function.
+// This has comments and prints everywhere as I learn
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// $ curl -i "http://localhost:8080/"
+		// $ curl -i 'http://localhost:8080/'
 		// HTTP/1.1 200 OK
 		// Date: Fri, 29 Mar 2024 08:09:41 GMT
 		// Content-Length: 12
@@ -38,10 +35,42 @@ func main() {
 		switch r.Method {
 		case http.MethodGet:
 			w.Header().Add("Content-Type", "text/html")
-			html := "<!DOCTYPE html><html><em>Hello, world</em>"
-			w.Write([]byte(html))
+			// html := "<!DOCTYPE html><html><em>Hello, world</em>"
+			// w.Write([]byte(html))
+
+			fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<em>Hello, world</em>\n")
+
+			queryParameters := r.URL.Query()
+			// fmt.Println("queryParameters", queryParameters)
+			// queryParameters map[test:[123]]
+			// a map of key: string and value of []string
+
+			// fmt.Println("len(queryParameters)", len(queryParameters))
+
+			if len(queryParameters) > 0 {
+				// fmt.Println("queryParameters", queryParameters)
+				fmt.Fprintf(w, "<p>Query parameters:</p>\n<ul>\n")
+
+				for key, values := range queryParameters {
+					// fmt.Println("key", key, "value", value)
+
+					keyString := fmt.Sprintf("<li>%s: [", html.EscapeString(key))
+					// fmt.Println("keyString", keyString)
+
+					fmt.Fprint(w, keyString)
+
+					for _, value := range values {
+						// fmt.Println("index", index, "element", element)
+						fmt.Fprint(w, html.EscapeString(value))
+					}
+
+					fmt.Fprintf(w, "]</li>\n")
+				}
+
+				fmt.Fprintf(w, "</ul>\n</html>")
+			}
 		case http.MethodPost:
-			// fmt.Println(r)
+			// fmt.Println("request", r)
 
 			// without a body
 
