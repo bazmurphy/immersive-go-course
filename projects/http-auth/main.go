@@ -1,15 +1,28 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
+	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 // This has comments and prints everywhere as I learn
 
 func main() {
+	// try to load the .env file
+	err := godotenv.Load()
+
+	if err != nil {
+		log.Fatal("error loading the .env file")
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// $ curl -i 'http://localhost:8080/'
 		// HTTP/1.1 200 OK
@@ -140,5 +153,107 @@ func main() {
 		fmt.Fprintf(w, "Internal server error")
 	})
 
+	http.HandleFunc("/authenticated", func(w http.ResponseWriter, r *http.Request) {
+		// get the authorization header
+		authorizationHeader := r.Header.Get("Authorization")
+		// fmt.Println("authorizationHeader", authorizationHeader)
+
+		// there was no authentication header
+		if len(authorizationHeader) == 0 {
+			w.Header().Set("WWW-Authenticate", `Basic realm=""`)
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprintf(w, "401 Unauthorized [no authorization header]")
+			return
+		}
+
+		// authorizationHeader header should be in the format "Basic <base64 encoded payload>"
+		authorizationString := strings.Split(authorizationHeader, " ")
+		// fmt.Println("authorizationString", authorizationString)
+
+		// must be 2 composite parts and the first must be "Basic"
+		if len(authorizationString) != 2 || authorizationString[0] != "Basic" {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "400 Bad Request [malformed authorization header]")
+			return
+		}
+
+		// decode the base64 encoded payload
+		payload, err := base64.StdEncoding.DecodeString(authorizationString[1])
+		// fmt.Println("payload", payload, "err", err)
+
+		// the payload couldn't be decoded
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "400 Bad Request [couldn't decode the authorization header payload]")
+			return
+		}
+
+		// split the payload into it's composite parts
+		credentials := strings.Split(string(payload), ":")
+		// fmt.Println("credentials", credentials)
+
+		username := credentials[0]
+		password := credentials[1]
+		// fmt.Println("username", username, "password", password)
+
+		// username/password must not be empty
+		if len(username) == 0 || len(password) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "400 Bad Request [either username or password were missing]")
+			return
+		}
+
+		// get the username/password from the .env file
+		usernameFromEnv := os.Getenv("AUTH_USERNAME")
+		passwordFromEnv := os.Getenv("AUTH_PASSWORD")
+
+		// see if the username and password match from the .env
+		if username != usernameFromEnv || password != passwordFromEnv {
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprintf(w, "401 Unauthorized [either username or password were not correct]")
+			return
+		}
+
+		// if we reach here the authorization was successful
+		w.Header().Add("Content-Type", "text/html")
+		fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<p>Hello %s!</p>\n", username)
+	})
+
 	http.ListenAndServe(":8080", nil)
 }
+
+// Notes ----------
+
+// Basic
+// See RFC 7617, base64-encoded credentials.
+// https://datatracker.ietf.org/doc/html/rfc7617
+
+//  The "Basic" authentication scheme offers very poor security, but is widely supported and easy to set up. It is introduced in more detail below.
+
+// Basic authentication scheme
+
+// The "Basic" HTTP authentication scheme is defined in RFC 7617, which transmits credentials as user ID/password pairs, encoded using base64.
+
+// Security of basic authentication
+
+// As the user ID and password are passed over the network as clear text (it is base64 encoded, but base64 is a reversible encoding), the basic authentication scheme is not secure. HTTPS/TLS should be used with basic authentication. Without these additional security enhancements, basic authentication should not be used to protect sensitive or valuable information.
+
+// WWW-Authenticate
+
+// The HTTP WWW-Authenticate response header defines the HTTP authentication methods ("challenges") that might be used to gain access to a specific resource.
+
+// A server using HTTP authentication will respond with a 401 Unauthorized response to a request for a protected resource. This response must include at least one WWW-Authenticate header and at least one challenge, to indicate what authentication schemes can be used to access the resource (and any additional data that each particular scheme needs).
+
+// After receiving the WWW-Authenticate header, a client will typically prompt the user for credentials, and then re-request the resource. This new request uses the Authorization header to supply the credentials to the server, encoded appropriately for the selected "challenge" authentication method. The client is expected to select the most secure of the challenges it understands (note that in some cases the "most secure" method is debatable).
+
+// // Challenges specified in single header
+// WWW-Authenticate: challenge1, ..., challengeN
+
+// Possible challenge formats (scheme dependent)
+// WWW-Authenticate: <auth-scheme>
+// WWW-Authenticate: <auth-scheme> realm=<realm>
+
+// Basic authentication requires realm and allows for optional use of charset key, but does not support token68.
+
+// WWW-Authenticate: Basic realm=<realm>
+// WWW-Authenticate: Basic realm=<realm>, charset="UTF-8"
