@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"golang.org/x/time/rate"
 )
 
 // This has comments and prints everywhere as I learn
@@ -219,6 +220,20 @@ func main() {
 		fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<p>Hello %s!</p>\n", username)
 	})
 
+	// create a limiter
+	limiter := rate.NewLimiter(100, 30)
+
+	http.HandleFunc("/limited", func(w http.ResponseWriter, r *http.Request) {
+		// use the limiter
+		if limiter.Allow() {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "200")
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintf(w, "503 Service Unavailable [rate limited]")
+		}
+	})
+
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -257,3 +272,61 @@ func main() {
 
 // WWW-Authenticate: Basic realm=<realm>
 // WWW-Authenticate: Basic realm=<realm>, charset="UTF-8"
+
+// ApacheBench ----------
+
+// ab -n 10000 -c 100 'http://localhost:8080/limited'
+// This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+// Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+// Licensed to The Apache Software Foundation, http://www.apache.org/
+
+// Benchmarking localhost (be patient)
+// Completed 1000 requests
+// Completed 2000 requests
+// Completed 3000 requests
+// Completed 4000 requests
+// Completed 5000 requests
+// Completed 6000 requests
+// Completed 7000 requests
+// Completed 8000 requests
+// Completed 9000 requests
+// Completed 10000 requests
+// Finished 10000 requests
+
+// Server Software:
+// Server Hostname:        localhost
+// Server Port:            8080
+
+// Document Path:          /limited
+// Document Length:        3 bytes
+
+// Concurrency Level:      100
+// Time taken for tests:   0.596 seconds
+// Complete requests:      10000
+// Failed requests:        9911
+//    (Connect: 0, Receive: 0, Length: 9911, Exceptions: 0)
+// Non-2xx responses:      9911
+// Total transferred:      1754927 bytes
+// HTML transferred:       416529 bytes
+// Requests per second:    16773.29 [#/sec] (mean)
+// Time per request:       5.962 [ms] (mean)
+// Time per request:       0.060 [ms] (mean, across all concurrent requests)
+// Transfer rate:          2874.60 [Kbytes/sec] received
+
+// Connection Times (ms)
+//               min  mean[+/-sd] median   max
+// Connect:        0    3   0.8      3       5
+// Processing:     1    3   0.8      3       7
+// Waiting:        0    2   0.8      2       5
+// Total:          4    6   0.5      6       9
+
+// Percentage of the requests served within a certain time (ms)
+//   50%      6
+//   66%      6
+//   75%      6
+//   80%      6
+//   90%      7
+//   95%      7
+//   98%      7
+//   99%      8
+//  100%      9 (longest request)
