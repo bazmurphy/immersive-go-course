@@ -13,12 +13,26 @@ import (
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World!"))
 		// $ curl -i "http://localhost:8080/"
 		// HTTP/1.1 200 OK
 		// Date: Fri, 29 Mar 2024 08:09:41 GMT
 		// Content-Length: 12
 		// Content-Type: text/plain; charset=utf-8
+
+		// w.Write([]byte("Hello World!"))
+
+		// > curl -i 'http://localhost:8080/'
+		// HTTP/1.1 200 OK
+		// Content-Type: text/html
+		// Date: Sun, 24 Jul 2022 09:42:30 GMT
+		// Content-Length: 42
+
+		// <!DOCTYPE html><html><em>Hello, world</em>
+
+		w.Header().Add("Content-Type", "text/html")
+		// w.Header().Add("Content-Type", "text/plain")
+		html := "<!DOCTYPE html><html><em>Hello, world</em>"
+		w.Write([]byte(html))
 	})
 
 	http.HandleFunc("/200", func(w http.ResponseWriter, r *http.Request) {
