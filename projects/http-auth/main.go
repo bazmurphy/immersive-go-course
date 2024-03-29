@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -29,10 +30,41 @@ func main() {
 
 		// <!DOCTYPE html><html><em>Hello, world</em>
 
-		w.Header().Add("Content-Type", "text/html")
+		// w.Header().Add("Content-Type", "text/html")
 		// w.Header().Add("Content-Type", "text/plain")
-		html := "<!DOCTYPE html><html><em>Hello, world</em>"
-		w.Write([]byte(html))
+		// html := "<!DOCTYPE html><html><em>Hello, world</em>"
+		// w.Write([]byte(html))
+
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Add("Content-Type", "text/html")
+			html := "<!DOCTYPE html><html><em>Hello, world</em>"
+			w.Write([]byte(html))
+		case http.MethodPost:
+			// fmt.Println(r)
+
+			// without a body
+
+			// &{POST / HTTP/1.1 1 1 map[Accept:[*/*] Accept-Encoding:[gzip, deflate, br] Cache-Control:[no-cache] Connection:[keep-alive] Content-Length:[0] Postman-Token:[7c51a315-20a3-4543-a9c4-5f0f45590c12] User-Agent:[PostmanRuntime/7.32.1]] {} <nil> 0 [] false localhost:8080 map[] map[] <nil> map[] [::1]:57008 / <nil> <nil> <nil> 0xc00009e050 0xc00012a180 [] map[]}
+
+			// with a body
+
+			// &{POST / HTTP/1.1 1 1 map[Accept:[*/*] Accept-Encoding:[gzip, deflate, br] Cache-Control:[no-cache] Connection:[keep-alive] Content-Length:[32] Content-Type:[text/plain] Postman-Token:[2f070da0-2e81-4c31-ba67-94d3f2d6fe4d] User-Agent:[PostmanRuntime/7.32.1]] 0xc000092040 <nil> 32 [] false localhost:8080 map[] map[] <nil> map[] [::1]:56178 / <nil> <nil> <nil> 0xc00009e050 0xc00012a180 [] map[]}
+
+			requestBody, err := io.ReadAll(r.Body)
+
+			if err != nil {
+				w.Write([]byte("error reading the request body"))
+			}
+
+			if len(requestBody) == 0 {
+				w.Write([]byte("no body was received with the request"))
+			}
+
+			w.Write([]byte(requestBody))
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
 	})
 
 	http.HandleFunc("/200", func(w http.ResponseWriter, r *http.Request) {
