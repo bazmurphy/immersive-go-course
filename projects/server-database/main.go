@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
 	"net/http"
 	"os"
 	"strconv"
@@ -62,15 +63,116 @@ func fetchImages(connection *pgx.Conn) ([]Image, error) {
 	return images, nil
 }
 
+func isValidImageUrl(url string) bool {
+	// request the header, avoids downloading the whole image
+	response, err := http.Head(url)
+
+	if err != nil {
+		// fmt.Errorf("error making request: %w", err)
+		return false
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		// fmt.Errorf("error status code was not OK: %w", err)
+		return false
+	}
+
+	contentType := response.Header.Get("Content-Type")
+
+	if strings.HasPrefix(contentType, "image/") {
+		return true
+	}
+	return false
+}
+
+func getImageResolution(url string) (width, height int, err error) {
+	// request the image from the url
+	response, err := http.Get(url)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer response.Body.Close()
+
+	// decode an image from the response body
+	image, _, err := image.Decode(response.Body)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// the unsplash images are .avif
+	// .avif is not supported by default from image.Decode()
+	// need to use the images/avif package
+	bounds := image.Bounds()
+	width = bounds.Max.X
+	height = bounds.Max.Y
+
+	return width, height, nil
+}
+
 func addNewImage(connection *pgx.Conn, newImage Image) error {
+	var alreadyExists bool
+	// search for an existing image with the same url in the database
+
+	err := connection.QueryRow(context.Background(), "SELECT EXISTS(SELECT 1 FROM images WHERE url = $1)", newImage.URL).Scan(&alreadyExists)
+	if err != nil {
+		return fmt.Errorf("error inserting new image into the database: %w", err)
+	}
+
+	if alreadyExists {
+		return fmt.Errorf("error an image with this url already exists")
+	}
+
+	isValid := isValidImageUrl(newImage.URL)
+	if !isValid {
+		return fmt.Errorf("error that url is not a valid image")
+	}
+
+	// width, height, err := getImageResolution(newImage.URL)
+	// fmt.Println("width", width, "height", height, err)
+
 	// make an insert query to the database
 	// (!) use .Exec because an INSERT doesn't return any rows
-	rows, err := connection.Exec(context.Background(), "INSERT INTO images(title, alt_text, url) VALUES ($1, $2, $3);", newImage.Title, newImage.AltText, newImage.URL)
-	fmt.Println("rows", rows, "err", err)
+	_, err = connection.Exec(context.Background(), "INSERT INTO images(title, alt_text, url) VALUES ($1, $2, $3);", newImage.Title, newImage.AltText, newImage.URL)
 	if err != nil {
 		return fmt.Errorf("error inserting new image into the database: %w", err)
 	}
 	return nil
+}
+
+func getIndentInteger(indentQueryParameter string) int {
+	if indentQueryParameter == "" {
+		return 0
+	}
+
+	indentInteger, err := strconv.Atoi(indentQueryParameter)
+	if err != nil || indentInteger <= 0 {
+		return -1
+	}
+
+	return indentInteger
+}
+
+// i don't like that i am using 'any' here
+// but it needs to handle a single Image{} or a slice of []Image(s) ...suggestion(?)
+func formJSONResponse(indentInteger int, input any) ([]byte, error) {
+	var jsonByteSlice []byte
+	var err error
+
+	if indentInteger > 0 {
+		indentString := strings.Repeat(" ", indentInteger)
+		jsonByteSlice, err = json.MarshalIndent(input, "", indentString)
+		if err != nil {
+			return nil, fmt.Errorf("error marshalling json with indentation: %w", err)
+		}
+		return jsonByteSlice, nil
+	} else {
+		jsonByteSlice, err = json.Marshal(input)
+		if err != nil {
+			return nil, fmt.Errorf("error marshalling json: %w", err)
+		}
+		return jsonByteSlice, nil
+	}
 }
 
 func main() {
@@ -99,20 +201,7 @@ func main() {
 
 	http.HandleFunc("/images.json", func(w http.ResponseWriter, r *http.Request) {
 		indentQueryParameter := r.URL.Query().Get("indent")
-
-		var identInteger int
-
-		if indentQueryParameter != "" {
-			identInteger, err = strconv.Atoi(indentQueryParameter)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			if identInteger < 0 {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-		}
+		indentInteger := getIndentInteger(indentQueryParameter)
 
 		switch r.Method {
 		case "GET":
@@ -123,21 +212,10 @@ func main() {
 				return
 			}
 
-			var jsonByteSlice []byte
-
-			if identInteger > 0 {
-				indentString := strings.Repeat(" ", identInteger)
-				jsonByteSlice, err = json.MarshalIndent(images, "", indentString)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-			} else {
-				jsonByteSlice, err = json.Marshal(images)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
+			jsonByteSlice, err := formJSONResponse(indentInteger, images)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
 
 			// In the project readme curl shows "Content-Type: text/json" but I usually see "Content-Type: application/json"
@@ -182,25 +260,13 @@ func main() {
 				return
 			}
 
-			w.Header().Add("Content-Type", "application/json")
-
-			var jsonByteSlice []byte
-
-			if identInteger > 0 {
-				indentString := strings.Repeat(" ", identInteger)
-				jsonByteSlice, err = json.MarshalIndent(newImage, "", indentString)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-			} else {
-				// marshal the new image struct into a json byte slice
-				jsonByteSlice, err = json.Marshal(newImage)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
+			jsonByteSlice, err := formJSONResponse(indentInteger, newImage)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
+
+			w.Header().Add("Content-Type", "application/json")
 
 			// write the json byte slice to the response body
 			_, err = w.Write(jsonByteSlice)
