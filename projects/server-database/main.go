@@ -62,6 +62,17 @@ func fetchImages(connection *pgx.Conn) ([]Image, error) {
 	return images, nil
 }
 
+func addNewImage(connection *pgx.Conn, newImage Image) error {
+	// make an insert query to the database
+	// (!) use .Exec because an INSERT doesn't return any rows
+	rows, err := connection.Exec(context.Background(), "INSERT INTO images(title, alt_text, url) VALUES ($1, $2, $3);", newImage.Title, newImage.AltText, newImage.URL)
+	fmt.Println("rows", rows, "err", err)
+	if err != nil {
+		return fmt.Errorf("error inserting new image into the database: %w", err)
+	}
+	return nil
+}
+
 func main() {
 	// load the .env file
 	err := godotenv.Load()
@@ -87,21 +98,12 @@ func main() {
 	defer connection.Close(context.Background())
 
 	http.HandleFunc("/images.json", func(w http.ResponseWriter, r *http.Request) {
-		images, err := fetchImages(connection)
-
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error fetching images from the database: %v\n", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
 		indentQueryParameter := r.URL.Query().Get("indent")
 
-		var jsonByteSlice []byte
+		var identInteger int
 
-		// there is error handling repetition here (panic aversion)... suggestions(?)
 		if indentQueryParameter != "" {
-			identInteger, err := strconv.Atoi(indentQueryParameter)
+			identInteger, err = strconv.Atoi(indentQueryParameter)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -110,36 +112,106 @@ func main() {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			indentString := strings.Repeat(" ", identInteger)
-			jsonByteSlice, err = json.MarshalIndent(images, "", indentString)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		} else {
-			jsonByteSlice, err = json.Marshal(images)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 		}
 
-		// In the project readme curl shows "Content-Type: text/json" but I usually see "Content-Type: application/json"
-		// So I initially tried:
-		// w.Header().Add("Content-Type", "text/json")
-		// Q: But what is the difference(?)
-		// A: text/json is not a standard MIME type recognized by most clients, including web browsers. The standard MIME type for JSON data is application/json.
-		// More: https://www.ietf.org/rfc/rfc4627.txt The MIME media type for JSON text is application/json.
-		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		switch r.Method {
+		case "GET":
+			images, err := fetchImages(connection)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error fetching images from the database: %v\n", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 
-		// Which is better?
-		// [1] convert the byte slice to a string before writing it to the writer
-		// fmt.Fprint(w, string(imageByteSlice))
-		// [2] directly write the byte slice to the writer (i would assume better performance?)
-		_, err = w.Write(jsonByteSlice)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			var jsonByteSlice []byte
+
+			if identInteger > 0 {
+				indentString := strings.Repeat(" ", identInteger)
+				jsonByteSlice, err = json.MarshalIndent(images, "", indentString)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			} else {
+				jsonByteSlice, err = json.Marshal(images)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			}
+
+			// In the project readme curl shows "Content-Type: text/json" but I usually see "Content-Type: application/json"
+			// So I initially tried:
+			// w.Header().Add("Content-Type", "text/json")
+			// Q: But what is the difference(?)
+			// A: text/json is not a standard MIME type recognized by most clients, including web browsers. The standard MIME type for JSON data is application/json.
+			// More: https://www.ietf.org/rfc/rfc4627.txt The MIME media type for JSON text is application/json.
+			w.Header().Add("Content-Type", "application/json")
+
+			// Which is better?
+			// [1] convert the byte slice to a string before writing it to the writer
+			// fmt.Fprint(w, string(imageByteSlice))
+			// [2] directly write the byte slice to the writer (i would assume better performance?)
+			_, err = w.Write(jsonByteSlice)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+		case "POST":
+			// create a new image nil value struct
+			var newImage Image
+
+			// decode the body as json and store it in the new image struct
+			// (!) more error handling here necessary here
+			err := json.NewDecoder(r.Body).Decode(&newImage)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error decoding the json: %v\n", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			// TODO: before we try to add it to the database have to make sure it is valid/sanitised/etc.
+
+			// add the new image to the database
+			err = addNewImage(connection, newImage)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error adding new image to the database: %v\n", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Add("Content-Type", "application/json")
+
+			var jsonByteSlice []byte
+
+			if identInteger > 0 {
+				indentString := strings.Repeat(" ", identInteger)
+				jsonByteSlice, err = json.MarshalIndent(newImage, "", indentString)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			} else {
+				// marshal the new image struct into a json byte slice
+				jsonByteSlice, err = json.Marshal(newImage)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			}
+
+			// write the json byte slice to the response body
+			_, err = w.Write(jsonByteSlice)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 	})
