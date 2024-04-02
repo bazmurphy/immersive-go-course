@@ -19,6 +19,49 @@ type Image struct {
 	URL     string `json:"url"`
 }
 
+func fetchImages(connection *pgx.Conn) ([]Image, error) {
+	// make a select query to the database
+	rows, err := connection.Query(context.Background(), "SELECT title, alt_text, url FROM images")
+	if err != nil {
+		return nil, fmt.Errorf("error making the query to the database: %w", err)
+	}
+	defer rows.Close()
+
+	// make an empty slice to contain the images
+	var images []Image
+
+	// iterate through each row
+	for rows.Next() {
+		// which approach is better? [1] or [2]
+
+		// [1] make nil value strings
+		// var title, altText, url string
+		// [1] get the values from the row and set them on the nil value strings
+		// err = rows.Scan(&title, &altText, &url)
+
+		// [2] make an empty Image struct
+		var image Image
+		// [2] get the values from the row and set them on the Image struct
+		err = rows.Scan(&image.Title, &image.AltText, &image.URL)
+		if err != nil {
+			// Q: in this situation should we keep going regardless or exit with an error?
+			// as in is it better to return some rows rather than none?
+
+			// [1] just keep going (does a Scan error cause a panic?)
+			// continue
+			// [2] error:
+			return nil, fmt.Errorf("error scanning the database row: %w", err)
+		}
+
+		// [1] append an Image struct with the 3 string values
+		// images = append(images, Image{Title: title, URL: url, AltText: altText})
+		// [2] append the Image struct to the images slice
+		images = append(images, image)
+	}
+
+	return images, nil
+}
+
 func main() {
 	// load the .env file
 	err := godotenv.Load()
@@ -30,7 +73,7 @@ func main() {
 	// get the database connection string
 	connectionString := os.Getenv("DATABASE_URL")
 	if connectionString == "" {
-		fmt.Fprintln(os.Stderr, "Error no value on the environment variable DATABASE_URL")
+		fmt.Fprintln(os.Stderr, "error no value on the environment variable DATABASE_URL")
 		os.Exit(1)
 	}
 
@@ -38,57 +81,25 @@ func main() {
 	// (!) investigate context
 	connection, err := pgx.Connect(context.Background(), connectionString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error connecting to the database: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error connecting to the database: %v\n", err)
 		os.Exit(1)
 	}
 	defer connection.Close(context.Background())
 
-	// make a select query to the database
-	rows, err := connection.Query(context.Background(), "SELECT title, alt_text, url FROM images")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error making the query to the database: %v\n", err)
-		os.Exit(1)
-	}
-	defer rows.Close()
-
-	// make an empty slice to contain the images
-	var images []Image
-
-	// iterate through each row
-	for rows.Next() {
-		// make an empty Image struct
-		var image Image
-		// get the values from the row and set them on the Image struct
-		err = rows.Scan(&image.Title, &image.AltText, &image.URL)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error scanning the database row: %v\n", err)
-			continue
-		}
-
-		// append the Image struct to the images slice
-		images = append(images, image)
-	}
-
-	// Original Hardcoded images
-	// images := []Image{
-	// 	{
-	// 		Title:   "Sunset",
-	// 		AltText: "Clouds at sunset",
-	// 		URL:     "https://images.unsplash.com/photo-1506815444479-bfdb1e96c566?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80"},
-	// 	{
-	// 		Title:   "Mountain",
-	// 		AltText: "A mountain at sunset",
-	// 		URL:     "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80"},
-	// }
-
 	http.HandleFunc("/images.json", func(w http.ResponseWriter, r *http.Request) {
-		var imageByteSlice []byte
-		var err error
+		images, err := fetchImages(connection)
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error fetching images from the database: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		indentQueryParameter := r.URL.Query().Get("indent")
 
-		// there is error handling repetition here (panic aversion)
-		// despite me using the var err error above to try to prevent that... suggestions(?)
+		var jsonByteSlice []byte
+
+		// there is error handling repetition here (panic aversion)... suggestions(?)
 		if indentQueryParameter != "" {
 			identInteger, err := strconv.Atoi(indentQueryParameter)
 			if err != nil {
@@ -100,13 +111,13 @@ func main() {
 				return
 			}
 			indentString := strings.Repeat(" ", identInteger)
-			imageByteSlice, err = json.MarshalIndent(images, "", indentString)
+			jsonByteSlice, err = json.MarshalIndent(images, "", indentString)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 		} else {
-			imageByteSlice, err = json.Marshal(images)
+			jsonByteSlice, err = json.Marshal(images)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -114,7 +125,7 @@ func main() {
 		}
 
 		// In the project readme curl shows "Content-Type: text/json" but I usually see "Content-Type: application/json"
-		// I tried:
+		// So I initially tried:
 		// w.Header().Add("Content-Type", "text/json")
 		// Q: But what is the difference(?)
 		// A: text/json is not a standard MIME type recognized by most clients, including web browsers. The standard MIME type for JSON data is application/json.
@@ -126,7 +137,7 @@ func main() {
 		// [1] convert the byte slice to a string before writing it to the writer
 		// fmt.Fprint(w, string(imageByteSlice))
 		// [2] directly write the byte slice to the writer (i would assume better performance?)
-		_, err = w.Write(imageByteSlice)
+		_, err = w.Write(jsonByteSlice)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
