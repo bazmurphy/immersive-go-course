@@ -9,24 +9,12 @@ import (
 	"time"
 )
 
-// Comments ----------
-// I write a lot of comments, it has helped me the entire course to learn, understand and remember
-// They can all be removed at the end to clean it up
+// the errors have [x] numbers to test the error propagation visually
+// admittedly they are not 'user friendly' (at this stage)
 
-// Error Messages ----------
-// The Errors are deliberately numbered [x] so I could follow them up the call stack
-// They can be replaced with "user friendly" messages later
-
-func parseResponseBody(response *http.Response) (string, error) {
-	// check if there is a response body
-	if response.Body == nil {
-		return "", fmt.Errorf("[2] there is no response body")
-	}
-
-	// try to read the response body
+func readResponseBody(response *http.Response) (string, error) {
 	responseBody, err := io.ReadAll(response.Body)
 
-	// if we cannot read the response body then return an error
 	if err != nil {
 		return "", fmt.Errorf("[2] failed to read response body : %w", err)
 	}
@@ -34,148 +22,119 @@ func parseResponseBody(response *http.Response) (string, error) {
 	return string(responseBody), nil
 }
 
-func parseRetryAfterHeader(retryAfterHeaderString string) (time.Duration, error) {
-	// fmt.Println("--- DEBUG retryAfterHeaderString", retryAfterHeaderString)
+// add a second argument of time to allow testing
+func parseRetryAfterHeader(retryAfterHeaderString string, currentTime time.Time) (time.Duration, error) {
+	// Q1: what are the pros/cons of not directly err != nil (?) on these conversion/parsers
+	// Q2: How can we be certain that some standard library methods do/don't "generally" panic(?)
 
-	// first condition "a while"
-	if retryAfterHeaderString == "a while" {
-		return 0, fmt.Errorf("[3] retry-after header is 'a while'")
-	}
-
-	// second condition an integer in string format
 	retryAfterInteger, err := strconv.Atoi(retryAfterHeaderString)
 
-	// if we successfully parse an integer
 	if err == nil {
-		// convert the integer into seconds and return it
-		retryDuration := time.Duration(retryAfterInteger) * time.Second
-		return retryDuration, nil
+		return time.Duration(retryAfterInteger) * time.Second, nil
 	}
 
-	// third condition a timestamp in string format
-	// (!) http.ParseTime can parse various formats
-	// specified in the RFCs for HTTP (RFC1123, RFC850, ANSI C etc)
-	// so it is a better choice than time.Parse(RFC1123, _)
-	retryAfterTimeStamp, err := http.ParseTime(retryAfterHeaderString)
-
-	// if we cannot parse the timestamp then return an error
-	if err != nil {
-		return 0, fmt.Errorf("[3] retry-after header is invalid: %w", err)
+	retryAfterTime, err := http.ParseTime(retryAfterHeaderString)
+	if err == nil {
+		return retryAfterTime.Sub(currentTime), nil
 	}
 
-	// if we can parse the timestamp then calculate the difference and return it
-	retryDuration := time.Until(retryAfterTimeStamp)
-
-	return retryDuration, nil
+	return 0, fmt.Errorf("[3] retry-after header is invalid: %s", retryAfterHeaderString)
 }
 
 func handleTooManyRequestsResponse(response *http.Response) (time.Duration, error) {
-	// parse the Retry-After Header string
-	retryDuration, err := parseRetryAfterHeader(response.Header.Get("Retry-After"))
+	retryDuration, err := parseRetryAfterHeader(response.Header.Get("Retry-After"), time.Now())
 
-	// if we cannot parse the Retry-After Header string then return an error
 	if err != nil {
-		return 0, fmt.Errorf("[2] failed to get a valid delay from retry-after header")
+		return 0, fmt.Errorf("[2] failed to get a valid delay from retry-after header: %w", err)
 	}
 
-	// if we reach here we have a retry duration (of type time.Duration)
 	switch {
 	case retryDuration > 5*time.Second:
-		return 0, fmt.Errorf("[2] retry-after is more than 5 seconds")
+		return 0, fmt.Errorf("[2] retry-after duration is more than 5 seconds")
 	case retryDuration > 0:
 		return retryDuration, nil
 	default:
-		return 0, fmt.Errorf("[2] retry-after condition not found")
+		return 0, fmt.Errorf("[2] retry-after duration not found")
 	}
 }
 
-// this is returning a responseBody, a retry duration in seconds, and an error
-// this breaks single responsibility... need to rethink it... suggestions?
 func handleStatusCode(response *http.Response) (string, time.Duration, error) {
-	// handle the various response status codes (extensible for more status codes)
 	switch response.StatusCode {
-	// 200
 	case http.StatusOK:
-		// parse the response body
-		responseBody, err := parseResponseBody(response)
+		responseBody, err := readResponseBody(response)
 
-		// if we cannot parse the response body then return an error
 		if err != nil {
-			return "", 0, fmt.Errorf("[1] parseResponseBody failed: %w", err)
+			return "", 0, fmt.Errorf("[1] readResponseBody failed: %w", err)
 		}
 
-		// otherwise return the parsed response body
 		return responseBody, 0, nil
-
-	// 429
 	case http.StatusTooManyRequests:
-		// get the retry duration
 		retryDuration, err := handleTooManyRequestsResponse(response)
 
-		// if we cannot get a valid retry duration then return an error
 		if err != nil {
 			return "", 0, fmt.Errorf("[1] handleTooManyRequestsResponse failed: %w", err)
 		}
 
-		// return a retry duration
 		return "", retryDuration, nil
-
-	// Other Status Codes
 	default:
-		return "", 0, fmt.Errorf("[1] unhandled response status code: %d", response.StatusCode)
+		return "", 0, fmt.Errorf("[1] unhandled response status code: %d %v", response.StatusCode, response.Body)
 	}
 }
 
 func makeGetRequest(url string) (string, time.Duration, error) {
-	// try to make the get request
 	response, err := http.Get(url)
 
-	// if the request fails then return an error
 	if err != nil {
 		return "", 0, fmt.Errorf("[0] request failed: %w", err)
 	}
 
-	// we must Close the body to signal to Go that we are done with the Response
-	// so it can release all the allocated resources
-	// use the defer keyword early to close the body regardless of the outcome
 	defer response.Body.Close()
 
-	// send the response to the status code handler
 	responseBody, retryDuration, err := handleStatusCode(response)
 
-	// if there is an error
 	if err != nil {
 		return "", 0, fmt.Errorf("[0] handleStatusCode failed: %w", err)
 	}
 
-	// if there is a retry duration
 	if retryDuration > 0 {
 		return "", retryDuration, nil
 	}
 
-	// return the parsed response body
 	return responseBody, 0, nil
+
+	// an alternative to the above 4 clauses (but didn't know this was possible):
+	// return handleStatusCode(response)
 }
 
+const maxRetries = 3
+
 func main() {
-	// loop until a successful response or an unrecoverable error
+	retryCounter := 0
+
 	for {
 		response, retryDuration, err := makeGetRequest("http://localhost:8080")
 
-		// if we have an unrecoverable error
 		if err != nil {
+			// option1: show all the errors propagated
 			fmt.Fprintln(os.Stderr, err)
+			// option2: ignore error propagation and just provide a basic message
+			// fmt.Fprintln(os.Stderr, "Giving up, we can't get you the weather.")
 			os.Exit(2)
 		}
 
-		// if we have a retry duration
 		if retryDuration > 0 {
-			fmt.Fprintf(os.Stderr, "Retrying after %v...\n", retryDuration)
+			if retryCounter >= maxRetries {
+				fmt.Fprintf(os.Stderr, "We made a maximum of %d retries, Giving up, we can't get you the weather.", maxRetries)
+				os.Exit(1)
+			}
+
+			retryCounter++
+
+			fmt.Fprintf(os.Stderr, "Retry Attempt %d/%d | Will retry after %v...\n", retryCounter, maxRetries, retryDuration)
 			time.Sleep(time.Duration(retryDuration))
 			continue
 		}
 
-		// if we have a successful response
 		fmt.Fprintln(os.Stdout, response)
 		break
 	}
