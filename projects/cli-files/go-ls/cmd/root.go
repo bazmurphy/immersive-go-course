@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strings"
 )
 
 func Execute() {
@@ -20,56 +20,59 @@ func Execute() {
 		return
 	}
 
-	// initialise/default the directory path to where go-ls was called from
-	directoryPath, err := os.Getwd()
+	// get the non-flag command line arguments
+	args := flag.Args()
 
-	// if we can't get the current working directory
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get the current working directory: %v\n", err)
-		os.Exit(2)
+	// make a slice of paths to iterate over (if more than one argument is passed)
+	var paths []string
+
+	if len(args) == 0 {
+		// if there are no arguments passed in then use the current working directory
+		workingDirectory, _ := os.Getwd()
+		paths = append(paths, workingDirectory)
+	} else {
+		// if there are arguments
+		paths = append(paths, args...)
 	}
 
-	// if go-ls was called with an argument use that as the directory path instead
-	if len(os.Args) > 1 {
-		directoryPath = os.Args[1]
-	}
+	// loop over the paths
+	for index, path := range paths {
+		// get the "FileInfo" about the path
+		pathInfo, err := os.Stat(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "could not read the file/directory information: %v\n", err)
+			os.Exit(2)
+		}
 
-	// get the absolute path of that directory
-	absolutePath, err := filepath.Abs(directoryPath)
+		// if the path is a file then print it back to the user
+		if !pathInfo.IsDir() {
+			fmt.Fprintf(os.Stderr, "%v\n", os.Args[1])
+			break
+		}
 
-	// if we can't get the absolute path
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "absolute path not found: %v\n", err)
-		os.Exit(2)
-	}
+		// read from that directory
+		directory, err := os.ReadDir(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error reading from the directory: %v\n", err)
+			os.Exit(2)
+		}
 
-	// get the "file" info
-	// to be able to establish if the absolute path is a file or directory
-	pathInfo, err := os.Stat(absolutePath)
+		// if we have more than one path then print
+		if len(paths) > 1 {
+			fmt.Fprintf(os.Stdout, "%v:\n", path)
+		}
 
-	// if we can't get the "file" info from the absolute path then error
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not read the file/directory information: %v\n", err)
-		os.Exit(2)
-	}
+		// loop through the files/folders and print them
+		for _, file := range directory {
+			// ignore any hidden files
+			if !strings.HasPrefix(file.Name(), ".") {
+				fmt.Fprintf(os.Stdout, "%v\n", file.Name())
+			}
+		}
 
-	// if the path is not a directory (then it must be a file(?)) so print it back to the user
-	if !pathInfo.IsDir() {
-		fmt.Fprintf(os.Stderr, "%v\n", os.Args[1])
-		os.Exit(1)
-	}
-
-	// read from that directory
-	directory, err := os.ReadDir(absolutePath)
-
-	// if there is an error reading from the directory
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading from the directory: %v\n", err)
-		os.Exit(2)
-	}
-
-	// loop over the files/directories in the "directory" slice
-	for _, file := range directory {
-		fmt.Fprintf(os.Stdout, "%v\n", file.Name())
+		// add a newline to separate multiple paths
+		if len(paths) > 1 && index < len(paths)-1 {
+			fmt.Fprint(os.Stdout, "\n")
+		}
 	}
 }
