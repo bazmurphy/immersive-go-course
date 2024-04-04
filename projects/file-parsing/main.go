@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -26,11 +27,6 @@ func parseJSON(file []byte, dataSlice *[]Player) error {
 
 	// if we fail to "unmarshal" the json file then error
 	if err != nil {
-		return errors.New("[3] could not parse any data in JSON format")
-	}
-
-	// if the data slice is empty
-	if len(*dataSlice) == 0 {
 		return errors.New("[3] could not parse any data in JSON format")
 	}
 
@@ -75,11 +71,6 @@ func parseRepeatedJSON(file []byte, dataSlice *[]Player) error {
 		*dataSlice = append(*dataSlice, player)
 	}
 
-	// if the data slice is empty
-	if len(*dataSlice) == 0 {
-		return errors.New("[3] could not parse any data in repeated JSON format")
-	}
-
 	return nil
 }
 
@@ -97,27 +88,26 @@ func parseCSV(file []byte, dataSlice *[]Player) error {
 		return errors.New("[3] could not parse any data in CSV format")
 	}
 
-	if len(lines) == 0 {
-		return errors.New("[3] could not parse any data in CSV format")
-	}
-
 	// loop over each line
-	for _, line := range lines {
-
+	for index, line := range lines {
 		// (!!!) if we try to read one of the binary files it gives us this: [[��] [AyaPrisha����CharlieMargot]]
 		// so we need to add an additional check here:
 
-		// if the line does not have 2 values (highscore, name) then skip
+		// if the line does not have 2 values (name, highscore) then skip
 		// ((!) this is brittle if a line has valid data but random extra values etc)
 		if len(line) != 2 {
 			continue
 		}
 
-		// get the player name
+		// get the player name...
+		// (!) but this is assuming the name is at index position 0 which it may not be(?)
 		name := line[0]
 
 		// the player has no name so skip
 		if len(name) == 0 {
+			// warn the user of the program in some way
+			fmt.Fprintf(os.Stderr, "could not parse a player name from csv file line %d", index+1)
+			// should i continue or break and error
 			continue
 		}
 
@@ -126,16 +116,14 @@ func parseCSV(file []byte, dataSlice *[]Player) error {
 
 		// if the player has no high score then skip
 		if err != nil {
+			// warn the user of the program in some way
+			fmt.Fprintf(os.Stderr, "could not parse a player high score from csv file line %d", index+1)
+			// should i continue or break and error
 			continue
 		}
 
 		// add the player to the dataSlice
 		*dataSlice = append(*dataSlice, Player{Name: name, HighScore: int32(highScore)})
-	}
-
-	// if the data slice is empty
-	if len(*dataSlice) == 0 {
-		return errors.New("[3] could not parse any data in CSV format")
 	}
 
 	return nil
@@ -174,34 +162,25 @@ func parseBinary(file []byte, dataSlice *[]Player) error {
 	// 0000040 00 19 00 00 00 4d 61 72 67 6f 74 [00]
 	// 0000054
 
-	// initialise two flags (explicitly two, yes could be achieved with one)
-	var bigEndian bool
-	var littleEndian bool
+	var byteOrder binary.ByteOrder
 
-	// check the first two bytes of the file (deliberately using byte() to be explicit)
+	// check the first two bytes of the file
 	// if they are "fe ff" it is big endian
 	// if they are "ff fe" is is little endian
-	if file[0] == byte(0xfe) && file[1] == byte(0xff) {
-		bigEndian = true
-	} else if file[0] == byte(0xff) && file[1] == byte(0xfe) {
-		littleEndian = true
+	if bytes.Equal(file[:2], []byte{0xfe, 0xff}) {
+		byteOrder = binary.BigEndian
+	} else if bytes.Equal(file[:2], []byte{0xff, 0xfe}) {
+		byteOrder = binary.LittleEndian
 	} else {
-		return errors.New("[3] could not establish Endianness of the binary file")
+		return errors.New("[3] expected file to start with either feff (big endian) or fffe (little endian)")
 	}
 
 	// set the start pointer to 2 to skip the first two bytes (which contain the Byte Order Mark BOM)
 	// then loop over the byte slice
 	for startIndex := 2; startIndex < len(file); {
-		// initialise a variable to store the high score
-		var highScore int32
-
 		// parse the high score (signed 32-bit integer) based on the Endianness
 		// (!) but why are we using Uint32 method (when we know its "signed") and then converting it to int32 (presumably "signed").. where is the native xEndian.Int32 method?
-		if bigEndian {
-			highScore = int32(binary.BigEndian.Uint32(file[startIndex : startIndex+4]))
-		} else if littleEndian {
-			highScore = int32(binary.LittleEndian.Uint32(file[startIndex : startIndex+4]))
-		}
+		highScore := int32(byteOrder.Uint32(file[startIndex : startIndex+4]))
 
 		// increment the start pointer by 4
 		startIndex += 4
@@ -286,11 +265,6 @@ func parseFile(filename string) ([]Player, error) {
 		return nil, fmt.Errorf("[1] error parsing data from the file: %w", err)
 	}
 
-	// if the dataSlice is empty then error
-	if len(dataSlice) == 0 {
-		return nil, fmt.Errorf("[1] the file likely contains no data: %w", err)
-	}
-
 	return dataSlice, nil
 }
 
@@ -300,9 +274,9 @@ func getHighestLowestScorePlayers(dataSlice []Player) (Player, Player, error) {
 		return Player{}, Player{}, errors.New("[1] the parsed data contains no players")
 	}
 
-	// create two variables to hold the highest/lowest scoring players
-	var playerWithHighestScore Player
-	var playerWithLowestScore Player
+	// create two variables to hold the highest/lowest scoring players, and set them as the first player in the slice
+	playerWithHighestScore := dataSlice[0]
+	playerWithLowestScore := dataSlice[0]
 
 	// loop over the slice of structs and establish the highest/lowest scoring players
 	for _, player := range dataSlice {
@@ -331,7 +305,7 @@ func parseFilesFromDirectory(directory string) error {
 		fmt.Fprintf(os.Stderr, "--> attempting to parse %s\n", file.Name())
 
 		// dynamically build the file path
-		filePath := fmt.Sprintf("%s/%s", directory, file.Name())
+		filePath := filepath.Join(directory, file.Name())
 
 		// try to parse the file
 		dataSlice, err := parseFile(filePath)

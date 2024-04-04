@@ -2,133 +2,207 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"reflect"
 	"testing"
 )
 
 func TestParseJSON(t *testing.T) {
-	t.Run("valid json", func(t *testing.T) {
-		validJSON := []byte(
-			`[
-				{"name":"playerOne","high_score":50},
-				{"name":"playerTwo","high_score":0},
-				{"name":"playerThree","high_score":25}
-			]`)
+	type testCase struct {
+		name                string
+		json                []byte
+		expectedError       error
+		expectedDataSlice   []Player
+		expectedPlayerCount int
+	}
 
-		var dataSlice []Player
+	testCases := []testCase{
+		{
+			name:                "valid json",
+			json:                []byte(`[{"name":"playerOne","high_score":50},{"name":"playerTwo","high_score":0},{"name":"playerThree","high_score":25}]`),
+			expectedError:       nil,
+			expectedDataSlice:   []Player{{Name: "playerOne", HighScore: 50}, {Name: "playerTwo", HighScore: 0}, {Name: "playerThree", HighScore: 25}},
+			expectedPlayerCount: 3,
+		},
+		{
+			name:                "invalid json",
+			json:                []byte(`[{"name":"","high_score":50}`),
+			expectedError:       errors.New("[3] could not parse any data in JSON format"),
+			expectedDataSlice:   []Player{},
+			expectedPlayerCount: 0,
+		},
+		{
+			name:                "empty json",
+			json:                []byte(`[]`),
+			expectedError:       nil,
+			expectedDataSlice:   []Player{},
+			expectedPlayerCount: 0,
+		},
+	}
 
-		err := parseJSON(validJSON, &dataSlice)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// why if i use the top line does the test fail but not the bottom line are they not the same?
+			// var dataSlice []Player
+			dataSlice := []Player{}
 
-		if err != nil {
-			t.Errorf("got %v | want no error", err)
-		}
+			err := parseJSON(tc.json, &dataSlice)
 
-		if len(dataSlice) != 3 {
-			t.Errorf("got %d players | want %d players", len(dataSlice), 3)
-		}
-	})
+			// i don't like this weird nested error logic i am doing here... what is more elegant?
+			if err != nil {
+				if tc.expectedError != nil {
+					if err.Error() != tc.expectedError.Error() {
+						t.Errorf("got error %v | expected error %v", err, tc.expectedError)
+					}
+				} else {
+					t.Errorf("got error %v | expected error %v", err, tc.expectedError)
+				}
+			}
 
-	t.Run("invalid json", func(t *testing.T) {
-		invalidJSON := []byte(
-			`[{"name":"","high_score":50}`)
+			if !reflect.DeepEqual(dataSlice, tc.expectedDataSlice) {
+				t.Errorf("got dataSlice %v | expected %v", dataSlice, tc.expectedDataSlice)
+			}
 
-		var dataSlice []Player
-
-		err := parseJSON(invalidJSON, &dataSlice)
-
-		wantErr := errors.New("[3] could not parse any data in JSON format")
-
-		if err == nil {
-			t.Errorf("got no error | want %q", wantErr)
-		}
-
-		if len(dataSlice) != 0 {
-			t.Errorf("got %d | want %d", len(dataSlice), 0)
-		}
-	})
+			if len(dataSlice) != tc.expectedPlayerCount {
+				t.Errorf("got %d playerCount | expected %d playerCount", len(dataSlice), tc.expectedPlayerCount)
+			}
+		})
+	}
 }
 
 func TestParseRepeatedJSON(t *testing.T) {
-	t.Run("valid repeatedJSON", func(t *testing.T) {
-		validRepeatedJSON := []byte(
-			`{"name":"playerOne","high_score":50}
-			# Comment
-			{"name":"playerTwo","high_score":0}
-			# Comment # Comment
-			{"name":"playerThree","high_score":25}`)
+	testCases := []struct {
+		name                string
+		json                []byte
+		expectedError       error
+		expectedDataSlice   []Player
+		expectedPlayerCount int
+	}{
+		{
+			name: "valid repeatedJSON",
+			json: []byte(`{"name":"playerOne","high_score":50}
+{"name":"playerTwo","high_score":0}
+{"name":"playerThree","high_score":25}`),
+			expectedError: nil,
+			expectedDataSlice: []Player{
+				{Name: "playerOne", HighScore: 50},
+				{Name: "playerTwo", HighScore: 0},
+				{Name: "playerThree", HighScore: 25},
+			},
+			expectedPlayerCount: 3,
+		},
+		{
+			name: "valid repeatedJSON with empty lines and comments",
+			json: []byte(`
+# Comment1
+{"name":"playerOne","high_score":50}
 
-		var dataSlice []Player
+# Comment2 # Comment3
+{"name":"playerTwo","high_score":0}
 
-		err := parseRepeatedJSON(validRepeatedJSON, &dataSlice)
+`),
+			expectedError: nil,
+			expectedDataSlice: []Player{
+				{Name: "playerOne", HighScore: 50},
+				{Name: "playerTwo", HighScore: 0},
+			},
+			expectedPlayerCount: 2,
+		},
+		{
+			name:                "invalid repeatedJSON",
+			json:                []byte(`{"name":"playerOne","high_score":50{"name":"playerTwo","high_score":}`),
+			expectedError:       nil,
+			expectedDataSlice:   []Player{},
+			expectedPlayerCount: 0,
+		},
+		{
+			name:                "empty repeatedJSON",
+			json:                []byte(""),
+			expectedError:       nil,
+			expectedDataSlice:   []Player{},
+			expectedPlayerCount: 0,
+		},
+	}
 
-		if err != nil {
-			t.Errorf("got %v | want no error", err)
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// why if i use the top line does the test fail but not the bottom line are they not the same?
+			// var dataSlice []Player
+			dataSlice := []Player{}
 
-		if len(dataSlice) != 3 {
-			t.Errorf("got %d, want %d", len(dataSlice), 3)
-		}
-	})
+			err := parseRepeatedJSON(tc.json, &dataSlice)
 
-	t.Run("invalid repeatedJSON", func(t *testing.T) {
-		invalidRepeatedJSON := []byte(`{"name":"playerOne","high_score":50{"name":"playerTwo","high_score":}`)
+			if err != nil {
+				t.Errorf("got error %v | expected error %v", err, tc.expectedError)
+			}
 
-		var dataSlice []Player
+			if len(dataSlice) != tc.expectedPlayerCount {
+				t.Errorf("got %d playerCount | expected %d playerCount", len(dataSlice), tc.expectedPlayerCount)
+			}
 
-		err := parseRepeatedJSON(invalidRepeatedJSON, &dataSlice)
-
-		wantErr := errors.New("[3] could not parse any data in repeated JSON format")
-
-		if err == nil {
-			t.Errorf("got no error | want %q", wantErr)
-		}
-
-		if len(dataSlice) != 0 {
-			t.Errorf("got %d | want %d", len(dataSlice), 0)
-		}
-	})
+			if !reflect.DeepEqual(dataSlice, tc.expectedDataSlice) {
+				t.Errorf("got dataSlice %v | expected %v", dataSlice, tc.expectedDataSlice)
+			}
+		})
+	}
 }
 
 func TestParseCSV(t *testing.T) {
-	t.Run("valid CSV", func(t *testing.T) {
-		validCSV := []byte(
-			`playerOne,50
-			playerTwo,0
-			playerThree,25`)
 
-		var dataSlice []Player
+	type testCase struct {
+		name                string
+		csv                 []byte
+		expectedError       error
+		expectedDataSlice   []Player
+		expectedPlayerCount int
+	}
 
-		err := parseCSV(validCSV, &dataSlice)
+	testCases := []testCase{
+		{
+			name:          "valid CSV",
+			csv:           []byte("playerOne,50\nplayerTwo,0\nplayerThree,25"),
+			expectedError: nil,
+			expectedDataSlice: []Player{
+				{Name: "playerOne", HighScore: 50},
+				{Name: "playerTwo", HighScore: 0},
+				{Name: "playerThree", HighScore: 25},
+			},
+			expectedPlayerCount: 3,
+		},
+		{
+			name:                "CSV with one invalid line",
+			csv:                 []byte("playerOne,50\nplayerTwo,0,anotherValue\nplayerThree,25"),
+			expectedError:       errors.New("[3] could not parse any data in CSV format"),
+			expectedDataSlice:   []Player{},
+			expectedPlayerCount: 0,
+		},
+	}
 
-		if err != nil {
-			t.Errorf("got %q | want no error", err)
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// why if i use the top line does the test fail but not the bottom line are they not the same?
+			// var dataSlice []Player
+			dataSlice := []Player{}
 
-		if len(dataSlice) != 3 {
-			t.Errorf("got %d | want %d", len(dataSlice), 3)
-		}
+			err := parseCSV(tc.csv, &dataSlice)
 
-	})
-	t.Run("invalid CSV", func(t *testing.T) {
-		invalidCSV := []byte(
-			`playerOne,50
-			playerTwo,0,anotherValue
-			playerThree,25`)
+			// i don't like this weird nested error logic i am doing here... what is more elegant?
+			if err != nil {
+				if tc.expectedError != nil {
+					if err.Error() != tc.expectedError.Error() {
+						t.Errorf("got error %v | expected error %v", err, tc.expectedError)
+					}
+				} else {
+					t.Errorf("got error %v | expected error %v", err, tc.expectedError)
+				}
+			}
 
-		var dataSlice []Player
+			if len(dataSlice) != tc.expectedPlayerCount {
+				t.Errorf("got %d playerCount | expected %d playerCount", len(dataSlice), tc.expectedPlayerCount)
+			}
 
-		err := parseCSV(invalidCSV, &dataSlice)
-
-		fmt.Println(err)
-
-		wantErr := "[3] could not parse any data in CSV format"
-
-		if err == nil {
-			t.Errorf("got no error | want %q", wantErr)
-		}
-
-		if len(dataSlice) != 0 {
-			t.Errorf("got %d | want %d", len(dataSlice), 0)
-		}
-	})
+			if !reflect.DeepEqual(dataSlice, tc.expectedDataSlice) {
+				t.Errorf("got dataSlice %v | expected %v", dataSlice, tc.expectedDataSlice)
+			}
+		})
+	}
 }
