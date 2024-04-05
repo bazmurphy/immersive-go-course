@@ -68,10 +68,7 @@ func main() {
 				for key, values := range queryParameters {
 					// fmt.Println("key", key, "value", value)
 
-					keyString := fmt.Sprintf("<li>%s: [", html.EscapeString(key))
-					// fmt.Println("keyString", keyString)
-
-					fmt.Fprint(w, keyString)
+					fmt.Fprintf(w, "<li>%s: [", html.EscapeString(key))
 
 					for _, value := range values {
 						// fmt.Println("index", index, "element", element)
@@ -97,11 +94,15 @@ func main() {
 			requestBody, err := io.ReadAll(r.Body)
 
 			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte("error reading the request body"))
+				return
 			}
 
 			if len(requestBody) == 0 {
+				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("no body was received with the request"))
+				return
 			}
 
 			w.Write([]byte(requestBody))
@@ -161,7 +162,7 @@ func main() {
 
 		// there was no authentication header
 		if len(authorizationHeader) == 0 {
-			w.Header().Set("WWW-Authenticate", `Basic realm=""`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="User Authentication"`)
 			w.WriteHeader(http.StatusUnauthorized)
 			fmt.Fprintf(w, "401 Unauthorized [no authorization header]")
 			return
@@ -193,6 +194,11 @@ func main() {
 		credentials := strings.Split(string(payload), ":")
 		// fmt.Println("credentials", credentials)
 
+		if len(credentials) != 2 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "400 Bad Request [invalid credentials format]")
+		}
+
 		username := credentials[0]
 		password := credentials[1]
 		// fmt.Println("username", username, "password", password)
@@ -217,7 +223,7 @@ func main() {
 
 		// if we reach here the authorization was successful
 		w.Header().Add("Content-Type", "text/html")
-		fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<p>Hello %s!</p>\n", username)
+		fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<p>Hello %s!</p>\n", html.EscapeString(username))
 	})
 
 	// create a limiter
