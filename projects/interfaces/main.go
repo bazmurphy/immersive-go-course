@@ -89,16 +89,16 @@ type FilteringPipe struct {
 // Write(p []byte) (n int, err error)
 func (fp *FilteringPipe) Write(p []byte) (int, error) {
 	// create a new slice to store the filtered bytes in
-	var filteredBytesSlice []byte
+	// var filteredBytesSlice []byte
 
-	// loop through the slice of bytes (that was passed in as an argument)
-	for _, byte := range p {
-		// if the byte is not a digit
-		if !unicode.IsDigit(rune(byte)) {
-			// then append it to the slice
-			filteredBytesSlice = append(filteredBytesSlice, byte)
-		}
-	}
+	// // loop through the slice of bytes (that was passed in as an argument)
+	// for _, byte := range p {
+	// 	// if the byte is not a digit
+	// 	if !unicode.IsDigit(rune(byte)) {
+	// 		// then append it to the slice
+	// 		filteredBytesSlice = append(filteredBytesSlice, byte)
+	// 	}
+	// }
 
 	// check the filteredBytesSlice
 	// fmt.Println(string(filteredBytesSlice))
@@ -106,7 +106,7 @@ func (fp *FilteringPipe) Write(p []byte) (int, error) {
 	// but how to return the filteredBytesSlice correctly?
 
 	// Searched and found this.. but I _REALLY_ don't understand it...
-	return fp.writer.Write(filteredBytesSlice)
+	// return fp.writer.Write(filteredBytesSlice)
 
 	// This line calls the Write() method of the underlying writer (writer) that's embedded within the FilteringPipe struct.
 	// It passes the filteredBytesSlice to this writer, essentially sending the filtered data to the next stage in the pipeline.
@@ -120,6 +120,25 @@ func (fp *FilteringPipe) Write(p []byte) (int, error) {
 	// This mechanism enables you to chain multiple filters or write the filtered data to any destination that implements the io.Writer interface.
 
 	// By returning the results of the underlying writer's Write() method, the FilteringPipe maintains consistency with the io.Writer interface and enables seamless integration with other parts of the Go I/O system.
+
+	// second implementation ----------
+	var totalBytesWritten int
+	var writeError error
+
+	// loop through the individual bytes in the slice of bytes passed in as argument p
+	for _, individualByte := range p {
+		if !unicode.IsDigit(rune(individualByte)) {
+			// use the underlying Write() method to write the individual byte to (what??)
+			numberOfBytesWritten, err := fp.writer.Write([]byte{individualByte})
+			totalBytesWritten += numberOfBytesWritten
+			if err != nil {
+				writeError = err
+				break
+			}
+		}
+	}
+
+	return totalBytesWritten, writeError
 }
 
 // constructor for FilteringPipe, it takes in an io.Writer as an argument
