@@ -13,15 +13,22 @@ import (
 	"strings"
 )
 
-// define a type of struct
+// define a struct for a Player
 // (!) ` ` are struct tags, it provides metadata which can be used by Go packages like encoding/json, otherwise the unmarshal will use the field names
 type Player struct {
 	Name      string `json:"name"`
 	HighScore int32  `json:"high_score"`
 }
 
-// [1] JSON
-func parseJSON(file []byte, dataSlice *[]Player) error {
+// define an interface for a FileParser
+type FileParser interface {
+	// to implement this interface the type must have the Parse method (with the exact function signature)
+	Parse(file []byte, dataSlice *[]Player) error
+}
+
+type JSONParser struct{}
+
+func (p *JSONParser) Parse(file []byte, dataSlice *[]Player) error {
 	// try to "unmarshal" the data from the json file into the data slice variable
 	err := json.Unmarshal(file, &dataSlice)
 
@@ -33,8 +40,9 @@ func parseJSON(file []byte, dataSlice *[]Player) error {
 	return nil
 }
 
-// [2] Repeated JSON
-func parseRepeatedJSON(file []byte, dataSlice *[]Player) error {
+type RepeatedJSONParser struct{}
+
+func (p *RepeatedJSONParser) Parse(file []byte, dataSlice *[]Player) error {
 	// convert the file to a string and then split it on a newline character
 	lines := strings.Split(string(file), "\n")
 
@@ -74,8 +82,9 @@ func parseRepeatedJSON(file []byte, dataSlice *[]Player) error {
 	return nil
 }
 
-// [3] CSV
-func parseCSV(file []byte, dataSlice *[]Player) error {
+type CSVParser struct{}
+
+func (p *CSVParser) Parse(file []byte, dataSlice *[]Player) error {
 	// because of the way we have tried to use file []byte as a parameter..
 	// it means we have to use bytes.NewReader on the file... this is JANKY
 	reader := csv.NewReader(bytes.NewReader(file))
@@ -106,8 +115,8 @@ func parseCSV(file []byte, dataSlice *[]Player) error {
 		// the player has no name so skip
 		if len(name) == 0 {
 			// warn the user of the program in some way
-			fmt.Fprintf(os.Stderr, "could not parse a player name from csv file line %d", index+1)
-			// should i continue or break and error
+			fmt.Fprintf(os.Stderr, "could not parse a player name from csv file line %d\n", index+1)
+			// should i continue or break and error(?)
 			continue
 		}
 
@@ -117,8 +126,8 @@ func parseCSV(file []byte, dataSlice *[]Player) error {
 		// if the player has no high score then skip
 		if err != nil {
 			// warn the user of the program in some way
-			fmt.Fprintf(os.Stderr, "could not parse a player high score from csv file line %d", index+1)
-			// should i continue or break and error
+			fmt.Fprintf(os.Stderr, "could not parse a player high score from csv file line %d\n", index+1)
+			// should i continue or break and error(?)
 			continue
 		}
 
@@ -129,8 +138,9 @@ func parseCSV(file []byte, dataSlice *[]Player) error {
 	return nil
 }
 
-// [4] BINARY
-func parseBinary(file []byte, dataSlice *[]Player) error {
+type BinaryParser struct{}
+
+func (p *BinaryParser) Parse(file []byte, dataSlice *[]Player) error {
 	// each record contains exactly four bytes
 	// representing the score as a signed 32-bit integer (in the above endian format)
 	// then the name of the player stored in UTF-8
@@ -207,59 +217,38 @@ func parseBinary(file []byte, dataSlice *[]Player) error {
 	return nil
 }
 
-func attemptToParse(file []byte) ([]Player, error) {
-	// initialise a slice of Player structs
-	var dataSlice []Player
-
-	// doing this sequentially isn't great...
-	// how to establish what type of file it is before attempting to parse it?
-
-	err := parseJSON(file, &dataSlice)
-	// if err != nil {
-	// 	fmt.Println(err) // temporary
-	// }
-	if err == nil {
-		return dataSlice, nil
-	}
-
-	err = parseRepeatedJSON(file, &dataSlice)
-	// if err != nil {
-	// 	fmt.Println(err) // temporary
-	// }
-	if err == nil {
-		return dataSlice, nil
-	}
-
-	err = parseCSV(file, &dataSlice)
-	// if err != nil {
-	// 	fmt.Println(err) // temporary
-	// }
-	if err == nil {
-		return dataSlice, nil
-	}
-
-	err = parseBinary(file, &dataSlice)
-	// if err != nil {
-	// 	fmt.Println(err) // temporary
-	// }
-	if err == nil {
-		return dataSlice, nil
-	}
-
-	return nil, fmt.Errorf("[2] could not parse the file: %w", err)
-}
-
 func parseFile(filename string) ([]Player, error) {
+	// get the file extension
+	fileExtension := strings.ToLower(filepath.Ext(filename))
+
 	// try to read the file
 	file, err := os.ReadFile(filename)
-
 	// if we can't read the file then error
 	if err != nil {
 		return nil, fmt.Errorf("[1] error reading the file: %w", err)
 	}
 
-	dataSlice, err := attemptToParse(file)
+	// instantiate the FileParser interface
+	var fileParser FileParser
 
+	switch fileExtension {
+	// but in examples/ :
+	// the json file is .txt
+	// the repeated json file is .txt
+	case ".json":
+		fileParser = &JSONParser{}
+	case ".csv":
+		fileParser = &CSVParser{}
+	case ".bin":
+		fileParser = &BinaryParser{}
+	default:
+		return nil, fmt.Errorf("[1] error cannot handle this file extension")
+	}
+
+	var dataSlice []Player
+
+	// try to parse the file
+	err = fileParser.Parse(file, &dataSlice)
 	// if we can't parse the file then error
 	if err != nil {
 		return nil, fmt.Errorf("[1] error parsing data from the file: %w", err)

@@ -45,7 +45,9 @@ func TestParseJSON(t *testing.T) {
 			// var dataSlice []Player
 			dataSlice := []Player{}
 
-			err := parseJSON(tc.json, &dataSlice)
+			var jsonParser JSONParser
+
+			err := jsonParser.Parse(tc.json, &dataSlice)
 
 			// i don't like this weird nested error logic i am doing here... what is more elegant?
 			if err != nil {
@@ -58,12 +60,12 @@ func TestParseJSON(t *testing.T) {
 				}
 			}
 
-			if !reflect.DeepEqual(dataSlice, tc.expectedDataSlice) {
-				t.Errorf("got dataSlice %v | expected %v", dataSlice, tc.expectedDataSlice)
-			}
-
 			if len(dataSlice) != tc.expectedPlayerCount {
 				t.Errorf("got %d playerCount | expected %d playerCount", len(dataSlice), tc.expectedPlayerCount)
+			}
+
+			if !reflect.DeepEqual(dataSlice, tc.expectedDataSlice) {
+				t.Errorf("got dataSlice %v | expected %v", dataSlice, tc.expectedDataSlice)
 			}
 		})
 	}
@@ -131,7 +133,9 @@ func TestParseRepeatedJSON(t *testing.T) {
 			// var dataSlice []Player
 			dataSlice := []Player{}
 
-			err := parseRepeatedJSON(tc.repeatedjson, &dataSlice)
+			var repeatedJsonParser RepeatedJSONParser
+
+			err := repeatedJsonParser.Parse(tc.repeatedjson, &dataSlice)
 
 			if err != nil {
 				t.Errorf("got error %v | expected error %v", err, tc.expectedError)
@@ -184,7 +188,9 @@ func TestParseCSV(t *testing.T) {
 			// var dataSlice []Player
 			dataSlice := []Player{}
 
-			err := parseCSV(tc.csv, &dataSlice)
+			var csvParser CSVParser
+
+			err := csvParser.Parse(tc.csv, &dataSlice)
 
 			// i don't like this weird nested error logic i am doing here... what is more elegant?
 			if err != nil {
@@ -271,7 +277,9 @@ func TestParseBinary(t *testing.T) {
 			// var dataSlice []Player
 			dataSlice := []Player{}
 
-			err := parseBinary(tc.binary, &dataSlice)
+			var binaryParser BinaryParser
+
+			err := binaryParser.Parse(tc.binary, &dataSlice)
 
 			// i don't like this weird nested error logic i am doing here... what is more elegant?
 			if err != nil {
@@ -282,6 +290,10 @@ func TestParseBinary(t *testing.T) {
 				} else {
 					t.Errorf("got error %v | expected error %v", err, tc.expectedError)
 				}
+			}
+
+			if len(dataSlice) != tc.expectedPlayerCount {
+				t.Errorf("got %d playerCount | expected %d playerCount", len(dataSlice), tc.expectedPlayerCount)
 			}
 
 			if !reflect.DeepEqual(dataSlice, tc.expectedDataSlice) {
