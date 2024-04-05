@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseJSON(t *testing.T) {
-	type testCase struct {
+	type testCaseJSON struct {
 		name                string
 		json                []byte
 		expectedError       error
@@ -15,7 +15,7 @@ func TestParseJSON(t *testing.T) {
 		expectedPlayerCount int
 	}
 
-	testCases := []testCase{
+	testCases := []testCaseJSON{
 		{
 			name:                "valid json",
 			json:                []byte(`[{"name":"playerOne","high_score":50},{"name":"playerTwo","high_score":0},{"name":"playerThree","high_score":25}]`),
@@ -70,16 +70,18 @@ func TestParseJSON(t *testing.T) {
 }
 
 func TestParseRepeatedJSON(t *testing.T) {
-	testCases := []struct {
+	type testCaseRepeatedJSON struct {
 		name                string
-		json                []byte
+		repeatedjson        []byte
 		expectedError       error
 		expectedDataSlice   []Player
 		expectedPlayerCount int
-	}{
+	}
+
+	testCases := []testCaseRepeatedJSON{
 		{
 			name: "valid repeatedJSON",
-			json: []byte(`{"name":"playerOne","high_score":50}
+			repeatedjson: []byte(`{"name":"playerOne","high_score":50}
 {"name":"playerTwo","high_score":0}
 {"name":"playerThree","high_score":25}`),
 			expectedError: nil,
@@ -92,7 +94,7 @@ func TestParseRepeatedJSON(t *testing.T) {
 		},
 		{
 			name: "valid repeatedJSON with empty lines and comments",
-			json: []byte(`
+			repeatedjson: []byte(`
 # Comment1
 {"name":"playerOne","high_score":50}
 
@@ -109,14 +111,14 @@ func TestParseRepeatedJSON(t *testing.T) {
 		},
 		{
 			name:                "invalid repeatedJSON",
-			json:                []byte(`{"name":"playerOne","high_score":50{"name":"playerTwo","high_score":}`),
+			repeatedjson:        []byte(`{"name":"playerOne","high_score":50{"name":"playerTwo","high_score":}`),
 			expectedError:       nil,
 			expectedDataSlice:   []Player{},
 			expectedPlayerCount: 0,
 		},
 		{
 			name:                "empty repeatedJSON",
-			json:                []byte(""),
+			repeatedjson:        []byte(""),
 			expectedError:       nil,
 			expectedDataSlice:   []Player{},
 			expectedPlayerCount: 0,
@@ -129,7 +131,7 @@ func TestParseRepeatedJSON(t *testing.T) {
 			// var dataSlice []Player
 			dataSlice := []Player{}
 
-			err := parseRepeatedJSON(tc.json, &dataSlice)
+			err := parseRepeatedJSON(tc.repeatedjson, &dataSlice)
 
 			if err != nil {
 				t.Errorf("got error %v | expected error %v", err, tc.expectedError)
@@ -147,8 +149,7 @@ func TestParseRepeatedJSON(t *testing.T) {
 }
 
 func TestParseCSV(t *testing.T) {
-
-	type testCase struct {
+	type testCaseCSV struct {
 		name                string
 		csv                 []byte
 		expectedError       error
@@ -156,7 +157,7 @@ func TestParseCSV(t *testing.T) {
 		expectedPlayerCount int
 	}
 
-	testCases := []testCase{
+	testCases := []testCaseCSV{
 		{
 			name:          "valid CSV",
 			csv:           []byte("playerOne,50\nplayerTwo,0\nplayerThree,25"),
