@@ -8,7 +8,10 @@ sudo apt install php php-fpm
 
 ## Configure PHP-FPM
 
-Open the php-fpm configuration file
+Open the php-fpm php initialisation file (not the configuration file)
+
+- `/etc/php/8.2/fpm/php.ini` (php initialisation file)
+- `/etc/php/8.2/fpm/php-fpm.conf` (configuration file)
 
 ```sh
 baz@baz-pc:/$ code /etc/php/8.2/fpm/php.ini
