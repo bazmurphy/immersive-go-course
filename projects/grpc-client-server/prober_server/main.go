@@ -23,13 +23,50 @@ type server struct {
 }
 
 func (s *server) DoProbes(ctx context.Context, in *pb.ProbeRequest) (*pb.ProbeReply, error) {
-	// TODO: support a number of repetitions and return average latency
-	start := time.Now()
-	_, _ = http.Get(in.GetEndpoint())	// TODO: add error handling here and check the response code
-	elapsed := time.Since(start)
-	elapsedMsecs := float32(elapsed / time.Millisecond)
+	// get the number of probes from the probe request
+	numberOfProbes := in.GetNumberOfProbes()
+	// fmt.Printf("DoProbes | numberOfProbes %v\n", numberOfProbes)
 
-	return &pb.ProbeReply{LatencyMsecs: elapsedMsecs}, nil
+	// initialise a total time
+	var totalTime time.Duration
+
+	// support a number of repetitions and return average latency
+	for i := 0; i < int(numberOfProbes); i++ {
+		startTime := time.Now()
+		// fmt.Printf("DoProbes | startTime %v\n", startTime)
+
+		// make the request to the endpoint
+		response, err := http.Get(in.GetEndpoint())
+
+		// if the request errors
+		if err != nil {
+			return nil, fmt.Errorf("error: DoProbes request failed: %v", err)
+		}
+
+		// remember to close the response body
+		defer response.Body.Close()
+
+		// if the request status code is not OK
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("error: response was not OK: %v", err)
+		}
+
+		// get the elapsed time
+		elapsedTime := time.Since(startTime)
+		// fmt.Printf("DoProbes | elapsedTime %v\n", elapsedTime)
+
+		// add the elapsed time to the total time
+		totalTime += elapsedTime
+		// fmt.Printf("DoProbes | totalTime %v\n", totalTime)
+	}
+
+	// calculate the average latency in milliseconds
+	// (!) i am deliberately not using milliseconds here, so i can get more precision on the float, but why do i need to do this, this feels janky :/
+	averageLatencyMsecs := float32(totalTime.Microseconds()) / float32(numberOfProbes) / 1000
+
+	fmt.Printf("DoProbes | totalTime %v | numberOfProbes %d | averageLatencyMsecs %v\n", totalTime, numberOfProbes, averageLatencyMsecs)
+
+	return &pb.ProbeReply{AverageLatencyMsecs: averageLatencyMsecs}, nil
 }
 
 func main() {
