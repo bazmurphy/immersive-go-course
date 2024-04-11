@@ -22,9 +22,9 @@ type server struct {
 	pb.UnimplementedProberServer
 }
 
-func (s *server) DoProbes(ctx context.Context, in *pb.ProbeRequest) (*pb.ProbeReply, error) {
+func (s *server) DoProbes(ctx context.Context, request *pb.ProbeRequest) (*pb.ProbeReply, error) {
 	// get the number of probes from the probe request
-	numberOfProbes := in.GetNumberOfProbes()
+	numberOfProbes := request.GetNumberOfProbes()
 	// fmt.Printf("DoProbes | numberOfProbes %v\n", numberOfProbes)
 
 	// initialise a total time
@@ -36,7 +36,7 @@ func (s *server) DoProbes(ctx context.Context, in *pb.ProbeRequest) (*pb.ProbeRe
 		// fmt.Printf("DoProbes | startTime %v\n", startTime)
 
 		// make the request to the endpoint
-		response, err := http.Get(in.GetEndpoint())
+		response, err := http.Get(request.GetEndpoint())
 
 		// if the request errors
 		if err != nil {
