@@ -66,19 +66,20 @@ func (s *server) DoProbes(ctx context.Context, in *pb.ProbeRequest) (*pb.ProbeRe
 
 	fmt.Printf("DoProbes | totalTime %v | numberOfProbes %d | averageLatencyMsecs %v\n", totalTime, numberOfProbes, averageLatencyMsecs)
 
+	// return a probe reply
 	return &pb.ProbeReply{AverageLatencyMsecs: averageLatencyMsecs}, nil
 }
 
 func main() {
 	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
-	pb.RegisterProberServer(s, &server{})
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
+	grpcServer := grpc.NewServer()
+	pb.RegisterProberServer(grpcServer, &server{})
+	log.Printf("server listening at %v", listener.Addr())
+	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
