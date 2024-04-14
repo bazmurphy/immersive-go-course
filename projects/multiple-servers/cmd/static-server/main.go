@@ -12,9 +12,5 @@ func main() {
 
 	flag.Parse()
 
-	// fmt.Println("path", *path, "port", *port)
-
 	static.Run(*path, *port)
 }
-
-// go run ./cmd/static-server --path assets --port 8082

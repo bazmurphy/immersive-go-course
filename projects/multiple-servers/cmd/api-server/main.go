@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/bazmurphy/immersive-go-course/projects/multiple-servers/api"
@@ -10,13 +10,12 @@ import (
 )
 
 func main() {
-	// load the .env file
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("error loading the .env file")
+		fmt.Printf("error loading the .env file: %v", err)
+		os.Exit(1)
 	}
 
-	// get the database url from the .env file
 	databaseURL := os.Getenv("DATABASE_URL")
 
 	port := flag.String("port", "8080", "port to run the api server on")
@@ -25,5 +24,3 @@ func main() {
 
 	api.Run(databaseURL, *port)
 }
-
-// go run ./cmd/api-server --port 8081
