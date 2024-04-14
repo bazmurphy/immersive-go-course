@@ -2,9 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 
-	"github.com/bazmurphy/immersive-go-course/projects/multiple-servers/api"
+	"github.com/bazmurphy/immersive-go-course/projects/multiple-servers/static"
 )
 
 func main() {
@@ -13,9 +12,9 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Println("path", *path, "port", *port)
+	// fmt.Println("path", *path, "port", *port)
 
-	api.Run(*path, *port)
+	static.Run(*path, *port)
 }
 
 // go run ./cmd/static-server --path assets --port 8082
