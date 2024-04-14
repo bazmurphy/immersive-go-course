@@ -42,7 +42,7 @@ func Run(databaseURL string, port string) {
 	http.HandleFunc("/images.json", func(w http.ResponseWriter, r *http.Request) {
 		// When switching to the live images from the database, we get a CORS error:
 		// Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at http://localhost:8081/images.json. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing). Status code: 200.
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8082")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
@@ -66,6 +66,40 @@ func Run(databaseURL string, port string) {
 
 			w.WriteHeader(http.StatusOK)
 			w.Write(imagesAsJSON)
+
+		case http.MethodPost:
+			var newImage Image
+
+			err := json.NewDecoder(r.Body).Decode(&newImage)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: decoding the json: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			insertImage, err := AddImage(database, newImage)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: adding new image to the database: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			insertImageBytes, err := json.Marshal(insertImage)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: adding new image to the database: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Add("Content-Type", "application/json")
+
+			_, err = w.Write(insertImageBytes)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
 
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)

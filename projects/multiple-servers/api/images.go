@@ -36,7 +36,22 @@ func GetAllImages(database *pgx.Conn) ([]Image, error) {
 		images = append(images, image)
 	}
 
-	// fmt.Println("GetAllImages | images :", images)
-
 	return images, nil
+}
+
+func AddImage(database *pgx.Conn, newImage Image) (Image, error) {
+	query := "INSERT INTO images (title, url, alt_text) VALUES ($1, $2, $3) RETURNING title, url, alt_text"
+
+	var insertImage Image
+
+	err := database.QueryRow(context.Background(), query, newImage.Title, newImage.URL, newImage.AltText).Scan(
+		&insertImage.Title,
+		&insertImage.URL,
+		&insertImage.AltText,
+	)
+	if err != nil {
+		return Image{}, fmt.Errorf("error: inserting new image into the database: %w", err)
+	}
+
+	return insertImage, nil
 }
