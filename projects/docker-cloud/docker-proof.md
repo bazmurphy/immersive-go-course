@@ -34,14 +34,14 @@ baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$
 `curl localhost:8090`
 
 ```sh
-baz@baz-pc:~$ curl localhost:8090
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$ curl localhost:8090
 Hello, world.
 ```
 
 `curl localhost:8090/ping`
 
 ```sh
-baz@baz-pc:~$ curl localhost:8090/ping
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$ curl localhost:8090/ping
 pong
 ```
 
@@ -57,13 +57,35 @@ d7fc97ec495ab4dc779e95bc5900509437cf7740b52c1a9022702d696c38b158
 `curl localhost:8090`
 
 ```sh
-baz@baz-pc:~$ curl localhost:8090
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$ curl localhost:8090
 Hello, world.
 ```
 
 `curl localhost:8090/ping`
 
 ```sh
-baz@baz-pc:~$ curl localhost:8090/ping
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$ curl localhost:8090/ping
 pong
+```
+
+## Push to DockerHub
+
+```sh
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$ docker push bazmurphy/docker-cloud
+Using default tag: latest
+The push refers to repository [docker.io/bazmurphy/docker-cloud]
+cb30e6886a9c: Pushed
+46fc0466fe37: Pushed
+1cb4fcd306f5: Layer already exists
+9337039671d3: Pushed
+180e03821175: Pushed
+5f70bf18a086: Pushed
+bae81d7f8189: Pushed
+bf935cbb59a4: Pushed
+01bd2df73a8f: Layer already exists
+2353f7120e0e: Pushed
+51a9318e6edf: Pushed
+c5bb35826823: Pushed
+latest: digest: sha256:3f11b513989ed6d1653945000d99bf42de94b693892a69f346fd8185824ee62c size: 2840
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$
 ```
