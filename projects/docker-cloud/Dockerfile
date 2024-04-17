@@ -2,7 +2,7 @@ FROM golang:latest
 
 WORKDIR /usr/src/docker-cloud
 
-COPY go.mod ./
+COPY go.mod go.sum ./
 
 RUN go mod download && go mod verify
 
@@ -15,3 +15,5 @@ ENV HTTP_PORT=80
 EXPOSE ${HTTP_PORT}
 
 CMD ["docker-cloud"]
+
+# https://hub.docker.com/repository/docker/bazmurphy/docker-cloud

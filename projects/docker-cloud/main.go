@@ -20,7 +20,7 @@ func main() {
 		fmt.Fprint(w, "pong\n")
 	})
 
-	fmt.Printf("Server is running on port %s\n", port)
+	fmt.Printf("Server running on port %s\n", port)
 
 	http.ListenAndServe(":"+port, nil)
 }
