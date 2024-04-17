@@ -24,5 +24,3 @@ EXPOSE ${HTTP_PORT}
 
 # run the binary when the container starts
 CMD ["docker-cloud"]
-
-# https://hub.docker.com/repository/docker/bazmurphy/docker-cloud

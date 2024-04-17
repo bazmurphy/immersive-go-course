@@ -68,7 +68,7 @@ baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$
 pong
 ```
 
-## Push to DockerHub
+## push to dockerhub
 
 ```sh
 baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$ docker push bazmurphy/docker-cloud
@@ -87,5 +87,21 @@ bf935cbb59a4: Pushed
 51a9318e6edf: Pushed
 c5bb35826823: Pushed
 latest: digest: sha256:3f11b513989ed6d1653945000d99bf42de94b693892a69f346fd8185824ee62c size: 2840
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$
+```
+
+Image available at [https://hub.docker.com/repository/docker/bazmurphy/docker-cloud](https://hub.docker.com/repository/docker/bazmurphy/docker-cloud)
+
+## pull from dockerhub
+
+Can be pulled with `docker pull bazmurphy/docker-cloud`
+
+```sh
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$ docker pull bazmurphy/docker-cloud
+Using default tag: latest
+latest: Pulling from bazmurphy/docker-cloud
+Digest: sha256:173cb356d5ec6cb6082034e7ac53cbe8ff96a0b646c54b4334a7dd458ad2306c
+Status: Downloaded newer image for bazmurphy/docker-cloud:latest
+docker.io/bazmurphy/docker-cloud:latest
 baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/docker-cloud$
 ```
