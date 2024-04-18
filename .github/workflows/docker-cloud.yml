@@ -1,0 +1,31 @@
+name: docker-cloud
+
+on:
+  pull_request: 
+    branches: 
+      - "bazmurphy/docker-cloud"
+
+defaults:
+  run:
+    working-directory: projects/docker-cloud
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the Code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "projects/docker-cloud/go.mod"
+          cache-dependency-path: "projects/docker-cloud/go.sum"
+          cache: true
+      
+      - name: Install the Dependencies
+        run: go get .
+
+      - name: Run the Tests
+        run: go test -v ./...
