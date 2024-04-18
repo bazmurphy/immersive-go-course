@@ -39,14 +39,14 @@ jobs:
       - name: Run the Tests
         run: go test -v ./...
 
-      - name: Sanity Check Environment Variables
-        run: echo "AWS_REGION is set to ${{ env.AWS_REGION }}"
+      - name: Sanity Check Variables
+        run: echo "AWS_REGION is set to ${{ vars.AWS_REGION }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4 # https://github.com/aws-actions/configure-aws-credentials
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }} #arn:aws:iam::123456789012:role/my-github-actions-role
-          aws-region: ${{ env.AWS_REGION }} # aws-region-1
+          aws-region: ${{ vars.AWS_REGION }} # aws-region-1
 
       - name: Login to the Amazon ECR Public
         id: login-ecr-public
@@ -57,8 +57,8 @@ jobs:
       - name: Build, Tag, and Push the Docker Image to the Amazon ECR Public
         env:
           REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-          REGISTRY_ALIAS: ${{ env.ECR_REGISTRY_ALIAS }} #my-ecr-public-registry-alias
-          REPOSITORY: ${{ env.ECR_REPOSITORY}} #my-ecr-public-repo
+          REGISTRY_ALIAS: ${{ vars.ECR_REGISTRY_ALIAS }} #my-ecr-public-registry-alias
+          REPOSITORY: ${{ vars.ECR_REPOSITORY}} #my-ecr-public-repo
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG .
