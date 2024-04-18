@@ -3,7 +3,9 @@ name: docker-cloud
 on:
   pull_request: 
     branches: 
-      - "bazmurphy/docker-cloud"
+      - "main"
+    # paths:
+    #   - "projects/docker-cloud/**"
 
 defaults:
   run:
