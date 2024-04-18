@@ -6,6 +6,7 @@ on:
       - 'main'
     # paths:
     #   - "projects/docker-cloud/**"
+  workflow_dispatch:
 
 defaults:
   run:
@@ -37,6 +38,9 @@ jobs:
 
       - name: Run the Tests
         run: go test -v ./...
+
+      - name: Sanity Check Environment Variables
+        run: echo "AWS_REGION is set to ${{ env.AWS_REGION }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4 # https://github.com/aws-actions/configure-aws-credentials
