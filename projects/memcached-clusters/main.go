@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/bradfitz/gomemcache/memcache"
 )
@@ -22,23 +21,28 @@ func main() {
 	// make a mcrouter client
 	mcRouterClient := memcache.New(*mcRouterServerAddress)
 
+	// ping all instances
+	err := mcRouterClient.Ping()
+	if err != nil {
+		fmt.Printf("error: failed to ping all instances: %v\n", err)
+	}
+
 	// make a key and value to test later
-	myKey := "bazkey"
-	myValue := "bazvalue"
+	myKey := "mykey"
+	myValue := "myvalue"
 
 	// set the key
-	err := mcRouterClient.Set(&memcache.Item{Key: myKey, Value: []byte(myValue)})
+	err = mcRouterClient.Set(&memcache.Item{Key: myKey, Value: []byte(myValue)})
 	if err != nil {
 		fmt.Printf("error: failed to write the item into the cache: %v\n", err)
-		os.Exit(1)
+		// os.Exit(1)
 	}
 
 	// get the key
 	item, err := mcRouterClient.Get(myKey)
 	if err != nil {
 		fmt.Printf("error: failed to read the key from the cache: %v\n", err)
-		os.Exit(1)
+		// os.Exit(1)
 	}
 	fmt.Println("item", item)
-
 }
