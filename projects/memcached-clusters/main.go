@@ -10,27 +10,35 @@ import (
 
 func main() {
 	// setup the flags for the command line tool
-	mcRouterAddress := flag.String("mcrouter", "localhost:11211", "the mcrouter address")
-	memcachedAddresses := flag.String("memcacheds", "localhost:11212, localhost:11213, localhost:11214", "the list of memcached addresses")
+	mcRouterServerAddress := flag.String("mcrouter", "localhost:11211", "the mcrouter server address")
+	memcachedServerAddresses := flag.String("memcacheds", "localhost:11212, localhost:11213, localhost:11214", "the list of memcached server addresses")
 	// parse the flags
 	flag.Parse()
 
 	// check the flags are working
-	fmt.Println(*mcRouterAddress)
-	fmt.Println(*memcachedAddresses)
+	fmt.Println("mcRouterServerAddress:", *mcRouterServerAddress)
+	fmt.Println("memcachedServerAddresses:", *memcachedServerAddresses)
 
-	// make a mcrouter Client
-	mcRouterClient := memcache.New(*mcRouterAddress)
+	// make a mcrouter client
+	mcRouterClient := memcache.New(*mcRouterServerAddress)
 
 	// make a key and value to test later
 	myKey := "bazkey"
 	myValue := "bazvalue"
-	myMemcacheItem := &memcache.Item{Key: myKey, Value: []byte(myValue)}
 
 	// set the key
-	err := mcRouterClient.Set(myMemcacheItem)
+	err := mcRouterClient.Set(&memcache.Item{Key: myKey, Value: []byte(myValue)})
 	if err != nil {
-		fmt.Println("error: failed to write the item into the cache")
+		fmt.Printf("error: failed to write the item into the cache: %v\n", err)
 		os.Exit(1)
 	}
+
+	// get the key
+	item, err := mcRouterClient.Get(myKey)
+	if err != nil {
+		fmt.Printf("error: failed to read the key from the cache: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("item", item)
+
 }
