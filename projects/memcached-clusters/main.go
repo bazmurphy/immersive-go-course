@@ -50,6 +50,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	// --------- DEBUG NIGHTMARE BEGINS HERE ---------
+
 	// ERROR:
 	// memcache: unexpected line in get response: "SERVER_ERROR unexpected result mc_res_unknown (0) for get\r\n"
 
@@ -62,6 +64,8 @@ func main() {
 
 	// check the get operation
 	fmt.Printf("GET | key: %v value: %v\n", item.Key, string(item.Value))
+
+	// ---------DEBUG NIGHTMARE ON HOLD HERE ---------
 
 	// breakup the string into individual memcached server addresses
 	memcachedServers := strings.Split(*memcachedServerAddresses, ", ")
@@ -78,7 +82,7 @@ func main() {
 		item, err := memcachedClient.Get(myKey)
 		if err != nil {
 			fmt.Printf("key: %s NOT FOUND on memcached server %s\n", myKey, memcachedServer)
-			// TOOD: this is silently ignoring the error yes, come back and fix this
+			// TODO: this is silently ignoring the error yes, come back and fix this
 			continue
 		} else {
 			fmt.Printf("key: %s FOUND with value: %v on memcached server %s \n", myKey, string(item.Value), memcachedServer)
