@@ -78,6 +78,7 @@ func main() {
 		item, err := memcachedClient.Get(myKey)
 		if err != nil {
 			fmt.Printf("key: %s NOT FOUND on memcached server %s\n", myKey, memcachedServer)
+			// TOOD: this is silently ignoring the error yes, come back and fix this
 			continue
 		} else {
 			fmt.Printf("key: %s FOUND with value: %v on memcached server %s \n", myKey, string(item.Value), memcachedServer)
@@ -86,12 +87,14 @@ func main() {
 		}
 	}
 
+	totalMemcachedServers := len(memcachedServers)
+
 	switch memcachedServersWithKey {
-	case len(memcachedServers):
-		fmt.Printf("Replicated Topology: ALL memcached servers had the key\n")
+	case totalMemcachedServers:
+		fmt.Printf("Replicated Topology: %d/%d memcached servers had the key\n", memcachedServersWithKey, totalMemcachedServers)
 	case 1:
-		fmt.Printf("Sharded Topology: ONE memcached server had the key")
-	case 0:
-		fmt.Printf("Undetermined Topology: NO memcached servers had the key")
+		fmt.Printf("Sharded Topology: %d/%d memcached server had the key", memcachedServersWithKey, totalMemcachedServers)
+	default:
+		fmt.Printf("Undetermined Topology: %d/%d memcached servers had the key", memcachedServersWithKey, totalMemcachedServers)
 	}
 }
