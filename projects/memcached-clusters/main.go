@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
 )
@@ -38,11 +39,18 @@ func main() {
 		// os.Exit(1)
 	}
 
+	// DEBUG: artificial sleep to see if we are trying to Get too quickly before Set
+	time.Sleep(500 * time.Millisecond)
+
 	// get the key
 	item, err := mcRouterClient.Get(myKey)
 	if err != nil {
 		fmt.Printf("error: failed to read the key from the cache: %v\n", err)
 		// os.Exit(1)
 	}
+
+	// ERROR:
+	// memcache: unexpected line in get response: "SERVER_ERROR unexpected result mc_res_unknown (0) for get\r\n"
+
 	fmt.Println("item", item)
 }
