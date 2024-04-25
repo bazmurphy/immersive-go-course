@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
 func main() {
+	start := time.Now()
+
 	// setup the flags for the command line tool
 	mcRouterServerAddress := flag.String("mcrouter", "localhost:11211", "the mcrouter server address")
 	memcachedServerAddresses := flag.String("memcacheds", "localhost:11212, localhost:11213, localhost:11214", "the list of memcached server addresses")
@@ -63,7 +68,7 @@ func main() {
 	// if _, err := fmt.Fprintf(rw, "get %s\r\n", strings.Join(keys, " ")); err != nil {
 
 	// check the get operation
-	fmt.Printf("GET | key: %v value: %v\n", item.Key, string(item.Value))
+	fmt.Printf("mcrouter client GET | key: %v value: %v\n", item.Key, string(item.Value))
 
 	// ---------DEBUG NIGHTMARE ON HOLD HERE ---------
 
@@ -71,34 +76,56 @@ func main() {
 	memcachedServers := strings.Split(*memcachedServerAddresses, ", ")
 
 	// initialise a count
-	memcachedServersWithKey := 0
+	var memcachedServersWithKeyCount int32
+
+	// initialise a wait group
+	var wg sync.WaitGroup
 
 	// loop over the memcached servers
 	for _, memcachedServer := range memcachedServers {
-		// make a new client for each memcached server
-		memcachedClient := memcache.New(memcachedServer)
+		// increment the wait group
+		wg.Add(1)
 
-		// attempt to get the key from that specific memcached server
-		item, err := memcachedClient.Get(myKey)
-		if err != nil {
-			fmt.Printf("key: %s NOT FOUND on memcached server %s\n", myKey, memcachedServer)
-			// TODO: this is silently ignoring the error yes, come back and fix this
-			continue
-		} else {
-			fmt.Printf("key: %s FOUND with value: %v on memcached server %s \n", myKey, string(item.Value), memcachedServer)
-			// if we find the key increment the count
-			memcachedServersWithKey++
-		}
+		// spawn a go routine per memcached server to run these gets concurrently
+		go func() {
+			// decrement the wait group
+			defer wg.Done()
+
+			// make a new client for each memcached server
+			memcachedClient := memcache.New(memcachedServer)
+
+			// attempt to get the key from that specific memcached server
+			item, err := memcachedClient.Get(myKey)
+			if err != nil {
+				fmt.Printf("🔴 memcached server %s | key: %s NOT FOUND\n", memcachedServer, myKey)
+			} else {
+				fmt.Printf("🟢 memcached server %s | key: %s FOUND with value: %vs\n", memcachedServer, myKey, string(item.Value))
+				// if we find the key increment the count
+				atomic.AddInt32(&memcachedServersWithKeyCount, 1)
+			}
+		}()
 	}
 
+	// wait for all (sub)goroutines to finish
+	wg.Wait()
+
+	// establish how many memcached servers were initially provided
 	totalMemcachedServers := len(memcachedServers)
 
-	switch memcachedServersWithKey {
+	// convert the int32 (necessary for atomic operations) to an int (janky!!)
+	memcachedServersWithKeyCountInt := int(memcachedServersWithKeyCount)
+
+	finish := time.Now()
+	duration := finish.Sub(start)
+	fmt.Printf("✅ topology scan completed in %v\n", duration)
+
+	// return a topology guess based on how many memcached servers had the key
+	switch memcachedServersWithKeyCountInt {
 	case totalMemcachedServers:
-		fmt.Printf("Replicated Topology: %d/%d memcached servers had the key\n", memcachedServersWithKey, totalMemcachedServers)
+		fmt.Printf("ℹ️  Replicated Topology: %d/%d memcached servers had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
 	case 1:
-		fmt.Printf("Sharded Topology: %d/%d memcached server had the key", memcachedServersWithKey, totalMemcachedServers)
+		fmt.Printf("ℹ️  Sharded Topology: %d/%d memcached server had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
 	default:
-		fmt.Printf("Undetermined Topology: %d/%d memcached servers had the key", memcachedServersWithKey, totalMemcachedServers)
+		fmt.Printf("ℹ️  Undetermined Topology: %d/%d memcached servers had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
 	}
 }
