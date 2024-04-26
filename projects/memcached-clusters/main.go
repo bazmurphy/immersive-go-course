@@ -86,6 +86,14 @@ func main() {
 		// increment the wait group
 		wg.Add(1)
 
+		// (!) In Go Versions pre 1.22
+		// you needed to create a new variable for each iteration of the loop like:
+		// server := memcachedServer
+		// and then pass it to the go routine as an argument like:
+		// gofunc(server string){...}(server)
+		// so it has it's own copy with the correct value (not modified)
+		// however this is NOT necessary as we are using Go 1.22+
+
 		// spawn a go routine per memcached server to run these gets concurrently
 		go func() {
 			// decrement the wait group
