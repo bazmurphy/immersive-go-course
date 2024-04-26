@@ -12,39 +12,42 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
-func parseFlags() (string, string) {
+func parseFlags() (string, []string) {
 	// initialise these to use flag.StringVar (not flag.String) to avoid having to pass pointers around
-	var mcRouterServerAddress string
-	var memcachedServerAddresses string
+	var mcRouterServer string
+	var memcachedServers string
 
 	// setup the flags for the command line tool
-	flag.StringVar(&mcRouterServerAddress, "mcrouter", "", "the mcrouter server address")
-	flag.StringVar(&memcachedServerAddresses, "memcacheds", "", "the list of memcached server addresses")
+	flag.StringVar(&mcRouterServer, "mcrouter", "", "the mcrouter server address")
+	flag.StringVar(&memcachedServers, "memcacheds", "", "the list of memcached server addresses")
 
 	// // parse the flags
 	flag.Parse()
 
 	// check the flags
-	if mcRouterServerAddress == "" {
+	if mcRouterServer == "" {
 		fmt.Println("error: mcrouter server address was not provided, please provide one with --mcrouter=X")
 		os.Exit(1)
 	}
 
-	if memcachedServerAddresses == "" {
+	if memcachedServers == "" {
 		fmt.Println("error: memcached server addresses were not provided, please provide them with --memcacheds=X")
 		os.Exit(1)
 	}
 
-	return mcRouterServerAddress, memcachedServerAddresses
+	// breakup the string into individual memcached server addresses
+	memcachedServersSlice := strings.Split(memcachedServers, ",")
+
+	return mcRouterServer, memcachedServersSlice
 }
 
 func main() {
 	start := time.Now()
 
-	mcRouterServerAddress, memcachedServerAddresses := parseFlags()
+	mcRouterServer, memcachedServersSlice := parseFlags()
 
 	// make a mcrouter client
-	mcRouterClient := memcache.New(mcRouterServerAddress)
+	mcRouterClient := memcache.New(mcRouterServer)
 
 	// ping all instances
 	err := mcRouterClient.Ping()
@@ -90,9 +93,6 @@ func main() {
 	// fmt.Printf("mcrouter client GET | key: %v value: %v\n", item.Key, string(item.Value))
 	// ---------DEBUG NIGHTMARE ON HOLD HERE ---------
 
-	// breakup the string into individual memcached server addresses
-	memcachedServers := strings.Split(memcachedServerAddresses, ",")
-
 	// initialise a count
 	var memcachedServersWithKeyCount int32
 
@@ -100,7 +100,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// loop over the memcached servers
-	for _, memcachedServer := range memcachedServers {
+	for _, memcachedServer := range memcachedServersSlice {
 		// increment the wait group
 		wg.Add(1)
 
@@ -137,7 +137,7 @@ func main() {
 	wg.Wait()
 
 	// establish how many memcached servers were initially provided
-	totalMemcachedServers := len(memcachedServers)
+	totalMemcachedServers := len(memcachedServersSlice)
 
 	// convert the int32 (necessary for atomic operations) to an int (janky!!)
 	memcachedServersWithKeyCountInt := int(memcachedServersWithKeyCount)
