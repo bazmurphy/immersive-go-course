@@ -16,15 +16,22 @@ func main() {
 	start := time.Now()
 
 	// setup the flags for the command line tool
-	mcRouterServerAddress := flag.String("mcrouter", "localhost:11211", "the mcrouter server address")
-	memcachedServerAddresses := flag.String("memcacheds", "localhost:11212, localhost:11213, localhost:11214", "the list of memcached server addresses")
+	mcRouterServerAddress := flag.String("mcrouter", "", "the mcrouter server address")
+	memcachedServerAddresses := flag.String("memcacheds", "", "the list of memcached server addresses")
 
 	// // parse the flags
 	flag.Parse()
 
-	// check the flags are working
-	// fmt.Println("mcRouterServerAddress:", *mcRouterServerAddress)
-	// fmt.Println("memcachedServerAddresses:", *memcachedServerAddresses)
+	// check the flags
+	if *mcRouterServerAddress == "" {
+		fmt.Println("error: mcrouter server address was not provided, please provide one with --mcrouter=X")
+		os.Exit(1)
+	}
+
+	if *memcachedServerAddresses == "" {
+		fmt.Println("error: memcached server addresses were not provided, please provide them with --memcacheds=X")
+		os.Exit(1)
+	}
 
 	// make a mcrouter client
 	mcRouterClient := memcache.New(*mcRouterServerAddress)
@@ -48,32 +55,33 @@ func main() {
 	}
 
 	// get the key
-	item, err := mcRouterClient.Get(myKey)
+	_, err = mcRouterClient.Get(myKey)
 	if err != nil {
 		// fmt.Printf("error: failed to read the key from the cache: %v\n", err)
 		fmt.Println("mcRouterClient.Get err", err)
 		os.Exit(1)
 	}
 
+	// BATTLE SCAR LEFT IN HERE DELIBERATELY
+	//
 	// --------- DEBUG NIGHTMARE BEGINS HERE ---------
-
+	//
 	// ERROR:
 	// memcache: unexpected line in get response: "SERVER_ERROR unexpected result mc_res_unknown (0) for get\r\n"
-
+	//
 	// CHANGING LINE 389 in go/pkg/mod/github.com/bradfitz/gomemecache/memcache/memcache.go
 	// CHANGE "gets" to "get"
 	// BEFORE:
 	// if _, err := fmt.Fprintf(rw, "gets %s\r\n", strings.Join(keys, " ")); err != nil {
 	// AFTER:
 	// if _, err := fmt.Fprintf(rw, "get %s\r\n", strings.Join(keys, " ")); err != nil {
-
+	//
 	// check the get operation
-	fmt.Printf("mcrouter client GET | key: %v value: %v\n", item.Key, string(item.Value))
-
+	// fmt.Printf("mcrouter client GET | key: %v value: %v\n", item.Key, string(item.Value))
 	// ---------DEBUG NIGHTMARE ON HOLD HERE ---------
 
 	// breakup the string into individual memcached server addresses
-	memcachedServers := strings.Split(*memcachedServerAddresses, ", ")
+	memcachedServers := strings.Split(*memcachedServerAddresses, ",")
 
 	// initialise a count
 	var memcachedServersWithKeyCount int32
@@ -105,6 +113,7 @@ func main() {
 			// attempt to get the key from that specific memcached server
 			item, err := memcachedClient.Get(myKey)
 			if err != nil {
+				// does this fall under the category of ignoring the error silently(?) and/or not handling it(?)
 				fmt.Printf("🔴 memcached server %s | key: %s NOT FOUND\n", memcachedServer, myKey)
 			} else {
 				fmt.Printf("🟢 memcached server %s | key: %s FOUND with value: %vs\n", memcachedServer, myKey, string(item.Value))
@@ -130,10 +139,28 @@ func main() {
 	// return a topology guess based on how many memcached servers had the key
 	switch memcachedServersWithKeyCountInt {
 	case totalMemcachedServers:
-		fmt.Printf("ℹ️  Replicated Topology: %d/%d memcached servers had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
+		fmt.Printf("🟣 Replicated topology: %d/%d memcached servers had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
 	case 1:
-		fmt.Printf("ℹ️  Sharded Topology: %d/%d memcached server had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
+		fmt.Printf("🟣 Sharded topology: %d/%d memcached servers had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
 	default:
-		fmt.Printf("ℹ️  Undetermined Topology: %d/%d memcached servers had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
+		fmt.Printf("🟣 Undetermined topology: %d/%d memcached servers had the key\n", memcachedServersWithKeyCountInt, totalMemcachedServers)
 	}
 }
+
+// replicated
+
+// $ go run . --mcrouter=localhost:11211 --memcacheds=localhost:11212,localhost:11213,localhost:11214
+// 🟢 memcached server localhost:11213 | key: mykey FOUND with value: myvalues
+// 🟢 memcached server localhost:11214 | key: mykey FOUND with value: myvalues
+// 🟢 memcached server localhost:11212 | key: mykey FOUND with value: myvalues
+// ✅ topology scan completed in 10.0357ms
+// 🟣 Replicated topology: 3/3 memcached servers had the key
+
+// sharded
+
+// $ go run . --mcrouter=localhost:11211 --memcacheds=localhost:11212,localhost:11213,localhost:11214
+// 🔴 memcached server localhost:11214 | key: mykey NOT FOUND
+// 🟢 memcached server localhost:11212 | key: mykey FOUND with value: myvalues
+// 🔴 memcached server localhost:11213 | key: mykey NOT FOUND
+// ✅ topology scan completed in 10.5302ms
+// 🟣 Sharded topology: 1/3 memcached servers had the key
