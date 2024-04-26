@@ -12,29 +12,39 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
-func main() {
-	start := time.Now()
+func parseFlags() (string, string) {
+	// initialise these to use flag.StringVar (not flag.String) to avoid having to pass pointers around
+	var mcRouterServerAddress string
+	var memcachedServerAddresses string
 
 	// setup the flags for the command line tool
-	mcRouterServerAddress := flag.String("mcrouter", "", "the mcrouter server address")
-	memcachedServerAddresses := flag.String("memcacheds", "", "the list of memcached server addresses")
+	flag.StringVar(&mcRouterServerAddress, "mcrouter", "", "the mcrouter server address")
+	flag.StringVar(&memcachedServerAddresses, "memcacheds", "", "the list of memcached server addresses")
 
 	// // parse the flags
 	flag.Parse()
 
 	// check the flags
-	if *mcRouterServerAddress == "" {
+	if mcRouterServerAddress == "" {
 		fmt.Println("error: mcrouter server address was not provided, please provide one with --mcrouter=X")
 		os.Exit(1)
 	}
 
-	if *memcachedServerAddresses == "" {
+	if memcachedServerAddresses == "" {
 		fmt.Println("error: memcached server addresses were not provided, please provide them with --memcacheds=X")
 		os.Exit(1)
 	}
 
+	return mcRouterServerAddress, memcachedServerAddresses
+}
+
+func main() {
+	start := time.Now()
+
+	mcRouterServerAddress, memcachedServerAddresses := parseFlags()
+
 	// make a mcrouter client
-	mcRouterClient := memcache.New(*mcRouterServerAddress)
+	mcRouterClient := memcache.New(mcRouterServerAddress)
 
 	// ping all instances
 	err := mcRouterClient.Ping()
@@ -81,7 +91,7 @@ func main() {
 	// ---------DEBUG NIGHTMARE ON HOLD HERE ---------
 
 	// breakup the string into individual memcached server addresses
-	memcachedServers := strings.Split(*memcachedServerAddresses, ",")
+	memcachedServers := strings.Split(memcachedServerAddresses, ",")
 
 	// initialise a count
 	var memcachedServersWithKeyCount int32
