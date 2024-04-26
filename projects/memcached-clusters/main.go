@@ -21,7 +21,7 @@ func parseServerFlags() (string, []string) {
 	flag.StringVar(&mcRouterServer, "mcrouter", "", "the mcrouter server address")
 	flag.StringVar(&memcachedServers, "memcacheds", "", "the list of memcached server addresses")
 
-	// // parse the flags
+	// parse the flags
 	flag.Parse()
 
 	// check the flags
@@ -41,7 +41,7 @@ func parseServerFlags() (string, []string) {
 	return mcRouterServer, memcachedServersSlice
 }
 
-func guessTopology(memcachedServersWithKeyCountInt int, totalMemcachedServers int) {
+func guessAndPrintTopology(memcachedServersWithKeyCountInt int, totalMemcachedServers int) {
 	// return a topology guess based on how many memcached servers had the key
 	switch memcachedServersWithKeyCountInt {
 	case totalMemcachedServers:
@@ -53,7 +53,7 @@ func guessTopology(memcachedServersWithKeyCountInt int, totalMemcachedServers in
 	}
 }
 
-func checkKeysOnMemcachedServers(memcachedServersSlice []string, key string) int {
+func checkKeyAcrossMemcachedServers(memcachedServersSlice []string, key string) int {
 	// initialise a count
 	var memcachedServersWithKeyCount int32
 
@@ -156,7 +156,7 @@ func main() {
 	// ---------- DEBUG NIGHTMARE ENDS HERE ----------
 
 	// attempt to check the key's existence on each individual memcached server
-	memcachedServersWithKeyCountInt := checkKeysOnMemcachedServers(memcachedServersSlice, testKey)
+	memcachedServersWithKeyCountInt := checkKeyAcrossMemcachedServers(memcachedServersSlice, testKey)
 
 	finish := time.Now()
 	duration := finish.Sub(start)
@@ -165,8 +165,8 @@ func main() {
 	// establish how many memcached servers were initially provided
 	totalMemcachedServers := len(memcachedServersSlice)
 
-	// guess the topology of the mcrouter setup
-	guessTopology(memcachedServersWithKeyCountInt, totalMemcachedServers)
+	// guess and print the topology of the mcrouter setup
+	guessAndPrintTopology(memcachedServersWithKeyCountInt, totalMemcachedServers)
 }
 
 // replicated :
