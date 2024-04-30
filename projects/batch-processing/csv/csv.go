@@ -9,6 +9,8 @@ import (
 )
 
 func ReadInputCSV(inputCSVFilepath string) ([][]string, error) {
+	log.Println("🔵 attempting: to read rows from the input csv...")
+
 	inputCSVFile, err := os.Open(inputCSVFilepath)
 	if err != nil {
 		return nil, fmt.Errorf("🔴 error: failed to open the input csv file: %v", err)
@@ -24,6 +26,8 @@ func ReadInputCSV(inputCSVFilepath string) ([][]string, error) {
 		return nil, fmt.Errorf("🔴 error: failed to read all the input csv rows: %v", err)
 	}
 
+	log.Printf("🟢 success: read %d rows from the input csv", len(inputCSVRows))
+
 	return inputCSVRows, nil
 }
 
@@ -36,7 +40,11 @@ func CreateOutputCSV(inputCSVRows [][]string) [][]string {
 }
 
 func ParseImageUrls(inputCSVRows [][]string, outputCSVRows [][]string) ([]string, error) {
+	log.Println("🔵 attempting: to parse image urls from the input csv...")
+
 	var imageUrls []string
+
+	var imageUrlParsedCount int
 
 	for rowNumber, row := range inputCSVRows {
 		// check row 0 for the correct single 'url' column heading
@@ -68,13 +76,19 @@ func ParseImageUrls(inputCSVRows [][]string, outputCSVRows [][]string) ([]string
 			// TODO: how to move this out of here (single responsibility principle)
 			// [STEP 2] CSV APPENDING LOGIC
 			outputCSVRows[rowNumber] = append(outputCSVRows[rowNumber], imageUrl)
+
+			imageUrlParsedCount++
 		}
 	}
+
+	log.Printf("🟢 success: parsed %d image urls from the input csv", imageUrlParsedCount)
 
 	return imageUrls, nil
 }
 
 func WriteOutputCSV(outputCSVFilepath string, outputCSVRows [][]string) error {
+	log.Println("🔵 attempting: to create and write the output csv...")
+
 	outputCSVFile, err := os.Create(outputCSVFilepath)
 	if err != nil {
 		return fmt.Errorf("🔴 error: failed to create the output csv file: %v", err)
@@ -88,7 +102,7 @@ func WriteOutputCSV(outputCSVFilepath string, outputCSVRows [][]string) error {
 		return fmt.Errorf("🔴 error: failed to write all the rows to the output csv file: %v", err)
 	}
 
-	log.Printf("🟢 an output csv file was successfully created at: %s\n", outputCSVFilepath)
+	log.Printf("🟢 success: the output csv file was successfully created at: %s\n", outputCSVFilepath)
 
 	return nil
 }

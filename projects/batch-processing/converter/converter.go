@@ -25,6 +25,10 @@ func (c *Converter) Grayscale(inputFilepath string, outputFilepath string) error
 }
 
 func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDirectory string, outputCSVRows [][]string) error {
+	log.Println("🔵 attempting: to convert images to grayscale...")
+
+	var imagesConvertedCount int
+
 	imagick.Initialize()
 	defer imagick.Terminate()
 
@@ -58,7 +62,7 @@ func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDir
 		// [STEP 4] CSV APPENDING LOGIC
 		outputCSVRows[index+1] = append(outputCSVRows[index+1], outputFilepath)
 
-		log.Printf("🔵 processing: %q to %q\n", inputFilepath, outputFilepath)
+		log.Printf("🔵 attempting: to convert %q to %q\n", inputFilepath, outputFilepath)
 
 		err := c.Grayscale(inputFilepath, outputFilepath)
 		if err != nil {
@@ -66,8 +70,12 @@ func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDir
 			continue
 		}
 
-		log.Printf("🟢 processed: %q to %q\n", inputFilepath, outputFilepath)
+		log.Printf("🟢 success: converted %q to %q\n", inputFilepath, outputFilepath)
+
+		imagesConvertedCount++
 	}
+
+	log.Printf("🟢 success: converted %d images to grayscale\n", imagesConvertedCount)
 
 	return nil
 }

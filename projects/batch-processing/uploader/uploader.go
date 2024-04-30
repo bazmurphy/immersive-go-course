@@ -13,6 +13,10 @@ import (
 )
 
 func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]string) error {
+	log.Println("🔵 attempting: to upload the images to AWS S3...")
+
+	var imageUploadCount int
+
 	awsRegion := os.Getenv("AWS_REGION")
 	if awsRegion == "" {
 		return fmt.Errorf("🔴 error: cannot get the AWS_REGION environment variable")
@@ -83,12 +87,16 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 
 		objectURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", awsS3BucketName, awsRegion, awsS3Key)
 
-		log.Printf("🟢 uploaded file to aws s3: %s\n", objectURL)
+		log.Printf("🟢 success: uploaded image to AWS S3: %s\n", objectURL)
 
 		// TODO: how to move this out of here (single responsibility principle)
 		// [STEP 5] CSV APPENDING LOGIC
 		outputCSVRows[index+1] = append(outputCSVRows[index+1], objectURL)
+
+		imageUploadCount++
 	}
+
+	log.Printf("🟢 success: uploaded %d images to AWS S3", imageUploadCount)
 
 	return nil
 }

@@ -12,6 +12,10 @@ import (
 )
 
 func DownloadImages(imageUrls []string, temporaryDownloadsDirectory string, outputCSVRows [][]string) error {
+	log.Println("🔵 attempting: to download the images from the image urls...")
+
+	var imageDownloadCount int
+
 	for index, imageUrl := range imageUrls {
 		// TODO: use context with timeout here (otherwise it can hang infinitely)
 		// TODO: use some retry logic here (try 3 times and then give up)
@@ -58,10 +62,6 @@ func DownloadImages(imageUrls []string, temporaryDownloadsDirectory string, outp
 			// TODO: extend this with other cases for other image file types
 			// (although ideally it would be better to rely on the method shown above)
 		default:
-			log.Printf("🟠 warn: the image url was not a valid media type")
-		}
-
-		if fileExtension == "" {
 			// if we reach here it is not safe to proceed
 			// because we will be copying the response body data into a file on the OS
 			// which is dangerous if it is malicious
@@ -100,7 +100,11 @@ func DownloadImages(imageUrls []string, temporaryDownloadsDirectory string, outp
 			// TODO: think about if i want to continue here
 			continue
 		}
+
+		imageDownloadCount++
 	}
+
+	log.Printf("🟢 success: downloaded %d images from the image urls", imageDownloadCount)
 
 	// TODO: implement returning actual errors above in specific cases (but need to work out which)
 	return nil
