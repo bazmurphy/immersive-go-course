@@ -72,15 +72,17 @@ func main() {
 
 	for rowNumber, row := range rows {
 
+		// check row 0 for the correct column heading
 		if rowNumber == 0 {
-			if len(row) != 0 && row[0] != "url" {
+			if len(row) != 1 && row[0] != "url" {
 				log.Fatalf("🔴 error: the csv has more than a single 'url' column\n")
 			}
 		}
 
-		// row 0 is the column headings, so skip it
+		// then start parsing from row 1 onwards
 		if rowNumber > 0 {
 			// TODO: is this the right way to check if the row is "empty"?
+			// TODO: what about if it not empty but is a string of rubbish?
 			if row[0] == "" {
 				log.Printf("🟠 warn: no url found on row %d of the csv\n", rowNumber)
 				// TODO: should we really continue if there is no image url
