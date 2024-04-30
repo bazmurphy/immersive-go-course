@@ -24,59 +24,45 @@ func main() {
 
 	inputCSVRows, err := csv.ReadInputCSV(*inputCSVFilepath)
 	if err != nil {
-		// TODO: format this error
 		log.Fatalf(err.Error())
 	}
 
 	outputCSVRows := csv.CreateOutputCSV(inputCSVRows)
-	// fmt.Println("DEBUG | [STEP 1] outputCSVRows", outputCSVRows)
 
 	imageUrls, err := csv.ParseImageUrls(inputCSVRows, outputCSVRows)
 	if err != nil {
-		// TODO: format this error
 		log.Fatalf(err.Error())
 	}
-	// fmt.Println("DEBUG | [STEP 2] outputCSVRows", outputCSVRows)
 
 	temporaryDownloadsDirectory, err := os.MkdirTemp("", "downloads-*")
 	if err != nil {
-		// if we can't make the temporary downloads directory we have to exit
 		log.Fatalf("🔴 error: failed to create a temporary downloads directory: %v", err)
 	}
 	defer os.RemoveAll(temporaryDownloadsDirectory)
 
 	err = downloader.DownloadImages(imageUrls, temporaryDownloadsDirectory, outputCSVRows)
 	if err != nil {
-		// TODO: format this error
 		log.Fatalf(err.Error())
 	}
-	// fmt.Println("DEBUG | [STEP 3] outputCSVRows", outputCSVRows)
 
 	temporaryGrayscaleDirectory, err := os.MkdirTemp("", "grayscale-*")
 	if err != nil {
-		// if we can't make the temporary grayscale directory we have to exit
 		log.Fatalf("🔴 error: failed to create a temporary grayscale directory: %v", err)
 	}
 	defer os.RemoveAll(temporaryGrayscaleDirectory)
 
 	err = converter.ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDirectory, outputCSVRows)
 	if err != nil {
-		// TODO: format this error
 		log.Fatalf(err.Error())
 	}
-	// fmt.Println("DEBUG | [STEP 4] outputCSVRows", outputCSVRows)
 
-	// TODO: handle an error (return value) here
 	err = uploader.UploadImagesToS3(temporaryGrayscaleDirectory, outputCSVRows)
 	if err != nil {
-		// TODO: format this error
 		log.Fatalf(err.Error())
 	}
-	// fmt.Println("DEBUG | [STEP 5] outputCSVRows", outputCSVRows)
 
 	err = csv.WriteOutputCSV(*outputCSVFilepath, outputCSVRows)
 	if err != nil {
-		// TODO: format this error
 		log.Fatalf(err.Error())
 	}
 }
