@@ -11,7 +11,6 @@ import (
 func ReadInputCSV(inputCSVFilepath string) ([][]string, error) {
 	inputCSVFile, err := os.Open(inputCSVFilepath)
 	if err != nil {
-		// if we don't have a csv file then we simply can't continue
 		return nil, fmt.Errorf("🔴 error: failed to open the input csv file: %v", err)
 	}
 	defer inputCSVFile.Close()
@@ -19,9 +18,9 @@ func ReadInputCSV(inputCSVFilepath string) ([][]string, error) {
 	reader := csv.NewReader(inputCSVFile)
 
 	inputCSVRows, err := reader.ReadAll()
-	// TODO: should we be using `Read`` and a loop here, or is `ReadAll`` ok?
+	// TODO: should we be using `Read` and a loop here... or is `ReadAll` ok?
 	if err != nil {
-		// TODO: is this really fatal or could we possibly continue? (see the `Read` point above)
+		// TODO: is this really fatal or is there another way to possibly continue? (see the `Read` point above)
 		return nil, fmt.Errorf("🔴 error: failed to read all the input csv rows: %v", err)
 	}
 
@@ -40,13 +39,12 @@ func ParseImageUrls(inputCSVRows [][]string, outputCSVRows [][]string) ([]string
 	var imageUrls []string
 
 	for rowNumber, row := range inputCSVRows {
-		// check row 0 for the correct column heading
+		// check row 0 for the correct single 'url' column heading
 		if rowNumber == 0 && len(row) != 1 && row[0] != "url" {
-			// TODO: should we also log.Printf() here?
 			return nil, fmt.Errorf("🔴 error: the input csv has more than a single 'url' column heading")
 		}
 
-		// then start parsing from row 1 onwards
+		// start parsing image urls from row 1 onwards
 		if rowNumber > 0 {
 			// TODO: is this the right way to check if the row is "empty"?
 			// TODO: what about if it not empty but is a string of rubbish?
@@ -79,7 +77,6 @@ func ParseImageUrls(inputCSVRows [][]string, outputCSVRows [][]string) ([]string
 func WriteOutputCSV(outputCSVFilepath string, outputCSVRows [][]string) error {
 	outputCSVFile, err := os.Create(outputCSVFilepath)
 	if err != nil {
-		// if we can't create the output csv we have to exit
 		return fmt.Errorf("🔴 error: failed to create the output csv file: %v", err)
 	}
 	defer outputCSVFile.Close()
