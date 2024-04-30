@@ -7,19 +7,45 @@ import (
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]string) error {
+	awsRegion := os.Getenv("AWS_REGION")
+	if awsRegion == "" {
+		return fmt.Errorf("🔴 error: cannot get the AWS_REGION environment variable")
+	}
+
+	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	if awsAccessKeyID == "" {
+		return fmt.Errorf("🔴 error: cannot get the AWS_ACCESS_KEY_ID environment variable")
+	}
+
+	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	if awsSecretAccessKey == "" {
+		return fmt.Errorf("🔴 error: cannot get the AWS_SECRET_ACCESS_KEY environment variable")
+	}
+
+	awsS3BucketName := os.Getenv("AWS_S3_BUCKET")
+	if awsS3BucketName == "" {
+		return fmt.Errorf("🔴 error: cannot get the AWS_S3_BUCKET environment variable")
+	}
+
+	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{
+			Region:      aws.String(awsRegion),
+			Credentials: credentials.NewStaticCredentials(awsAccessKeyID, awsSecretAccessKey, ""),
+		},
+	}))
+
+	awsS3Client := s3.New(awsSession)
+
 	temporaryGrayscaleFiles, err := os.ReadDir(temporaryGrayscaleDirectory)
 	if err != nil {
 		return fmt.Errorf("🔴 error: failed to read files from the temporary grayscale directory: %v", err)
 	}
-
-	sess := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
-
-	s3Client := s3.New(sess)
 
 	for index, file := range temporaryGrayscaleFiles {
 		// ignore directories
@@ -37,16 +63,13 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 
 		defer openedFile.Close()
 
-		// s3BucketName := os.Getenv("AWS_S3_BUCKET")
-		// TODO: Deal with dynamically loading this via Docker using an environment file
-		s3BucketName := "bazmurphy-batch-processing"
-		s3Key := file.Name()
+		awsS3Key := file.Name()
 
 		// TODO: should I implement retry logic here in case the upload attempt fails for some network reason
-		// USE: s3Client.PutObjectWithContext()
-		_, err = s3Client.PutObject(&s3.PutObjectInput{
-			Bucket: aws.String(s3BucketName),
-			Key:    aws.String(s3Key),
+		// USE: awsS3Client.PutObjectWithContext()
+		_, err = awsS3Client.PutObject(&s3.PutObjectInput{
+			Bucket: aws.String(awsS3BucketName),
+			Key:    aws.String(awsS3Key),
 			Body:   openedFile,
 		})
 
@@ -58,9 +81,7 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 			continue
 		}
 
-		awsRegion := *sess.Config.Region
-
-		objectURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", s3BucketName, awsRegion, s3Key)
+		objectURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", awsS3BucketName, awsRegion, awsS3Key)
 
 		log.Printf("🟢 uploaded file to aws s3: %s\n", objectURL)
 
