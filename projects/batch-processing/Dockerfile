@@ -46,7 +46,12 @@ COPY go.sum ./
 
 RUN go mod download
 
-COPY *.go ./
+COPY main.go ./
+COPY converter ./converter
+COPY csv ./csv
+COPY downloader ./downloader
+COPY uploader ./uploader
+
 COPY inputs /inputs
 RUN mkdir -p /outputs
 
@@ -58,7 +63,7 @@ RUN go build -o /out
 ##
 FROM base as test
 
-ENTRYPOINT [ "go", "test", "-v" ]
+ENTRYPOINT [ "go", "test", "-v", "./..." ]
 
 ##
 ## DEVELOP
