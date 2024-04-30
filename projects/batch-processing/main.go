@@ -34,49 +34,34 @@ func (c *Converter) Grayscale(inputFilepath string, outputFilepath string) error
 	return err
 }
 
-func main() {
-	inputCSVFilepath := flag.String("input", "", "A path to a CSV file to be processed")
-	outputCSVFilepath := flag.String("output", "", "A path to a directory to output the resulting CSV")
-
-	flag.Parse()
-
-	if *inputCSVFilepath == "" {
-		flag.Usage()
-		// if we don't have an input csv file path then we have to exit
-		log.Fatalf("🔴 error: failed to provide the 'input' flag\n")
-	}
-
-	csvFile, err := os.Open(*inputCSVFilepath)
+// TODO: return an error (second return value) here
+func readInputCSV(inputCSVFilepath string) [][]string {
+	inputCSVFile, err := os.Open(inputCSVFilepath)
 	if err != nil {
 		// if we don't have a csv file we can't continue and have to exit
-		log.Fatalf("🔴 error: failed to open csv file: %v", err)
+		log.Fatalf("🔴 error: failed to open the input csv file: %v", err)
 	}
+	defer inputCSVFile.Close()
 
-	reader := csv.NewReader(csvFile)
+	reader := csv.NewReader(inputCSVFile)
 
-	rows, err := reader.ReadAll()
+	inputCSVRows, err := reader.ReadAll()
 	// TODO: should we be using `Read`` and a loop here, or is `ReadAll`` ok?
 	if err != nil {
 		// TODO: is this really fatal or could we possibly continue?
-		log.Fatalf("🔴 error: failed to read all the csv rows: %v", err)
+		log.Fatalf("🔴 error: failed to read all the input csv rows: %v", err)
 	}
 
-	// (!) this is the important data structure that will store the various output csv information as we proceed
-	var csvOutputRows [][]string
+	return inputCSVRows
+}
 
-	csvOutputColumnHeadings := []string{"url", "input", "output", "s3url"}
-
-	csvOutputRows = append(csvOutputRows, csvOutputColumnHeadings)
-
+func parseImageUrls(inputCSVRows [][]string, outputCSVRows [][]string) []string {
 	var imageUrls []string
 
-	for rowNumber, row := range rows {
-
+	for rowNumber, row := range inputCSVRows {
 		// check row 0 for the correct column heading
-		if rowNumber == 0 {
-			if len(row) != 1 && row[0] != "url" {
-				log.Fatalf("🔴 error: the csv has more than a single 'url' column\n")
-			}
+		if rowNumber == 0 && len(row) != 1 && row[0] != "url" {
+			log.Fatalf("🔴 error: the input csv has more than a single 'url' column heading\n")
 		}
 
 		// then start parsing from row 1 onwards
@@ -84,7 +69,7 @@ func main() {
 			// TODO: is this the right way to check if the row is "empty"?
 			// TODO: what about if it not empty but is a string of rubbish?
 			if row[0] == "" {
-				log.Printf("🟠 warn: no url found on row %d of the csv\n", rowNumber)
+				log.Printf("🟠 warn: no url found on row %d of the input csv\n", rowNumber)
 				// TODO: should we really continue if there is no image url
 				continue
 			}
@@ -94,38 +79,37 @@ func main() {
 
 			_, err := url.Parse(imageUrl)
 			if err != nil {
-				log.Printf("🟠 warn: invalid url %s on row %d of the csv\n", imageUrl, rowNumber)
+				log.Printf("🟠 warn: invalid url %s on row %d of the input csv\n", imageUrl, rowNumber)
 				continue
 			}
 
 			imageUrls = append(imageUrls, imageUrl)
 
 			// [STEP 2] CSV APPENDING LOGIC
-			csvOutputRows = append(csvOutputRows, []string{imageUrl})
+			outputCSVRows[rowNumber] = append(outputCSVRows[rowNumber], imageUrl)
 		}
 	}
 
-	// fmt.Println("DEBUG | [STEP 2] csvOutputRows", csvOutputRows)
+	return imageUrls
+}
 
-	temporaryDownloadsDirectory, err := os.MkdirTemp("", "downloads-*")
-	if err != nil {
-		// if we can't make the temporary directory we have to exit
-		log.Fatalf("🔴 error: failed to create a temporary downloads directory: %v", err)
-	}
-
-	defer os.RemoveAll(temporaryDownloadsDirectory)
-
+// TODO: return an error (return value) here
+func downloadImages(imageUrls []string, temporaryDownloadsDirectory string, outputCSVRows [][]string) {
 	for index, imageUrl := range imageUrls {
 		// TODO: use context with timeout here (otherwise it can hang infinitely)
 		// TODO: use some retry logic here (try 3 times and then give up)
 		response, err := http.Get(imageUrl)
 		if err != nil {
-			log.Printf("🟠 warn: failed to get image url response %d/%d from url %s\n", index+1, len(imageUrls), imageUrl)
+			log.Printf("🟠 warn: failed to get image url response from url %s\n", imageUrl)
 			// TODO: think about if i want to continue or break here
 			continue
 		}
-
 		defer response.Body.Close()
+
+		// TODO: check the response status code and handle things appropriately
+		if response.StatusCode != http.StatusOK {
+			log.Printf("🟠 warn: response had status code %d", response.StatusCode)
+		}
 
 		contentType := response.Header.Get("Content-Type")
 
@@ -168,7 +152,7 @@ func main() {
 		parsedUrl, err := url.Parse(imageUrl)
 		if err != nil {
 			log.Printf("🟠 warn: cannot parse the image name: %v", err)
-			// TODO: if we cannot parse the image we should skip this... right?
+			// TODO: if we cannot parse the image we should skip... right?
 			continue
 		}
 
@@ -180,16 +164,16 @@ func main() {
 
 		outputFilepath := filepath.Join(temporaryDownloadsDirectory, fileName+fileExtension)
 
+		// TODO: how to move this out of here (single responsibility principle)
 		// [STEP 3] CSV APPENDING LOGIC
-		csvOutputRows[index+1] = append(csvOutputRows[index+1], outputFilepath)
+		outputCSVRows[index+1] = append(outputCSVRows[index+1], outputFilepath)
 
 		temporaryFile, err := os.Create(outputFilepath)
 		if err != nil {
 			log.Printf("🟠 warn: failed to create a temporary image file: %v", err)
-			// TODO:
+			// TODO: think about if i want to continue or break here
 			continue
 		}
-
 		defer temporaryFile.Close()
 
 		_, err = io.Copy(temporaryFile, response.Body)
@@ -199,18 +183,11 @@ func main() {
 			continue
 		}
 	}
+}
 
-	// fmt.Println("DEBUG | [STEP 3] csvOutputRows", csvOutputRows)
-
-	temporaryGrayscaleDirectory, err := os.MkdirTemp("", "grayscale-*")
-	if err != nil {
-		log.Fatalf("🔴 error: failed to create a temporary grayscale directory: %v", err)
-	}
-
-	defer os.RemoveAll(temporaryGrayscaleDirectory)
-
+// TODO: return an error (return value) here
+func convertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDirectory string, outputCSVRows [][]string) {
 	imagick.Initialize()
-
 	defer imagick.Terminate()
 
 	c := &Converter{
@@ -240,8 +217,9 @@ func main() {
 
 		outputFilepath := filepath.Join(temporaryGrayscaleDirectory, outputFilename)
 
+		// TODO: how to move this out of here (single responsibility principle)
 		// [STEP 4] CSV APPENDING LOGIC
-		csvOutputRows[index+1] = append(csvOutputRows[index+1], outputFilepath)
+		outputCSVRows[index+1] = append(outputCSVRows[index+1], outputFilepath)
 
 		log.Printf("🔵 processing: %q to %q\n", inputFilepath, outputFilepath)
 
@@ -254,41 +232,39 @@ func main() {
 		// Log what we did
 		log.Printf("🟢 processed: %q to %q\n", inputFilepath, outputFilepath)
 	}
+}
 
-	// fmt.Println("DEBUG | [STEP 4] csvOutputRows", csvOutputRows)
-
-	sess := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
-
-	s3Client := s3.New(sess)
-
+func uploadToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]string) {
 	temporaryGrayscaleFiles, err := os.ReadDir(temporaryGrayscaleDirectory)
 	if err != nil {
 		log.Fatalf("🔴 error: failed to read files from the temporary grayscale directory: %v", err)
 	}
 
-	for index, temporaryGrayscaleFile := range temporaryGrayscaleFiles {
+	sess := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
-		if temporaryGrayscaleFile.IsDir() {
+	s3Client := s3.New(sess)
+
+	for index, file := range temporaryGrayscaleFiles {
+
+		if file.IsDir() {
 			// ignore directories
 			continue
 		}
 
-		filepath := filepath.Join(temporaryGrayscaleDirectory, temporaryGrayscaleFile.Name())
+		filepath := filepath.Join(temporaryGrayscaleDirectory, file.Name())
 
 		openedFile, err := os.Open(filepath)
 		if err != nil {
 			// TODO: do I actually want this to be fatal...? or rather skip this file and continue to the next..
-			log.Fatalf("🔴 error: failed to open the file %s from the temporary grayscale directory: %v", temporaryGrayscaleFile, err)
+			log.Fatalf("🔴 error: failed to open the file %s from the temporary grayscale directory: %v", file, err)
 		}
 
 		defer openedFile.Close()
 
 		// s3BucketName := os.Getenv("AWS_S3_BUCKET")
 		// TODO: Deal with dynamically loading this via Docker environment file
-
 		s3BucketName := "bazmurphy-batch-processing"
-
-		s3Key := temporaryGrayscaleFile.Name()
+		s3Key := file.Name()
 
 		// TODO: should I implement retry logic here in case the upload attempt fails for some network reason
 		_, err = s3Client.PutObject(&s3.PutObjectInput{
@@ -299,7 +275,7 @@ func main() {
 
 		if err != nil {
 			// TODO: should this continue or be fatal?... maybe just give up on this file and try the next...(?)
-			log.Printf("🔴 error: failed to upload the file %s to the aws s3 bucket: %v\n", temporaryGrayscaleFile, err)
+			log.Printf("🔴 error: failed to upload the file %s to the aws s3 bucket: %v\n", file, err)
 			continue
 		}
 
@@ -309,29 +285,82 @@ func main() {
 
 		log.Printf("🟢 uploaded file to aws s3: %s\n", objectURL)
 
+		// TODO: how to move this out of here (single responsibility principle)
 		// [STEP 5] CSV APPENDING LOGIC
-		csvOutputRows[index+1] = append(csvOutputRows[index+1], objectURL)
+		outputCSVRows[index+1] = append(outputCSVRows[index+1], objectURL)
 	}
+}
 
-	// fmt.Println("DEBUG | [STEP 5] csvOutputRows", csvOutputRows)
-
-	outputCSVFile, err := os.Create(*outputCSVFilepath)
+func writeOutputCSV(outputCSVFilepath string, outputCSVRows [][]string) {
+	outputCSVFile, err := os.Create(outputCSVFilepath)
 	if err != nil {
 		// if we can't create the output csv the program is useless
-		log.Fatalf("🔴 error: failed to create the output CSV file: %v\n", err)
+		log.Fatalf("🔴 error: failed to create the output csv file: %v\n", err)
 	}
-
 	defer outputCSVFile.Close()
 
 	writer := csv.NewWriter(outputCSVFile)
 
-	err = writer.WriteAll(csvOutputRows)
+	err = writer.WriteAll(outputCSVRows)
 	if err != nil {
-		log.Fatalf("🔴 error: failed to write all the rows to the output CSV file: %v\n", err)
+		log.Fatalf("🔴 error: failed to write all the rows to the output csv file: %v\n", err)
 		os.Exit(1)
 	}
 
-	log.Printf("🟢 an output csv file was successfully created at: %s\n", *outputCSVFilepath)
+	log.Printf("🟢 an output csv file was successfully created at: %s\n", outputCSVFilepath)
+}
+
+func main() {
+	inputCSVFilepath := flag.String("input", "", "A path to a CSV file to be processed")
+	outputCSVFilepath := flag.String("output", "", "A path to a directory to output the resulting CSV")
+
+	flag.Parse()
+
+	if *inputCSVFilepath == "" || *outputCSVFilepath == "" {
+		flag.Usage()
+		log.Fatalf("🔴 error: failed to provide both an 'input' and 'output' flag\n")
+	}
+
+	// TODO: handle an error (second return value) here
+	inputCSVRows := readInputCSV(*inputCSVFilepath)
+
+	// (!) this is the important data structure that will receive the various output csv information as we proceed
+	outputCSVRows := make([][]string, len(inputCSVRows))
+	// fmt.Println("DEBUG | [STEP 0] outputCSVRows", outputCSVRows)
+
+	outputCSVColumnHeadings := []string{"url", "input", "output", "s3url"}
+	outputCSVRows[0] = outputCSVColumnHeadings
+	// fmt.Println("DEBUG | [STEP 1] outputCSVRows", outputCSVRows)
+
+	imageUrls := parseImageUrls(inputCSVRows, outputCSVRows)
+	// fmt.Println("DEBUG | [STEP 2] outputCSVRows", outputCSVRows)
+
+	temporaryDownloadsDirectory, err := os.MkdirTemp("", "downloads-*")
+	if err != nil {
+		// if we can't make the temporary directory we have to exit
+		log.Fatalf("🔴 error: failed to create a temporary downloads directory: %v", err)
+	}
+	defer os.RemoveAll(temporaryDownloadsDirectory)
+
+	// TODO: handle an error (return value) here
+	downloadImages(imageUrls, temporaryDownloadsDirectory, outputCSVRows)
+	// fmt.Println("DEBUG | [STEP 3] outputCSVRows", outputCSVRows)
+
+	temporaryGrayscaleDirectory, err := os.MkdirTemp("", "grayscale-*")
+	if err != nil {
+		log.Fatalf("🔴 error: failed to create a temporary grayscale directory: %v", err)
+	}
+	defer os.RemoveAll(temporaryGrayscaleDirectory)
+
+	// TODO: handle an error (return value) here
+	convertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDirectory, outputCSVRows)
+	// fmt.Println("DEBUG | [STEP 4] outputCSVRows", outputCSVRows)
+
+	// TODO: handle an error (return value) here
+	uploadToS3(temporaryGrayscaleDirectory, outputCSVRows)
+	// fmt.Println("DEBUG | [STEP 5] outputCSVRows", outputCSVRows)
+
+	writeOutputCSV(*outputCSVFilepath, outputCSVRows)
 }
 
 // baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/batch-processing$ go run . --input=inputs/unsplash.csv --output=outputs/unsplash.csv
