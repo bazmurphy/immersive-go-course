@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/CodeYourFuture/immersive-go-course/batch-processing/converter"
-	"github.com/CodeYourFuture/immersive-go-course/batch-processing/csv"
-	"github.com/CodeYourFuture/immersive-go-course/batch-processing/downloader"
-	"github.com/CodeYourFuture/immersive-go-course/batch-processing/uploader"
+	"github.com/bazmurphy/immersive-go-course/batch-processing/converter"
+	"github.com/bazmurphy/immersive-go-course/batch-processing/csv"
+	"github.com/bazmurphy/immersive-go-course/batch-processing/downloader"
+	"github.com/bazmurphy/immersive-go-course/batch-processing/uploader"
 )
 
 func main() {
