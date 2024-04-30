@@ -38,7 +38,7 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 		defer openedFile.Close()
 
 		// s3BucketName := os.Getenv("AWS_S3_BUCKET")
-		// TODO: Deal with dynamically loading this via Docker environment file
+		// TODO: Deal with dynamically loading this via Docker using an environment file
 		s3BucketName := "bazmurphy-batch-processing"
 		s3Key := file.Name()
 
@@ -53,6 +53,7 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 		if err != nil {
 			// TODO: need to implement some sort of retry logic here (or is it better to use CONTEXT per above^)
 			// TODO: should this continue or be fatal?... maybe just give up on uploading this file and try the next...?
+			// TODO: this will currently proceed even if we failed to upload the file
 			log.Printf("🔴 failed to upload the file %s to the aws s3 bucket: %v\n", file.Name(), err)
 			continue
 		}
