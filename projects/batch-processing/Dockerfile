@@ -15,15 +15,15 @@ RUN apt-get update && \
 RUN apt-get -q -y install libjpeg-dev libpng-dev libtiff-dev \
     libgif-dev libx11-dev --no-install-recommends
 
-ENV IMAGEMAGICK_VERSION=7.1.1-31
+ENV IMAGEMAGICK_VERSION=6.9.13-9
 
 # Install ImageMagick
 RUN cd && \
-    wget https://github.com/ImageMagick/ImageMagick/archive/${IMAGEMAGICK_VERSION}.tar.gz
+    wget https://github.com/ImageMagick/ImageMagick6/archive/${IMAGEMAGICK_VERSION}.tar.gz
 
 RUN cd && \
     tar xvzf ${IMAGEMAGICK_VERSION}.tar.gz && \
-    cd ImageMagick-${IMAGEMAGICK_VERSION} && \
+    cd ImageMagick* && \
     ./configure \
     --without-magick-plus-plus \
     --without-perl \
@@ -31,12 +31,12 @@ RUN cd && \
     --with-gvc=no \
     --disable-docs
 
-RUN cd && cd ImageMagick-${IMAGEMAGICK_VERSION} && \
+RUN cd && cd ImageMagick* && \
     make -j$(nproc) && make install && \
     ldconfig /usr/local/lib
 
 # Clean up the image
-RUN cd && rm -rf ${IMAGEMAGICK_VERSION}.tar.gz ImageMagick-${IMAGEMAGICK_VERSION}
+RUN cd && rm -rf ${IMAGEMAGICK_VERSION}.tar.gz ImageMagick6-${IMAGEMAGICK_VERSION}
 
 # Build the app
 WORKDIR /app
