@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	log.Printf("⏳ batch-processing started...")
+	log.Printf("⏳ batch-processing started...\n")
 
 	inputCSVFilepath := flag.String("input", "", "A path to a CSV file to be processed")
 	outputCSVFilepath := flag.String("output", "", "A path to a directory to output the resulting CSV")
@@ -67,7 +67,7 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	log.Printf("✅ batch-processing complete!\n")
+	log.Printf("👍 batch-processing complete!\n")
 }
 
 // baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/batch-processing$ go run . --input=inputs/unsplash.csv --output=outputs/unsplash.csv
@@ -95,5 +95,5 @@ func main() {
 // 2024/05/01 15:22:30 🟢 success: the output csv file was successfully created at: outputs/unsplash.csv
 // 2024/05/01 15:22:30 🔵 attempting: to email a report using AWS SES...
 // 2024/05/01 15:22:30 🟢 success: emailed a report to bazmurphy@gmail.com using AWS SES
-// 2024/05/01 15:22:30 ✅ batch-processing complete!
+// 2024/05/01 15:22:30 👍 batch-processing complete!
 // baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/batch-processing$
