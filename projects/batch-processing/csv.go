@@ -1,4 +1,4 @@
-package csv
+package main
 
 import (
 	"encoding/csv"
@@ -35,20 +35,15 @@ func ReadInputCSV(inputCSVFilepath string) ([][]string, error) {
 	return inputCSVRows, nil
 }
 
-func CreateOutputCSV(inputCSVRows [][]string) [][]string {
-	// this is the important data structure that will receive the various output csv information as we proceed through
-	outputCSVRows := make([][]string, len(inputCSVRows))
-	outputCSVColumnHeadings := []string{"url", "input", "output", "s3url"}
-	outputCSVRows[0] = outputCSVColumnHeadings
-	return outputCSVRows
+type ParsedImageUrlObject struct {
+	ImageUrl string
+	ID       int
 }
 
-func ParseImageUrls(inputCSVRows [][]string, outputCSVRows [][]string) ([]string, error) {
+func ParseImageUrls(inputCSVRows [][]string) ([]ParsedImageUrlObject, error) {
 	log.Println("🔵 attempting: to parse image urls from the input csv...")
 
-	var imageUrls []string
-
-	var imageUrlParsedCount int
+	var parsedImageUrlObjects []ParsedImageUrlObject
 
 	for rowNumber, row := range inputCSVRows {
 		// check row 0 for the correct single 'url' column heading
@@ -75,22 +70,21 @@ func ParseImageUrls(inputCSVRows [][]string, outputCSVRows [][]string) ([]string
 				continue
 			}
 
-			imageUrls = append(imageUrls, imageUrl)
+			imageUrlObject := ParsedImageUrlObject{
+				ImageUrl: imageUrl,
+				ID:       rowNumber,
+			}
 
-			// TODO: how to move this out of here (single responsibility principle)
-			// [STEP 2] CSV APPENDING LOGIC
-			outputCSVRows[rowNumber] = append(outputCSVRows[rowNumber], imageUrl)
-
-			imageUrlParsedCount++
+			parsedImageUrlObjects = append(parsedImageUrlObjects, imageUrlObject)
 		}
 	}
 
-	log.Printf("🟢 success: parsed %d image urls from the input csv", imageUrlParsedCount)
+	log.Printf("🟢 success: parsed %d image urls from the input csv", len(parsedImageUrlObjects))
 
-	return imageUrls, nil
+	return parsedImageUrlObjects, nil
 }
 
-func WriteOutputCSV(outputCSVFilepath string, outputCSVRows [][]string) error {
+func WriteOutputCSV(outputCSVFilepath string, data map[int][]string) error {
 	log.Println("🔵 attempting: to create and write the output csv...")
 
 	outputCSVFile, err := os.Create(outputCSVFilepath)
@@ -100,10 +94,19 @@ func WriteOutputCSV(outputCSVFilepath string, outputCSVRows [][]string) error {
 	defer outputCSVFile.Close()
 
 	writer := csv.NewWriter(outputCSVFile)
+	defer writer.Flush()
 
-	err = writer.WriteAll(outputCSVRows)
+	outputCSVColumnHeadings := []string{"url", "input", "output", "s3url"}
+	err = writer.Write(outputCSVColumnHeadings)
 	if err != nil {
-		return fmt.Errorf("🔴 error: failed to write all the rows to the output csv file: %v", err)
+		return fmt.Errorf("🔴 error: failed to write column headings to the output csv file: %v", err)
+	}
+
+	for dataID, dataValues := range data {
+		err := writer.Write(dataValues)
+		if err != nil {
+			return fmt.Errorf("🔴 error: failed to write row ID%d the output csv file: %v", dataID, err)
+		}
 	}
 
 	log.Printf("🟢 success: the output csv file was successfully created at: %s\n", outputCSVFilepath)

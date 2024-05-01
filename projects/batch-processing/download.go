@@ -1,4 +1,4 @@
-package downloader
+package main
 
 import (
 	"io"
@@ -11,17 +11,22 @@ import (
 	"strings"
 )
 
-func DownloadImages(imageUrls []string, temporaryDownloadsDirectory string, outputCSVRows [][]string) error {
+type DownloadedImageObject struct {
+	ImageFilepath string
+	ID            int
+}
+
+func DownloadImages(imageUrlObjects []ParsedImageUrlObject, temporaryDownloadsDirectory string) ([]DownloadedImageObject, error) {
 	log.Println("🔵 attempting: to download the images from the image urls...")
 
-	var imageDownloadCount int
+	var downloadedImageObjects []DownloadedImageObject
 
-	for index, imageUrl := range imageUrls {
+	for index, imageUrlObject := range imageUrlObjects {
 		// TODO: use context with timeout here (otherwise it can hang infinitely)
 		// TODO: use some retry logic here (try 3 times and then give up)
-		response, err := http.Get(imageUrl)
+		response, err := http.Get(imageUrlObject.ImageUrl)
 		if err != nil {
-			log.Printf("🟠 warn: failed to get image url response from url %s\n", imageUrl)
+			log.Printf("🟠 warn: failed to get image url response from url %s\n", imageUrlObject.ImageUrl)
 			// TODO: do i want to continue here? as in just move onto the next imageUrl.. no I should retry
 			continue
 		}
@@ -69,7 +74,7 @@ func DownloadImages(imageUrls []string, temporaryDownloadsDirectory string, outp
 			continue
 		}
 
-		parsedUrl, err := url.Parse(imageUrl)
+		parsedUrl, err := url.Parse(imageUrlObject.ImageUrl)
 		if err != nil {
 			log.Printf("🟠 warn: cannot parse the image url: %v", err)
 			// TODO: if we cannot parse the image url we should skip... right?
@@ -82,10 +87,6 @@ func DownloadImages(imageUrls []string, temporaryDownloadsDirectory string, outp
 
 		outputFilepath := filepath.Join(temporaryDownloadsDirectory, fileName+fileExtension)
 
-		// TODO: how to move this out of here (single responsibility principle)
-		// [STEP 3] CSV APPENDING LOGIC
-		outputCSVRows[index+1] = append(outputCSVRows[index+1], outputFilepath)
-
 		temporaryFile, err := os.Create(outputFilepath)
 		if err != nil {
 			log.Printf("🟠 warn: failed to create a temporary image file: %v", err)
@@ -96,16 +97,22 @@ func DownloadImages(imageUrls []string, temporaryDownloadsDirectory string, outp
 
 		_, err = io.Copy(temporaryFile, response.Body)
 		if err != nil {
-			log.Printf("🟠 warn: failed to save image %d\n with url %s\n", index+1, imageUrl)
+			log.Printf("🟠 warn: failed to save image %d\n with url %s\n", index+1, imageUrlObject.ImageUrl)
 			// TODO: think about if i want to continue here
 			continue
 		}
 
-		imageDownloadCount++
+		downloadedImageObject := DownloadedImageObject{
+			ImageFilepath: outputFilepath,
+			ID:            index + 1,
+		}
+
+		downloadedImageObjects = append(downloadedImageObjects, downloadedImageObject)
+
 	}
 
-	log.Printf("🟢 success: downloaded %d images from the image urls", imageDownloadCount)
+	log.Printf("🟢 success: downloaded %d images from the image urls", len(downloadedImageObjects))
 
 	// TODO: implement returning actual errors above in specific cases (but need to work out which)
-	return nil
+	return downloadedImageObjects, nil
 }

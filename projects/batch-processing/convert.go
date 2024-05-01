@@ -1,4 +1,4 @@
-package converter
+package main
 
 import (
 	"fmt"
@@ -24,10 +24,18 @@ func (c *Converter) Grayscale(inputFilepath string, outputFilepath string) error
 	return err
 }
 
-func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDirectory string, outputCSVRows [][]string) error {
+type ConvertedImageObject struct {
+	ImageFilepath string
+	ID            int
+}
+
+func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDirectory string) ([]ConvertedImageObject, error) {
 	log.Println("🔵 attempting: to convert images to grayscale...")
 
-	var imagesConvertedCount int
+	temporaryDownloadsFiles, err := os.ReadDir(temporaryDownloadsDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("🔴 error: failed to read files from the temporary downloads directory: %v", err)
+	}
 
 	imagick.Initialize()
 	defer imagick.Terminate()
@@ -36,10 +44,7 @@ func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDir
 		cmd: imagick.ConvertImageCommand,
 	}
 
-	temporaryDownloadsFiles, err := os.ReadDir(temporaryDownloadsDirectory)
-	if err != nil {
-		return fmt.Errorf("🔴 error: failed to read files from the temporary downloads directory: %v", err)
-	}
+	var convertedImageObjects []ConvertedImageObject
 
 	for index, file := range temporaryDownloadsFiles {
 		// ignore directories
@@ -58,10 +63,6 @@ func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDir
 
 		outputFilepath := filepath.Join(temporaryGrayscaleDirectory, outputFilename)
 
-		// TODO: how to move this out of here (single responsibility principle)
-		// [STEP 4] CSV APPENDING LOGIC
-		outputCSVRows[index+1] = append(outputCSVRows[index+1], outputFilepath)
-
 		log.Printf("🔵 attempting: to convert %q to %q\n", inputFilepath, outputFilepath)
 
 		err := c.Grayscale(inputFilepath, outputFilepath)
@@ -72,10 +73,15 @@ func ConvertImagesToGrayscale(temporaryDownloadsDirectory, temporaryGrayscaleDir
 
 		log.Printf("🟢 success: converted %q to %q\n", inputFilepath, outputFilepath)
 
-		imagesConvertedCount++
+		convertedImageObject := ConvertedImageObject{
+			ImageFilepath: outputFilepath,
+			ID:            index + 1,
+		}
+
+		convertedImageObjects = append(convertedImageObjects, convertedImageObject)
 	}
 
-	log.Printf("🟢 success: converted %d images to grayscale\n", imagesConvertedCount)
+	log.Printf("🟢 success: converted %d images to grayscale\n", len(convertedImageObjects))
 
-	return nil
+	return convertedImageObjects, nil
 }

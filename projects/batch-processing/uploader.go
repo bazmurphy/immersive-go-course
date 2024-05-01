@@ -1,4 +1,4 @@
-package uploader
+package main
 
 import (
 	"fmt"
@@ -12,29 +12,32 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]string) error {
-	log.Println("🔵 attempting: to upload the images to AWS S3...")
+type UploadedImageObject struct {
+	ImageUrl string
+	ID       int
+}
 
-	var imageUploadCount int
+func UploadImagesToS3(temporaryGrayscaleDirectory string) ([]UploadedImageObject, error) {
+	log.Println("🔵 attempting: to upload the images to AWS S3...")
 
 	awsRegion := os.Getenv("AWS_REGION")
 	if awsRegion == "" {
-		return fmt.Errorf("🔴 error: cannot get the AWS_REGION environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the AWS_REGION environment variable")
 	}
 
 	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
 	if awsAccessKeyID == "" {
-		return fmt.Errorf("🔴 error: cannot get the AWS_ACCESS_KEY_ID environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the AWS_ACCESS_KEY_ID environment variable")
 	}
 
 	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	if awsSecretAccessKey == "" {
-		return fmt.Errorf("🔴 error: cannot get the AWS_SECRET_ACCESS_KEY environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the AWS_SECRET_ACCESS_KEY environment variable")
 	}
 
 	awsS3BucketName := os.Getenv("AWS_S3_BUCKET")
 	if awsS3BucketName == "" {
-		return fmt.Errorf("🔴 error: cannot get the AWS_S3_BUCKET environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the AWS_S3_BUCKET environment variable")
 	}
 
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
@@ -48,8 +51,10 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 
 	temporaryGrayscaleFiles, err := os.ReadDir(temporaryGrayscaleDirectory)
 	if err != nil {
-		return fmt.Errorf("🔴 error: failed to read files from the temporary grayscale directory: %v", err)
+		return nil, fmt.Errorf("🔴 error: failed to read files from the temporary grayscale directory: %v", err)
 	}
+
+	var uploadedImageObjects []UploadedImageObject
 
 	for index, file := range temporaryGrayscaleFiles {
 		// ignore directories
@@ -62,7 +67,7 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 		openedFile, err := os.Open(filepath)
 		if err != nil {
 			// TODO: do I actually want this to be fatal... or just skip this file and continue to the next file...
-			return fmt.Errorf("🔴 error: failed to open the file %s from the temporary grayscale directory: %v", file, err)
+			return nil, fmt.Errorf("🔴 error: failed to open the file %s from the temporary grayscale directory: %v", file, err)
 		}
 
 		defer openedFile.Close()
@@ -87,16 +92,21 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string, outputCSVRows [][]stri
 
 		objectURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", awsS3BucketName, awsRegion, awsS3Key)
 
-		log.Printf("🟢 success: uploaded image to AWS S3: %s\n", objectURL)
-
 		// TODO: how to move this out of here (single responsibility principle)
 		// [STEP 5] CSV APPENDING LOGIC
-		outputCSVRows[index+1] = append(outputCSVRows[index+1], objectURL)
+		// outputCSVRows[index+1] = append(outputCSVRows[index+1], objectURL)
 
-		imageUploadCount++
+		uploadedImageObject := UploadedImageObject{
+			ImageUrl: objectURL,
+			ID:       index + 1,
+		}
+
+		uploadedImageObjects = append(uploadedImageObjects, uploadedImageObject)
+
+		log.Printf("🟢 success: uploaded image to AWS S3: %s\n", objectURL)
 	}
 
-	log.Printf("🟢 success: uploaded %d images to AWS S3", imageUploadCount)
+	log.Printf("🟢 success: uploaded %d images to AWS S3", len(uploadedImageObjects))
 
-	return nil
+	return uploadedImageObjects, nil
 }
