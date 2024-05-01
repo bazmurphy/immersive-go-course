@@ -71,27 +71,29 @@ func main() {
 }
 
 // baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/batch-processing$ go run . --input=inputs/unsplash.csv --output=outputs/unsplash.csv
-// 2024/05/01 13:41:39 ⏳ batch-processing started...
-// 2024/05/01 13:41:39 🔵 attempting: to read rows from the input csv...
-// 2024/05/01 13:41:39 🟢 success: read 4 rows from the input csv
-// 2024/05/01 13:41:39 🔵 attempting: to parse image urls from the input csv...
-// 2024/05/01 13:41:39 🟢 success: parsed 3 image urls from the input csv
-// 2024/05/01 13:41:39 🔵 attempting: to download the images from the image urls...
-// 2024/05/01 13:41:39 🟢 success: downloaded 3 images from the image urls
-// 2024/05/01 13:41:39 🔵 attempting: to convert images to grayscale...
-// 2024/05/01 13:41:39 🔵 attempting: to convert "/tmp/downloads-3055009226/photo-1506815444479-bfdb1e96c566.jpg" to "/tmp/grayscale-3768060023/photo-1506815444479-bfdb1e96c566-grayscale.jpg"
-// 2024/05/01 13:41:39 🟢 success: converted "/tmp/downloads-3055009226/photo-1506815444479-bfdb1e96c566.jpg" to "/tmp/grayscale-3768060023/photo-1506815444479-bfdb1e96c566-grayscale.jpg"
-// 2024/05/01 13:41:39 🔵 attempting: to convert "/tmp/downloads-3055009226/photo-1533738363-b7f9aef128ce.jpg" to "/tmp/grayscale-3768060023/photo-1533738363-b7f9aef128ce-grayscale.jpg"
-// 2024/05/01 13:41:39 🟢 success: converted "/tmp/downloads-3055009226/photo-1533738363-b7f9aef128ce.jpg" to "/tmp/grayscale-3768060023/photo-1533738363-b7f9aef128ce-grayscale.jpg"
-// 2024/05/01 13:41:39 🔵 attempting: to convert "/tmp/downloads-3055009226/photo-1540979388789-6cee28a1cdc9.jpg" to "/tmp/grayscale-3768060023/photo-1540979388789-6cee28a1cdc9-grayscale.jpg"
-// 2024/05/01 13:41:39 🟢 success: converted "/tmp/downloads-3055009226/photo-1540979388789-6cee28a1cdc9.jpg" to "/tmp/grayscale-3768060023/photo-1540979388789-6cee28a1cdc9-grayscale.jpg"
-// 2024/05/01 13:41:39 🟢 success: converted 3 images to grayscale
-// 2024/05/01 13:41:39 🔵 attempting: to upload the images to AWS S3...
-// 2024/05/01 13:41:39 🟢 success: uploaded image to AWS S3: https://bazmurphy-batch-processing.s3.eu-west-2.amazonaws.com/photo-1506815444479-bfdb1e96c566-grayscale.jpg
-// 2024/05/01 13:41:39 🟢 success: uploaded image to AWS S3: https://bazmurphy-batch-processing.s3.eu-west-2.amazonaws.com/photo-1533738363-b7f9aef128ce-grayscale.jpg
-// 2024/05/01 13:41:39 🟢 success: uploaded image to AWS S3: https://bazmurphy-batch-processing.s3.eu-west-2.amazonaws.com/photo-1540979388789-6cee28a1cdc9-grayscale.jpg
-// 2024/05/01 13:41:39 🟢 success: uploaded 3 images to AWS S3
-// 2024/05/01 13:41:39 🔵 attempting: to create and write the output csv...
-// 2024/05/01 13:41:39 🟢 success: the output csv file was successfully created at: outputs/unsplash.csv
-// 2024/05/01 13:41:39 ✅ batch-processing complete!
+// 2024/05/01 15:22:29 ⏳ batch-processing started...
+// 2024/05/01 15:22:29 🔵 attempting: to read rows from the input csv...
+// 2024/05/01 15:22:29 🟢 success: read 4 rows from the input csv
+// 2024/05/01 15:22:29 🔵 attempting: to parse image urls from the input csv...
+// 2024/05/01 15:22:29 🟢 success: parsed 3 image urls from the input csv
+// 2024/05/01 15:22:29 🔵 attempting: to download the images from the image urls...
+// 2024/05/01 15:22:29 🟢 success: downloaded 3 images from the image urls
+// 2024/05/01 15:22:29 🔵 attempting: to convert images to grayscale...
+// 2024/05/01 15:22:29 🔵 attempting: to convert "/tmp/downloads-2339321723/photo-1506815444479-bfdb1e96c566.jpg" to "/tmp/grayscale-995295922/photo-1506815444479-bfdb1e96c566-grayscale.jpg"
+// 2024/05/01 15:22:29 🟢 success: converted "/tmp/downloads-2339321723/photo-1506815444479-bfdb1e96c566.jpg" to "/tmp/grayscale-995295922/photo-1506815444479-bfdb1e96c566-grayscale.jpg"
+// 2024/05/01 15:22:29 🔵 attempting: to convert "/tmp/downloads-2339321723/photo-1533738363-b7f9aef128ce.jpg" to "/tmp/grayscale-995295922/photo-1533738363-b7f9aef128ce-grayscale.jpg"
+// 2024/05/01 15:22:29 🟢 success: converted "/tmp/downloads-2339321723/photo-1533738363-b7f9aef128ce.jpg" to "/tmp/grayscale-995295922/photo-1533738363-b7f9aef128ce-grayscale.jpg"
+// 2024/05/01 15:22:29 🔵 attempting: to convert "/tmp/downloads-2339321723/photo-1540979388789-6cee28a1cdc9.jpg" to "/tmp/grayscale-995295922/photo-1540979388789-6cee28a1cdc9-grayscale.jpg"
+// 2024/05/01 15:22:29 🟢 success: converted "/tmp/downloads-2339321723/photo-1540979388789-6cee28a1cdc9.jpg" to "/tmp/grayscale-995295922/photo-1540979388789-6cee28a1cdc9-grayscale.jpg"
+// 2024/05/01 15:22:29 🟢 success: converted 3 images to grayscale
+// 2024/05/01 15:22:29 🔵 attempting: to upload the images to AWS S3...
+// 2024/05/01 15:22:29 🟢 success: uploaded image to AWS S3: https://bazmurphy-batch-processing.s3.eu-west-2.amazonaws.com/photo-1506815444479-bfdb1e96c566-grayscale.jpg
+// 2024/05/01 15:22:29 🟢 success: uploaded image to AWS S3: https://bazmurphy-batch-processing.s3.eu-west-2.amazonaws.com/photo-1533738363-b7f9aef128ce-grayscale.jpg
+// 2024/05/01 15:22:30 🟢 success: uploaded image to AWS S3: https://bazmurphy-batch-processing.s3.eu-west-2.amazonaws.com/photo-1540979388789-6cee28a1cdc9-grayscale.jpg
+// 2024/05/01 15:22:30 🟢 success: uploaded 3 images to AWS S3
+// 2024/05/01 15:22:30 🔵 attempting: to create and write the output csv...
+// 2024/05/01 15:22:30 🟢 success: the output csv file was successfully created at: outputs/unsplash.csv
+// 2024/05/01 15:22:30 🔵 attempting: to email a report using AWS SES...
+// 2024/05/01 15:22:30 🟢 success: emailed a report to bazmurphy@gmail.com using AWS SES
+// 2024/05/01 15:22:30 ✅ batch-processing complete!
 // baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/batch-processing$
