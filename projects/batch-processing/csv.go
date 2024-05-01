@@ -84,7 +84,7 @@ func ParseImageUrls(inputCSVRows [][]string) ([]ParsedImageUrlObject, error) {
 	return parsedImageUrlObjects, nil
 }
 
-func WriteOutputCSV(outputCSVFilepath string, data map[int][]string) error {
+func WriteOutputCSV(outputCSVFilepath string, generatedDataMap GeneratedDataMap) error {
 	log.Println("🔵 attempting: to create and write the output csv...")
 
 	outputCSVFile, err := os.Create(outputCSVFilepath)
@@ -102,7 +102,7 @@ func WriteOutputCSV(outputCSVFilepath string, data map[int][]string) error {
 		return fmt.Errorf("🔴 error: failed to write column headings to the output csv file: %v", err)
 	}
 
-	for dataID, dataValues := range data {
+	for dataID, dataValues := range generatedDataMap {
 		err := writer.Write(dataValues)
 		if err != nil {
 			return fmt.Errorf("🔴 error: failed to write row ID%d the output csv file: %v", dataID, err)

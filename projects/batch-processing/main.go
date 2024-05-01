@@ -55,9 +55,14 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	dataMap := GenerateDataMap(parsedImageUrlObjects, downloadedImageObjects, convertedImageObjects, uploadedImageObjects)
+	generatedDataMap := GenerateDataMap(parsedImageUrlObjects, downloadedImageObjects, convertedImageObjects, uploadedImageObjects)
 
-	err = WriteOutputCSV(*outputCSVFilepath, dataMap)
+	err = WriteOutputCSV(*outputCSVFilepath, generatedDataMap)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	err = SendEmailWithSES("bazmurphy@gmail.com", generatedDataMap)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

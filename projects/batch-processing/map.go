@@ -1,11 +1,13 @@
 package main
 
+type GeneratedDataMap map[int][]string
+
 func GenerateDataMap(parsedImageUrlObjects []ParsedImageUrlObject, downloadedImageObjects []DownloadedImageObject, convertedImageObjects []ConvertedImageObject, uploadedImageObjects []UploadedImageObject) map[int][]string {
 	// TODO: this map is built at the end of all the operations
 	// it could be updated throughout as operations occur
 	// but then I would be going back to the older method (that I just spent all this time refactoring out)
 
-	dataMap := make(map[int][]string)
+	dataMap := make(GeneratedDataMap)
 
 	for _, parsedImageUrlObject := range parsedImageUrlObjects {
 		id := parsedImageUrlObject.ID
