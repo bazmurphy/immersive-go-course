@@ -46,11 +46,7 @@ COPY go.sum ./
 
 RUN go mod download
 
-COPY main.go ./
-COPY converter ./converter
-COPY csv ./csv
-COPY downloader ./downloader
-COPY uploader ./uploader
+COPY . ./
 
 COPY inputs /inputs
 RUN mkdir -p /outputs
