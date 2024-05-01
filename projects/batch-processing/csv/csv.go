@@ -26,6 +26,10 @@ func ReadInputCSV(inputCSVFilepath string) ([][]string, error) {
 		return nil, fmt.Errorf("🔴 error: failed to read all the input csv rows: %v", err)
 	}
 
+	if len(inputCSVRows) == 0 {
+		return nil, fmt.Errorf("🔴 error: the input csv file is empty")
+	}
+
 	log.Printf("🟢 success: read %d rows from the input csv", len(inputCSVRows))
 
 	return inputCSVRows, nil
