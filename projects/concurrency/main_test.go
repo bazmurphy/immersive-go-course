@@ -14,7 +14,7 @@ type TestKeyValue struct {
 
 func DisplayCacheContents(c *Cache[string, int]) {
 	for cacheEntriesKey, cacheListElementPointer := range c.entries {
-		cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+		cacheValue := cacheListElementPointer.Value.(*CacheEntry[string, int])
 		fmt.Printf("(map) cacheEntriesKey: %v (list) cacheValue.value: %v\n", cacheEntriesKey, cacheValue.value)
 	}
 }
@@ -65,9 +65,9 @@ func TestCache(t *testing.T) {
 		}
 
 		// (!) NEED TO LEARN >>> TYPE ASSERTION/CONVERSION
-		// "It performs a type assertion on cacheListElementPointer.Value, checking if the value stored there is a pointer to a CacheValue[string, int] struct."
-		// "If the type assertion is successful, it retrieves the concrete value (the pointer to the CacheValue struct) and assigns it to the cacheValue variable."
-		cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+		// "It performs a type assertion on cacheListElementPointer.Value, checking if the value stored there is a pointer to a CacheEntry[string, int] struct."
+		// "If the type assertion is successful, it retrieves the concrete value (the pointer to the CacheEntry struct) and assigns it to the cacheValue variable."
+		cacheValue := cacheListElementPointer.Value.(*CacheEntry[string, int])
 
 		if cacheValue.value != insertKeyValue.value {
 			t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertKeyValue.value)
@@ -99,15 +99,14 @@ func TestCache(t *testing.T) {
 			t.Errorf("Put should return true to denote a successful updating of that key's value")
 		}
 
-		valuePointer, ok := cache.Get(insertKeyValue.key)
+		value, ok := cache.Get(insertKeyValue.key)
 
 		if ok != true {
 			t.Errorf("could not find key %v when there should be one", insertKeyValue.key)
 		}
 
-		// (!) deference the pointer to a value
-		if *valuePointer != updatedValue {
-			t.Errorf("got %v | want %v", *valuePointer, updatedValue)
+		if value != updatedValue {
+			t.Errorf("got %v | want %v", value, updatedValue)
 		}
 
 		expectedSuccessfulWrites := 1
@@ -148,7 +147,7 @@ func TestCache(t *testing.T) {
 			}
 
 			// (!) type assertion/conversion
-			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+			cacheValue := cacheListElementPointer.Value.(*CacheEntry[string, int])
 
 			if cacheValue.value != insertKeyValue.value {
 				t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertKeyValue.value)
@@ -161,7 +160,7 @@ func TestCache(t *testing.T) {
 
 		for _, expectedCacheListValue := range expectedCacheListOrder {
 			// (!) type assertion/conversion
-			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+			cacheValue := cacheListElementPointer.Value.(*CacheEntry[string, int])
 
 			if cacheValue.value != expectedCacheListValue {
 				t.Errorf("cache list element value: got %v | want %v", cacheValue.value, expectedCacheListValue)
@@ -202,7 +201,7 @@ func TestCache(t *testing.T) {
 			}
 
 			// (!) type assertion/conversion
-			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+			cacheValue := cacheListElementPointer.Value.(*CacheEntry[string, int])
 
 			if cacheValue.value != insertKeyValue.value {
 				t.Errorf("cacheValue.value: got %v want %v", cacheValue.value, insertKeyValue.value)
@@ -215,7 +214,7 @@ func TestCache(t *testing.T) {
 
 		for _, expectedCacheListValue := range expectedCacheListOrder {
 			// (!) type assertion/conversion
-			cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+			cacheValue := cacheListElementPointer.Value.(*CacheEntry[string, int])
 
 			if cacheValue.value != expectedCacheListValue {
 				t.Errorf("cache list element value: got %v | want %v", cacheValue.value, expectedCacheListValue)
@@ -237,7 +236,6 @@ func TestCache(t *testing.T) {
 	})
 }
 
-// this test is failing, probably because of the way i am concurrently accessing the cache
 func TestCachePutConcurrency(t *testing.T) {
 	cache := NewCache[string, int](3)
 
@@ -248,7 +246,6 @@ func TestCachePutConcurrency(t *testing.T) {
 	for i := 1; i <= 100; i++ {
 		// increment the wait group counter
 		wg.Add(1)
-
 		// create a dynamic key
 		dynamicKey := fmt.Sprintf("key-%d", i)
 
@@ -256,18 +253,15 @@ func TestCachePutConcurrency(t *testing.T) {
 		go func() {
 			// decrement the wait group counter
 			defer wg.Done()
-
 			// an inner loop to run Put() X number of times
 			for j := 1; j <= 100; j++ {
 				// generate a dynamic value
 				dynamicValue := i + j
-
 				// try to Put() to the cache
 				cache.Put(dynamicKey, dynamicValue)
 			}
 		}()
 	}
-
 	// wait until all the goroutines are finished
 	wg.Wait()
 
@@ -279,7 +273,7 @@ func TestCachePutConcurrency(t *testing.T) {
 
 	// check the final state of the cache
 	for cacheEntriesKey, cacheListElementPointer := range cache.entries {
-		cacheValue := cacheListElementPointer.Value.(*CacheValue[string, int])
+		cacheValue := cacheListElementPointer.Value.(*CacheEntry[string, int])
 		fmt.Printf("(map) cacheEntriesKey: %v (list) cacheValue.value: %v\n", cacheEntriesKey, cacheValue.value)
 	}
 

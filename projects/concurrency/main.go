@@ -6,16 +6,19 @@ import (
 )
 
 type Cache[K comparable, V any] struct {
+	// the maximum number of entries in the cache
 	capacity int
-	stats    *CacheStats[K, V]
+	// to keep track of cache operation statistics
+	stats *CacheStats[K, V]
 
-	mu      sync.Mutex
+	mu sync.Mutex
+	// entries stores the key and value (a pointer to a list element)
 	entries map[K]*list.Element
-	list    *list.List
+	// a list used for eviction policy
+	list *list.List
 }
 
-type CacheValue[K comparable, V any] struct {
-	// i don't like that i am duplicating the key here... but it is for easier lookup later
+type CacheEntry[K comparable, V any] struct {
 	key   K
 	value V
 }
@@ -29,10 +32,10 @@ type CacheStats[K comparable, V any] struct {
 	successfulRemoves    int
 }
 
-func NewCache[K comparable, V any](entryLimit int) Cache[K, V] {
+func NewCache[K comparable, V any](capacity int) Cache[K, V] {
 	return Cache[K, V]{
-		capacity: entryLimit,
-		entries:  make(map[K]*list.Element, entryLimit),
+		capacity: capacity,
+		entries:  make(map[K]*list.Element, capacity),
 		list:     list.New(),
 		stats: &CacheStats[K, V]{
 			successfulReads:      0,
@@ -49,12 +52,12 @@ func (c *Cache[K, V]) Put(key K, value V) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// check if there is a key in the entries map to update
+	// check if there is a key in the `entries` map to update
 	listElement, ok := c.entries[key]
 
 	if ok {
 		// update the list element's value
-		listElement.Value = &CacheValue[K, V]{key, value}
+		listElement.Value = &CacheEntry[K, V]{key, value}
 		// move the list element to the front of the list
 		c.list.MoveToFront(listElement)
 		// update the stats
@@ -63,52 +66,53 @@ func (c *Cache[K, V]) Put(key K, value V) bool {
 	}
 
 	if len(c.entries) == c.capacity {
-		// get the last list element
+		// get the last `list` element
 		lastListElement := c.list.Back()
 		// get it's value (a struct with key and value)
-		lastListElementValue := lastListElement.Value.(*CacheValue[K, V])
-		// delete that key from the entries map
+		lastListElementValue := lastListElement.Value.(*CacheEntry[K, V])
+		// delete that key from the `entries` map
 		delete(c.entries, lastListElementValue.key)
-		// delete that list element from the list
+		// delete that list element from the `list`
 		c.list.Remove(lastListElement)
 		// update the stats
 		c.stats.successfulRemoves++
 	}
 
-	// if we reach here there is no key in the entries map
-	// create a new list element and put at the front of the list
-	listElement = c.list.PushFront(&CacheValue[K, V]{key, value})
-	// make a new key/value pair in the entries map whose value points to the new list element
+	// if we reach here there is no key in the `entries` map
+
+	// create a new list element and insert it at the front of the `list`
+	listElement = c.list.PushFront(&CacheEntry[K, V]{key, value})
+	// make a new key/value pair in the `entries` map whose value points to the new list element
 	c.entries[key] = listElement
 	// update the stats
 	c.stats.successfulWrites++
 	return false
 }
 
-func (c *Cache[K, V]) Get(key K) (*V, bool) {
+func (c *Cache[K, V]) Get(key K) (V, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// check if there is a key in the entries map to get the value of
+	// check if there is a key in the `entries` map to get the value of
 	listElement, ok := c.entries[key]
 
 	if !ok {
 		// update the stats
 		c.stats.failedReads++
 		var nilValue V
-		return &nilValue, false
+		return nilValue, false
 	}
 
-	// if we reach here there is a key in the entries map
+	// if we reach here there is a key in the `entries` map
 
-	// move the list.Element the front of the list
+	// move the list.Element the front of the `list`
 	c.list.MoveToFront(listElement)
 
 	// get the value from the list element
-	cacheValue := listElement.Value.(*CacheValue[K, V])
+	cacheValue := listElement.Value.(*CacheEntry[K, V])
 
 	// update the stats
 	c.stats.successfulReads++
 
-	return &cacheValue.value, true
+	return cacheValue.value, true
 }
