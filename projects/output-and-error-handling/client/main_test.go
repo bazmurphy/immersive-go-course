@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -232,8 +232,6 @@ func TestHandleStatusCode(t *testing.T) {
 			// passing that response to the function we want to test
 			actualResponseBody, actualRetryDuration, err := handleStatusCode(expectedResponse)
 
-			fmt.Println(actualResponseBody, actualRetryDuration, err)
-
 			if err != nil {
 				if testCase.expectedError != nil {
 					// if we were expecting an error
@@ -298,3 +296,89 @@ func TestHandleStatusCode(t *testing.T) {
 // we create a response body that can be read from and closed (even though the Close method doesn't do anything in this case).
 
 // ----------------
+
+func TestMakeGetRequest(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		statusCode            int
+		retryAfterHeader      string
+		responseBody          string
+		expectedResponseBody  string
+		expectedRetryDuration time.Duration
+		expectedError         error
+	}{
+		{
+			name:                  "status 200 ok with response body",
+			statusCode:            http.StatusOK,
+			retryAfterHeader:      "",
+			responseBody:          "Today it will be sunny!",
+			expectedResponseBody:  "Today it will be sunny!",
+			expectedRetryDuration: 0,
+			expectedError:         nil,
+		},
+		{
+			name:                  "status 429 too many requests with 3 second duration",
+			statusCode:            http.StatusTooManyRequests,
+			retryAfterHeader:      "3",
+			responseBody:          "",
+			expectedResponseBody:  "",
+			expectedRetryDuration: 3 * time.Second,
+			expectedError:         nil,
+		},
+		{
+			name:                  "status 500 internal server error",
+			statusCode:            http.StatusInternalServerError,
+			retryAfterHeader:      "",
+			responseBody:          "",
+			expectedResponseBody:  "",
+			expectedRetryDuration: 0,
+			expectedError:         errors.New("[0] handleStatusCode failed: [1] unhandled response status code"),
+		},
+	}
+
+	for _, testCase := range testCases {
+		// construct an http server
+		server := httptest.NewServer(
+			http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					if testCase.retryAfterHeader != "" {
+						w.Header().Set("Retry-AFter", testCase.retryAfterHeader)
+					}
+					w.WriteHeader(testCase.statusCode)
+					w.Write([]byte(testCase.responseBody))
+				},
+			),
+		)
+		defer server.Close()
+
+		actualResponseBody, actualRetryDuration, err := makeGetRequest(server.URL)
+
+		if err != nil {
+			// if we expect there to be an error
+			if testCase.expectedError != nil {
+				t.Logf("actual error: %v", err)
+				t.Logf("expected error: %v", testCase.expectedError)
+
+				if err.Error() != testCase.expectedError.Error() {
+					t.Errorf("error: received %v | expected %v", err, testCase.expectedError)
+				}
+			} else {
+				t.Errorf("received an error %v | expected no error", err)
+			}
+		}
+
+		// if we expect there to be a response body
+		if testCase.expectedResponseBody != "" {
+			if actualResponseBody != testCase.expectedResponseBody {
+				t.Errorf("responseBody: actual %v | expected %v", actualResponseBody, testCase.expectedResponseBody)
+			}
+		}
+
+		// if we expect there to be a retry duration
+		if testCase.expectedRetryDuration != 0 {
+			if actualRetryDuration != testCase.expectedRetryDuration {
+				t.Errorf("retryDuration: actual %v | expected %v", actualRetryDuration, testCase.expectedRetryDuration)
+			}
+		}
+	}
+}
