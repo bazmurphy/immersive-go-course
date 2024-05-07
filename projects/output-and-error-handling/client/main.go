@@ -62,17 +62,17 @@ func handleStatusCode(response *http.Response) (string, time.Duration, error) {
 		if err != nil {
 			return "", 0, fmt.Errorf("[1] readResponseBody failed: %w", err)
 		}
-
 		return responseBody, 0, nil
+
 	case http.StatusTooManyRequests:
 		retryDuration, err := handleTooManyRequestsResponse(response)
 		if err != nil {
 			return "", 0, fmt.Errorf("[1] handleTooManyRequestsResponse failed: %w", err)
 		}
-
 		return "", retryDuration, nil
+
 	default:
-		return "", 0, fmt.Errorf("[1] unhandled response status code: %d %v", response.StatusCode, response.Body)
+		return "", 0, fmt.Errorf("[1] unhandled response status code")
 	}
 }
 
