@@ -1,0 +1,17 @@
+name: output-and-error-handling tests
+on: [push]
+defaults:
+  run:
+    working-directory: projects/output-and-error-handling
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "projects/output-and-error-handling/client/go.mod"
+          cache: false
+      - name: Test
+        run: go test -v

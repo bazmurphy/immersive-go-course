@@ -14,7 +14,6 @@ import (
 
 func readResponseBody(response *http.Response) (string, error) {
 	responseBody, err := io.ReadAll(response.Body)
-
 	if err != nil {
 		return "", fmt.Errorf("[2] failed to read response body : %w", err)
 	}
@@ -22,7 +21,6 @@ func readResponseBody(response *http.Response) (string, error) {
 	return string(responseBody), nil
 }
 
-// add a second argument of time to allow testing
 func parseRetryAfterHeader(retryAfterHeaderString string, currentTime time.Time) (time.Duration, error) {
 	// Q1: what are the pros/cons of not directly err != nil (?) on these conversion/parsers
 	// Q2: How can we be certain that some standard library methods do/don't "generally" panic(?)
@@ -43,7 +41,6 @@ func parseRetryAfterHeader(retryAfterHeaderString string, currentTime time.Time)
 
 func handleTooManyRequestsResponse(response *http.Response) (time.Duration, error) {
 	retryDuration, err := parseRetryAfterHeader(response.Header.Get("Retry-After"), time.Now())
-
 	if err != nil {
 		return 0, fmt.Errorf("[2] failed to get a valid delay from retry-after header: %w", err)
 	}
@@ -62,7 +59,6 @@ func handleStatusCode(response *http.Response) (string, time.Duration, error) {
 	switch response.StatusCode {
 	case http.StatusOK:
 		responseBody, err := readResponseBody(response)
-
 		if err != nil {
 			return "", 0, fmt.Errorf("[1] readResponseBody failed: %w", err)
 		}
@@ -70,7 +66,6 @@ func handleStatusCode(response *http.Response) (string, time.Duration, error) {
 		return responseBody, 0, nil
 	case http.StatusTooManyRequests:
 		retryDuration, err := handleTooManyRequestsResponse(response)
-
 		if err != nil {
 			return "", 0, fmt.Errorf("[1] handleTooManyRequestsResponse failed: %w", err)
 		}
@@ -83,7 +78,6 @@ func handleStatusCode(response *http.Response) (string, time.Duration, error) {
 
 func makeGetRequest(url string) (string, time.Duration, error) {
 	response, err := http.Get(url)
-
 	if err != nil {
 		return "", 0, fmt.Errorf("[0] request failed: %w", err)
 	}
@@ -91,7 +85,6 @@ func makeGetRequest(url string) (string, time.Duration, error) {
 	defer response.Body.Close()
 
 	responseBody, retryDuration, err := handleStatusCode(response)
-
 	if err != nil {
 		return "", 0, fmt.Errorf("[0] handleStatusCode failed: %w", err)
 	}
@@ -113,7 +106,6 @@ func main() {
 
 	for {
 		response, retryDuration, err := makeGetRequest("http://localhost:8080")
-
 		if err != nil {
 			// option1: show all the errors propagated
 			fmt.Fprintln(os.Stderr, err)

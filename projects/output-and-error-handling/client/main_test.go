@@ -1,72 +1,82 @@
 package main
 
 import (
-	"bytes"
 	"errors"
-	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
 
-func TestParseResponseBody(t *testing.T) {
-	type testCase struct {
+func TestReadResponseBody(t *testing.T) {
+	testCases := []struct {
 		name                 string
-		responseBody         string
 		expectedResponseBody string
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name:                 "valid sunny response",
-			responseBody:         "Today it will be sunny!",
-			expectedResponseBody: "Today it will be sunny!",
-		}, {
+			expectedResponseBody: "Today it will be sunny!"},
+		{
 			name:                 "rainy response",
-			responseBody:         "I'd bring an umbrella, just in case...",
 			expectedResponseBody: "I'd bring an umbrella, just in case...",
+		},
+		{
+			name:                 "another response",
+			expectedResponseBody: "another response body",
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			response := &http.Response{Body: io.NopCloser(bytes.NewBufferString(tc.responseBody))}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// create an http server
+			server := httptest.NewServer(
+				// create a single http handler
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Write([]byte(testCase.expectedResponseBody))
+				}),
+			)
+			defer server.Close()
 
-			responseBody, err := readResponseBody(response)
+			// get a response from the http server
+			response, err := http.Get(server.URL)
+			if err != nil {
+				t.Fatalf("error: failed to make the get request: %v", err)
+			}
+			defer response.Body.Close()
+
+			actualResponseBody, err := readResponseBody(response)
 
 			if err != nil {
-				t.Errorf("could not parse body")
+				t.Errorf("received error %v | expected NO error", err)
 			}
 
-			if responseBody != tc.expectedResponseBody {
-				t.Errorf("got responseBody %q | want %q", responseBody, tc.expectedResponseBody)
+			if actualResponseBody != testCase.expectedResponseBody {
+				t.Errorf("actual response body: %v | expected response body: %v", testCase.expectedResponseBody, actualResponseBody)
 			}
 		})
 	}
 }
 
 func TestParseRetryAfterHeader(t *testing.T) {
-	type testCase struct {
+	testCases := []struct {
 		name             string
 		retryAfterHeader string
 		currentTime      time.Time
 		expectedDuration time.Duration
 		expectedError    error
-	}
-
-	testCases := []testCase{
-		{
-			name:             "retry-after header is a string ('a while')",
-			retryAfterHeader: "a while",
-			currentTime:      time.Now(),
-			expectedDuration: 0,
-			expectedError:    errors.New("[3] retry-after head is invalid: a while"),
-		},
+	}{
 		{
 			name:             "retry-after header is an integer as string (3 seconds)",
 			retryAfterHeader: "3",
 			currentTime:      time.Now(),
 			expectedDuration: 3 * time.Second,
+			expectedError:    nil,
+		},
+		{
+			name:             "retry-after header is an integer as string (12 seconds)",
+			retryAfterHeader: "12",
+			currentTime:      time.Now(),
+			expectedDuration: 12 * time.Second,
 			expectedError:    nil,
 		},
 		{
@@ -76,38 +86,67 @@ func TestParseRetryAfterHeader(t *testing.T) {
 			expectedDuration: 5 * time.Second,
 			expectedError:    nil,
 		},
+		{
+			name:             "retry-after header is a timestamp as string (10 seconds)",
+			retryAfterHeader: time.Date(2023, 4, 1, 12, 0, 10, 0, time.UTC).UTC().Format(http.TimeFormat),
+			currentTime:      time.Date(2023, 4, 1, 12, 0, 0, 0, time.UTC),
+			expectedDuration: 10 * time.Second,
+			expectedError:    nil,
+		},
+		{
+			name:             "retry-after header is a string ('a while')",
+			retryAfterHeader: "a while",
+			currentTime:      time.Now(),
+			expectedDuration: 0,
+			expectedError:    errors.New("[3] retry-after header is invalid: a while"),
+		},
+		{
+			name:             "retry-after header is a string ('something else')",
+			retryAfterHeader: "something else",
+			currentTime:      time.Now(),
+			expectedDuration: 0,
+			expectedError:    errors.New("[3] retry-after header is invalid: something else"),
+		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			retryDuration, err := parseRetryAfterHeader(tc.retryAfterHeader, tc.currentTime)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			retryDuration, err := parseRetryAfterHeader(testCase.retryAfterHeader, testCase.currentTime)
 
 			if err != nil {
-				// how to handle these properly in table driven tests?
+				if testCase.expectedError != nil {
+					// if we were expecting an error
+					// we need to use .Error() because they are separate instances (reference types and so non-comparable)
+					if err.Error() != testCase.expectedError.Error() {
+						t.Errorf("error: received %v | expected %v", err, testCase.expectedError)
+					}
+				} else {
+					// if we were not expecting an error
+					t.Errorf("error: received %v | expected NO error", err)
+				}
 			}
 
-			if retryDuration != tc.expectedDuration {
-				t.Errorf("retry duration got %v | want %v", retryDuration, tc.expectedDuration)
+			if retryDuration != testCase.expectedDuration {
+				t.Errorf("retryDuration: actual %v | expected %v", retryDuration, testCase.expectedDuration)
 			}
 		})
 	}
 }
 
 func TestHandleTooManyRequestsResponse(t *testing.T) {
-	type testCase struct {
+	testCases := []struct {
 		name             string
 		retryAfterHeader string
 		expectedDuration time.Duration
 		expectedError    error
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name:             "retry-after header is an integer as string (4 seconds)",
 			retryAfterHeader: "4",
 			expectedDuration: 4 * time.Second,
 			expectedError:    nil,
-		}, {
+		},
+		{
 			name:             "retry-after header is an integer as string (10 seconds)",
 			retryAfterHeader: "10",
 			expectedDuration: 0,
@@ -115,17 +154,34 @@ func TestHandleTooManyRequestsResponse(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			response := &http.Response{Header: http.Header{"Retry-After": []string{tc.retryAfterHeader}}}
-			retryDuration, err := handleTooManyRequestsResponse(response)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 
-			if err != nil {
-				// how to handle these properly in table driven tests?
+			// create an http response
+			expectedResponse := &http.Response{
+				Header: http.Header{
+					"Retry-After": []string{testCase.retryAfterHeader},
+				},
 			}
 
-			if retryDuration != tc.expectedDuration {
-				t.Errorf("retry duration got %v | want %v", retryDuration, tc.expectedDuration)
+			// pass that response to the function we are testing here
+			retryDuration, err := handleTooManyRequestsResponse(expectedResponse)
+
+			if err != nil {
+				if testCase.expectedError != nil {
+					// if we were expecting an error
+					// we need to use .Error() because they are separate instances (reference types and so non-comparable)
+					if err.Error() != testCase.expectedError.Error() {
+						t.Errorf("error: received %v | expected %v", err, testCase.expectedError)
+					}
+				} else {
+					// if we were not expecting an error
+					t.Errorf("received an error %v | expected no error", err)
+				}
+			}
+
+			if retryDuration != testCase.expectedDuration {
+				t.Errorf("retryDuration: actual %v | expected %v", retryDuration, testCase.expectedDuration)
 			}
 		})
 	}
