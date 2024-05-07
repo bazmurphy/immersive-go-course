@@ -2,7 +2,7 @@ name: output-and-error-handling tests
 on: [push]
 defaults:
   run:
-    working-directory: projects/output-and-error-handling
+    working-directory: projects/output-and-error-handling/client
 jobs:
   test:
     runs-on: ubuntu-latest
