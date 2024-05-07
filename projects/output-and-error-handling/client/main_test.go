@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -31,22 +30,10 @@ func TestReadResponseBody(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			// create an http server
-			// [I don't like this^ because this is not the behaviour of our "real server"]
-			server := httptest.NewServer(
-				// create a single http handler
-				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.Write([]byte(testCase.expectedResponseBody))
-				}),
-			)
-			defer server.Close()
-
-			// get a response from the http server
-			response, err := http.Get(server.URL)
-			if err != nil {
-				t.Fatalf("error: failed to make the get request: %v", err)
+			// construct an http response
+			response := &http.Response{
+				Body: io.NopCloser(bytes.NewBuffer([]byte(testCase.expectedResponseBody))),
 			}
-			defer response.Body.Close()
 
 			actualResponseBody, err := readResponseBody(response)
 
@@ -278,20 +265,36 @@ func TestHandleStatusCode(t *testing.T) {
 
 // ----------------
 
-// Notes on Constructing an HTTP Response Body (this is really not intuitive)
+// Notes on constructing HTTP Response Body (for tests?)
 
-// field Body is a io.ReadCloser:
+// In the `http.Response` struct, the `Body` field is of type `i`o.ReadCloser`.
+// This means that it should implement both the `io.Reader` and `io.Closer` interfaces.
+// The `io.Reader` interface allows reading from the response body,
+// while the `io.Closer` interface provides a way to close the response body when it's no longer needed.
 
-// type ReadCloser interface {
-// 	Reader
-// 	Closer
+// To create a response body manually, we need to provide an implementation of `io.ReadCloser`.
+// This is where `io.NopCloser` comes into play.
+
+// `io.NopCloser` is a function provided by the io package.
+// It takes an `io.Reader` as input and returns an `io.ReadCloser`.
+// The returned `io.ReadCloser` has a no-op (no operation) `Close` method, meaning it doesn't do anything when called.
+// The purpose of `io.NopCloser` is to transform an `io.Reader` into an `io.ReadCloser` by adding a dummy `Close` method.
+
+// func NopCloser(r io.Reader) io.ReadCloser
+
+// response := &http.Response{
+// 	Body: io.NopCloser(bytes.NewBufferString(responseBody)),
 // }
 
-// func NopCloser(r Reader) ReadCloser {
-// 	if _, ok := r.(WriterTo); ok {
-// 		return nopCloserWriterTo{r}
-// 	}
-// 	return nopCloser{r}
-// }
+// bytes.NewBufferString(testCase.responseBody) creates a *bytes.Buffer from the responseBody string.
+// This buffer implements the io.Reader interface, allowing us to read from it.
 
-// NopCloser returns a ReadCloser with a no-op Close method wrapping the provided [Reader] r
+// We pass the *bytes.Buffer to io.NopCloser, which returns an io.ReadCloser.
+// The returned io.ReadCloser wraps the *bytes.Buffer and adds a no-op Close method.
+
+// Finally, we assign the resulting io.ReadCloser to the Body field of the http.Response struct.
+
+// By using io.NopCloser(bytes.NewBufferString(...))
+// we create a response body that can be read from and closed (even though the Close method doesn't do anything in this case).
+
+// ----------------
