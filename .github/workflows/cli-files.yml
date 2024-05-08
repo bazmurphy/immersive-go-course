@@ -13,15 +13,15 @@ jobs:
       - name: Test
         working-directory: projects/cli-files/go-ls/
         run: go test -v ./...
-  # test-go-cat:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v5
-  #       with:
-  #         go-version-file: "projects/cli-files/go-cat/go.mod"
-  #         cache: false
-  #     - name: Test
-  #       working-directory: projects/cli-files/go-cat/
-  #       run: go test -v ./...
+  test-go-cat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "projects/cli-files/go-cat/go.mod"
+          cache: false
+      - name: Test
+        working-directory: projects/cli-files/go-cat/
+        run: go test -v ./...
