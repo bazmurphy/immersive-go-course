@@ -24,7 +24,7 @@ func TestMain(t *testing.T) {
 		},
 		{
 			name:           "-h flag, no args",
-			flags:          []string{"-h"},
+			flags:          []string{"h"},
 			args:           []string{},
 			expectedOutput: "go-ls help message\n",
 		},
@@ -54,11 +54,14 @@ func TestMain(t *testing.T) {
 			// at the start of the test: store the original args
 			originalArgs := os.Args
 
-			// the following two feel janky:
-
-			// if there are any flags then add them
+			// if there are any flags then set them
 			if len(testCase.flags) > 0 {
-				os.Args = append(os.Args, testCase.flags...)
+				for _, testCaseFlag := range testCase.flags {
+					err := flag.Set(testCaseFlag, "true") // this is hard coded and disgusting (they are not all booleans)
+					if err != nil {
+						t.Fatalf("failed to set the flag %s : %v", testCaseFlag, err)
+					}
+				}
 			}
 
 			// if there are any arguments then add them

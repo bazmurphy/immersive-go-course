@@ -127,17 +127,17 @@ func TestExecute(t *testing.T) {
 				f.Value.Set(f.DefValue)
 			})
 
-			// if there are flags set them
+			// if there are any flags then set them
 			if len(testCase.flags) > 0 {
 				for _, testCaseFlag := range testCase.flags {
-					err := flag.Set(testCaseFlag, "true")
+					err := flag.Set(testCaseFlag, "true") // this is hard coded and disgusting (they are not all booleans)
 					if err != nil {
 						t.Fatalf("failed to set the flag %s : %v", testCaseFlag, err)
 					}
 				}
 			}
 
-			// set the arguments
+			// if there are any arguments then set them
 			if len(testCase.args) > 0 {
 				os.Args = append(os.Args, testCase.args...)
 			}
@@ -146,6 +146,11 @@ func TestExecute(t *testing.T) {
 
 			// store the original stdout
 			originalStdout := os.Stdout
+
+			defer func() {
+				// at the end of the test: restore the original stdout
+				os.Stdout = originalStdout
+			}()
 
 			// create a pipe to capture the output
 			pipeRead, pipeWrite, _ := os.Pipe()
@@ -162,9 +167,6 @@ func TestExecute(t *testing.T) {
 			pipeReadBytes, _ := io.ReadAll(pipeRead)
 
 			actualOutput := string(pipeReadBytes)
-
-			// at the end of the test: restore the original stdout
-			os.Stdout = originalStdout
 
 			// -----------------------------------------------------------
 

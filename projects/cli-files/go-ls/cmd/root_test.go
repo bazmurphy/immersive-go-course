@@ -51,9 +51,8 @@ func TestExecute(t *testing.T) {
 				t.Fatalf("failed to store original working directory: %v", err)
 			}
 
-			// make a temporary directory to create the test directories and test files in
+			// create a temporary directory to create the test directories and test files in
 			temporaryDirectory, err := os.MkdirTemp("", "go-ls-temporary-directory")
-
 			if err != nil {
 				t.Fatalf("failed to create a temporary directory: %v", err)
 			}
