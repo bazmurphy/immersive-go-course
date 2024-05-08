@@ -1,3 +1,5 @@
+// projects/cli-files/go-ls/cmd/root.go
+
 package cmd
 
 import (
@@ -7,10 +9,13 @@ import (
 	"strings"
 )
 
-func Execute() {
-	// define a flag of type boolean with the specific properties (name, value, usage)
-	helpFlag := flag.Bool("h", false, "show help")
+// I had to move this globally because of test errors with "flag redefined: h [recovered]"
+// (also see the message in main_test.go line 47)
+var (
+	helpFlag = flag.Bool("h", false, "show help")
+)
 
+func Execute() {
 	// parse the command line flags
 	flag.Parse()
 
