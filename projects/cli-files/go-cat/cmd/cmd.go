@@ -49,11 +49,14 @@ func Execute(flags *Flags, args []string) {
 			if err != nil {
 				// if we have reached the end of the file
 				if err == io.EOF {
-					if flags.Number {
-						fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
-						lineNumber++
-					} else {
-						fmt.Fprint(os.Stdout, line)
+					// if the line is not empty
+					if line != "" {
+						if flags.Number {
+							fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
+							lineNumber++
+						} else {
+							fmt.Fprint(os.Stdout, line)
+						}
 					}
 					break
 				}
