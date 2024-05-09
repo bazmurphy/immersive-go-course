@@ -12,7 +12,7 @@ type Flags struct {
 
 func Execute(flags *Flags, args []string) error {
 	if flags.Help {
-		fmt.Fprintf(os.Stdout, "go-ls help message\n")
+		fmt.Fprintf(os.Stdout, "go-ls help message")
 		return nil
 	}
 
