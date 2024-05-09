@@ -26,24 +26,24 @@ func UploadImagesToS3(temporaryGrayscaleDirectory string) ([]UploadedImageObject
 		return nil, fmt.Errorf("🔴 error: cannot load the .env file")
 	}
 
-	awsRegion := os.Getenv("AWS_REGION")
+	awsRegion := os.Getenv("BP_AWS_REGION")
 	if awsRegion == "" {
-		return nil, fmt.Errorf("🔴 error: cannot get the AWS_REGION environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the BP_AWS_REGION environment variable")
 	}
 
-	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	awsAccessKeyID := os.Getenv("BP_AWS_ACCESS_KEY_ID")
 	if awsAccessKeyID == "" {
-		return nil, fmt.Errorf("🔴 error: cannot get the AWS_ACCESS_KEY_ID environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the BP_AWS_ACCESS_KEY_ID environment variable")
 	}
 
-	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	awsSecretAccessKey := os.Getenv("BP_AWS_SECRET_ACCESS_KEY")
 	if awsSecretAccessKey == "" {
-		return nil, fmt.Errorf("🔴 error: cannot get the AWS_SECRET_ACCESS_KEY environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the BP_AWS_SECRET_ACCESS_KEY environment variable")
 	}
 
-	awsS3BucketName := os.Getenv("AWS_S3_BUCKET")
+	awsS3BucketName := os.Getenv("BP_AWS_S3_BUCKET")
 	if awsS3BucketName == "" {
-		return nil, fmt.Errorf("🔴 error: cannot get the AWS_S3_BUCKET environment variable")
+		return nil, fmt.Errorf("🔴 error: cannot get the BP_AWS_S3_BUCKET environment variable")
 	}
 
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
