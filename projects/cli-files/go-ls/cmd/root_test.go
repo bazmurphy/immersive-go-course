@@ -83,21 +83,19 @@ func TestExecute(t *testing.T) {
 				t.Fatalf("failed to change to the temporary directory: %v", err)
 			}
 
+			// at the end of the test: change back to the original working directory
 			defer func() {
-				// at the end of the test: change back to the original working directory
 				err = os.Chdir(originalWorkingDirectory)
 				if err != nil {
 					t.Fatalf("failed to change to the temporary directory: %v", err)
 				}
 			}()
 
-			// ---------- I found this difficult to fully grasp ----------
-
 			// store the original stdout
 			originalStdout := os.Stdout
 
+			// at the end of the test: restore the original stdout
 			defer func() {
-				// at the end of the test: restore the original stdout
 				os.Stdout = originalStdout
 			}()
 
@@ -118,8 +116,6 @@ func TestExecute(t *testing.T) {
 			// which totally defeats the point of reading it line by line earlier...
 
 			actualOutput := string(pipeReadBytes)
-
-			// -----------------------------------------------------------
 
 			if actualOutput != testCase.expectedOutput {
 				t.Errorf("output: actual %v | expected %v", actualOutput, testCase.expectedOutput)

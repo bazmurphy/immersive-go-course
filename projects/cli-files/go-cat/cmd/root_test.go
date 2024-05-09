@@ -116,8 +116,8 @@ func TestExecute(t *testing.T) {
 				t.Fatalf("failed to change to the temporary directory: %v", err)
 			}
 
+			// at the end of the test: change back to the original working directory
 			defer func() {
-				// at the end of the test: change back to the original working directory
 				err = os.Chdir(originalWorkingDirectory)
 				if err != nil {
 					t.Fatalf("failed to change to the temporary directory: %v", err)
@@ -147,8 +147,8 @@ func TestExecute(t *testing.T) {
 			// store the original stdout
 			originalStdout := os.Stdout
 
+			// at the end of the test: restore the original stdout
 			defer func() {
-				// at the end of the test: restore the original stdout
 				os.Stdout = originalStdout
 			}()
 
