@@ -44,7 +44,7 @@ func TestMain(t *testing.T) {
 			commandArgs = append(commandArgs, testCase.flags...)
 			commandArgs = append(commandArgs, testCase.args...)
 
-			// execute the command
+			// construct the command
 			cmd := exec.Command("go", commandArgs...)
 
 			// create buffers to capture the stdout/stderr
