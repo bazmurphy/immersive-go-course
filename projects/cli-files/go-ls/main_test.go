@@ -85,6 +85,8 @@ func TestMain(t *testing.T) {
 
 			// read the captured output from the read end of the pipe
 			pipeReadBytes, _ := io.ReadAll(pipeRead)
+			// and this is bad because i am reading the whole thing at once and not streaming it...
+			// which totally defeats the point of reading it line by line earlier...
 
 			actualOutput := string(pipeReadBytes)
 
