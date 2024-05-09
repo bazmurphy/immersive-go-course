@@ -2,4 +2,4 @@ this is the first line
 this is line 2
 this is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3
 this is line 4
-this is the last line
+this is the last line (deliberately with no newline)
