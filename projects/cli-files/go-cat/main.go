@@ -1,9 +1,17 @@
-// projects/cli-files/go-cat/main.go
-
 package main
 
-import "github.com/bazmurphy/immersive-go-course/projects/cli-files/go-cat/cmd"
+import (
+	"flag"
+
+	"github.com/bazmurphy/immersive-go-course/projects/cli-files/go-cat/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	flags := &cmd.Flags{}
+	flag.BoolVar(&flags.Number, "n", false, "number all output lines")
+	flag.Parse()
+
+	args := flag.Args()
+
+	cmd.Execute(flags, args)
 }

@@ -2,26 +2,20 @@ package cmd
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 )
 
-var (
-	numberFlag = flag.Bool("n", false, "number all output lines")
-)
+type Flags struct {
+	Number bool
+}
 
-func Execute() {
-	flag.Parse()
-
-	// get the non-flag arguments
-	args := flag.Args()
-
-	// if there is no non-flag argument given then error
+func Execute(flags *Flags, args []string) {
+	// if there are no arguments provided
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "go-cat: no filename provided\n")
-		os.Exit(2)
+		return
 	}
 
 	for _, filename := range args {
@@ -55,7 +49,7 @@ func Execute() {
 			if err != nil {
 				// if we have reached the end of the file
 				if err == io.EOF {
-					if *numberFlag {
+					if flags.Number {
 						fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
 						lineNumber++
 					} else {
@@ -64,16 +58,15 @@ func Execute() {
 					break
 				}
 				fmt.Fprintf(os.Stderr, "go-cat: %v: failed to read line %d", file, lineNumber)
-				break
+				continue
 			}
 
-			if *numberFlag {
+			if flags.Number {
 				fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
 				lineNumber++
 			} else {
 				fmt.Fprint(os.Stdout, line)
 			}
 		}
-
 	}
 }
