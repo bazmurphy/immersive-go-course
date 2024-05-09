@@ -3,7 +3,8 @@ module github.com/bazmurphy/immersive-go-course/batch-processing
 go 1.22.2
 
 require (
-	github.com/aws/aws-sdk-go v1.51.32
+	github.com/aws/aws-sdk-go v1.52.5
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.9.0
 	gopkg.in/gographics/imagick.v2 v2.6.4
 )

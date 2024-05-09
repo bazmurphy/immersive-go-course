@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/joho/godotenv"
 )
 
 type UploadedImageObject struct {
@@ -19,6 +20,11 @@ type UploadedImageObject struct {
 
 func UploadImagesToS3(temporaryGrayscaleDirectory string) ([]UploadedImageObject, error) {
 	log.Println("🔵 attempting: to upload the images to AWS S3...")
+
+	err := godotenv.Load()
+	if err != nil {
+		return nil, fmt.Errorf("🔴 error: cannot load the .env file")
+	}
 
 	awsRegion := os.Getenv("AWS_REGION")
 	if awsRegion == "" {
