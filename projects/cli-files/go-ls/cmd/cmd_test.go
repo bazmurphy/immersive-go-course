@@ -15,7 +15,7 @@ func TestExecute(t *testing.T) {
 		testFiles        []string
 		testFileContents []string
 		testDirectories  []string
-		expectedOutput   string
+		expectedStdout   string
 	}{
 		{
 			name:            "no files, no folders",
@@ -23,7 +23,7 @@ func TestExecute(t *testing.T) {
 			args:            []string{},
 			testFiles:       []string{},
 			testDirectories: []string{},
-			expectedOutput:  "",
+			expectedStdout:  "",
 		},
 		{
 			name:            "3 files, no folders",
@@ -31,7 +31,7 @@ func TestExecute(t *testing.T) {
 			args:            []string{},
 			testFiles:       []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testDirectories: []string{},
-			expectedOutput:  "test-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
+			expectedStdout:  "test-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
 		},
 		{
 			name:            "no files, 3 folders",
@@ -39,7 +39,7 @@ func TestExecute(t *testing.T) {
 			args:            []string{},
 			testFiles:       []string{},
 			testDirectories: []string{"test-directory-1", "test-directory-2", "test-directory-3"},
-			expectedOutput:  "test-directory-1\ntest-directory-2\ntest-directory-3\n",
+			expectedStdout:  "test-directory-1\ntest-directory-2\ntest-directory-3\n",
 		},
 		{
 			name:            "3 files, 3 folders",
@@ -47,7 +47,7 @@ func TestExecute(t *testing.T) {
 			args:            []string{},
 			testFiles:       []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testDirectories: []string{"test-directory-1", "test-directory-2", "test-directory-3"},
-			expectedOutput:  "test-directory-1\ntest-directory-2\ntest-directory-3\ntest-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
+			expectedStdout:  "test-directory-1\ntest-directory-2\ntest-directory-3\ntest-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
 		},
 	}
 
@@ -121,10 +121,10 @@ func TestExecute(t *testing.T) {
 			// read the captured output from the read end of the pipe
 			pipeReadBytes, _ := io.ReadAll(pipeRead)
 
-			actualOutput := string(pipeReadBytes)
+			actualStdout := string(pipeReadBytes)
 
-			if actualOutput != testCase.expectedOutput {
-				t.Errorf("output: actual %v | expected %v", actualOutput, testCase.expectedOutput)
+			if actualStdout != testCase.expectedStdout {
+				t.Errorf("output: actual %v | expected %v", actualStdout, testCase.expectedStdout)
 			}
 		})
 	}
