@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,7 +10,7 @@ import (
 func TestExecute(t *testing.T) {
 	testCases := []struct {
 		name             string
-		flags            []string
+		flags            *Flags
 		args             []string
 		testFiles        []string
 		testFileContents []string
@@ -20,7 +19,7 @@ func TestExecute(t *testing.T) {
 	}{
 		{
 			name:             "no flags, args: 1 file, with a single line, ending WITH a new line",
-			flags:            []string{},
+			flags:            &Flags{},
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\n"},
@@ -28,7 +27,7 @@ func TestExecute(t *testing.T) {
 		},
 		{
 			name:             "no flags, args: 1 file, with a single line, ending WITHOUT a new line",
-			flags:            []string{},
+			flags:            &Flags{},
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello"},
@@ -36,7 +35,7 @@ func TestExecute(t *testing.T) {
 		},
 		// {
 		// 	name:             "-n flag, args: 1 file, with a single line, ending WITH a new line",
-		// 	flags:            []string{"n"},
+		// 	flags:            &Flags{true},
 		// 	args:             []string{"test-file.txt"},
 		// 	testFiles:        []string{"test-file.txt"},
 		// 	testFileContents: []string{"hello\n"},
@@ -44,7 +43,7 @@ func TestExecute(t *testing.T) {
 		// },
 		// {
 		// 	name:             "-n flag, args: 1 file, with a single line, ending WITHOUT a new line",
-		// 	flags:            []string{"n"},
+		// 	flags:            &Flags{},
 		// 	args:             []string{"test-file.txt"},
 		// 	testFiles:        []string{"test-file.txt"},
 		// 	testFileContents: []string{"hello"},
@@ -52,7 +51,7 @@ func TestExecute(t *testing.T) {
 		// },
 		// {
 		// 	name:             "no flags, args: 1 file, with multiple lines, ending WITH a new line",
-		// 	flags:            []string{},
+		// 	flags:            &Flags{},
 		// 	args:             []string{"test-file.txt"},
 		// 	testFiles:        []string{"test-file.txt"},
 		// 	testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye\n"},
@@ -60,7 +59,7 @@ func TestExecute(t *testing.T) {
 		// },
 		// {
 		// 	name:             "no flags, args: 1 file, with multiple lines, ending WITHOUT a new line",
-		// 	flags:            []string{},
+		// 	flags:            &Flags{},
 		// 	args:             []string{"test-file.txt"},
 		// 	testFiles:        []string{"test-file.txt"},
 		// 	testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye"},
@@ -68,7 +67,7 @@ func TestExecute(t *testing.T) {
 		// },
 		// {
 		// 	name:             "-n flag, args: 1 file, with multiple lines, ending WITH a new line",
-		// 	flags:            []string{"n"},
+		// 	flags:            &Flags{},
 		// 	args:             []string{"test-file.txt"},
 		// 	testFiles:        []string{"test-file.txt"},
 		// 	testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye\n"},
@@ -76,7 +75,7 @@ func TestExecute(t *testing.T) {
 		// },
 		// {
 		// 	name:             "-n flag, args: 1 file, with multiple lines, ending WITHOUT a new line",
-		// 	flags:            []string{"n"},
+		// 	flags:            &Flags{},
 		// 	args:             []string{"test-file.txt"},
 		// 	testFiles:        []string{"test-file.txt"},
 		// 	testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye"},
@@ -122,41 +121,13 @@ func TestExecute(t *testing.T) {
 				}
 			}()
 
-			// reset all the flags
-			flag.VisitAll(func(f *flag.Flag) {
-				f.Value.Set(f.DefValue)
-			})
-
-			// if there are any flags then set them
-			if len(testCase.flags) > 0 {
-				for _, testCaseFlag := range testCase.flags {
-					err := flag.Set(testCaseFlag, "true") // this is hard coded and disgusting (they are not all booleans)
-					if err != nil {
-						t.Fatalf("failed to set the flag %s : %v", testCaseFlag, err)
-					}
-				}
-			}
-
-			// if there are any arguments then set them
-			if len(testCase.args) > 0 {
-				os.Args = append(os.Args, testCase.args...)
-			}
-
-			// store the original stdout
-			originalStdout := os.Stdout
-
-			// at the end of the test: restore the original stdout
-			defer func() {
-				os.Stdout = originalStdout
-			}()
-
 			// create a pipe to capture the output
 			pipeRead, pipeWrite, _ := os.Pipe()
 
 			// redirect stdout to the write end of the pipe
 			os.Stdout = pipeWrite
 
-			Execute()
+			Execute(testCase.flags, testCase.args)
 
 			// close the write end of the pipe
 			pipeWrite.Close()
