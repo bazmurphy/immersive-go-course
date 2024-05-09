@@ -13,5 +13,11 @@ jobs:
         with:
           go-version-file: "projects/batch-processing/go.mod"
           cache: false
+      - name: Create .env file
+        run: |
+          echo "AWS_REGION=${{ vars.AWS_REGION }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> .env
       - name: Test
         run: make test
