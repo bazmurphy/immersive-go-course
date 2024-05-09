@@ -108,18 +108,21 @@ func TestMain(t *testing.T) {
 func TestMainOSExec(t *testing.T) {
 	testCases := []struct {
 		name           string
+		flags          []string
 		args           []string
 		expectedStdout string
 		expectedStderr string
 	}{
 		{
-			name:           "no args",
+			name:           "no flags, no args",
+			flags:          []string{},
 			args:           []string{},
 			expectedStdout: "assets\ncmd\ngo.mod\nmain.go\nmain_test.go\n",
 			expectedStderr: "",
 		},
 		{
-			name:           "arg: 1 folder (with 3 files inside)",
+			name:           "no flags, arg: 1 folder (with 3 files inside)",
+			flags:          []string{},
 			args:           []string{"assets"},
 			expectedStdout: "dew.txt\nfor_you.txt\nrain.txt\n",
 			expectedStderr: "",
