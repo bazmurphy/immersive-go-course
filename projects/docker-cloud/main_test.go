@@ -35,19 +35,19 @@ func TestRoutes(t *testing.T) {
 	// `NewPool` creates a new pool
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Fatalf("fatal error: could not construct pool: %s", err)
+		log.Fatalf("fatal error: could not construct pool: %v", err)
 	}
 
 	// `Ping` pings the docker server
 	err = pool.Client.Ping()
 	if err != nil {
-		log.Fatalf("fatal error: could not connect to docker: %s", err)
+		log.Fatalf("fatal error: could not connect to docker: %v", err)
 	}
 
 	// `Run` starts a docker container
 	resource, err := pool.Run("bazmurphy/docker-cloud", "latest", nil)
 	if err != nil {
-		t.Fatalf("error: could not start resource: %s", err)
+		t.Fatalf("fatal error: could not start resource: %v", err)
 	}
 
 	defer pool.Purge(resource)
@@ -67,7 +67,7 @@ func TestRoutes(t *testing.T) {
 			})
 
 			if err != nil {
-				t.Fatalf("error: could not connect to container: %s", err)
+				t.Fatalf("error: could not connect to container: %v", err)
 			}
 
 			defer response.Body.Close()
@@ -78,7 +78,7 @@ func TestRoutes(t *testing.T) {
 
 			responseBody, err := io.ReadAll(response.Body)
 			if err != nil {
-				t.Fatalf("fatal error: could not read the response body: %s", err)
+				t.Fatalf("fatal error: could not read the response body: %v", err)
 			}
 
 			responseBodyAsString := string(responseBody)
