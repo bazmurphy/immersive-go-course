@@ -1,5 +1,3 @@
-// projects/cli-files/go-cat/cmd/root.go
-
 package cmd
 
 import (
@@ -54,64 +52,27 @@ func Execute() {
 
 		for {
 			line, err := reader.ReadString('\n')
-
 			if err != nil {
+				// if we have reached the end of the file
 				if err == io.EOF {
-					// LAST LINE OF THE FILE
-					// ---------- DEBUG
-
-					// fmt.Print(line)
-
-					// actual hellohello | expected hello
-
-					// fmt.Println(line)
-
-					// 	output: actual hello
-					//
-					//  | expected hello
-
-					// fmt.Printf("%s", line)
-
-					// output: actual hellohello | expected hello
-
-					fmt.Fprint(os.Stdout, line)
-
-					// output: actual hellohello | expected hello
-
-					// fmt.Fprintln(os.Stdout, line)
-
-					// output: actual hello
-					//
-					//  | expected hello
-
-					// fmt.Fprintf(os.Stdout, "%s", line)
-
-					// output: actual hellohello | expected hello
-
+					if *numberFlag {
+						fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
+						lineNumber++
+					} else {
+						fmt.Fprint(os.Stdout, line)
+					}
 					break
 				}
 				fmt.Fprintf(os.Stderr, "go-cat: %v: failed to read line %d", file, lineNumber)
 				break
 			}
 
-			// REGULAR LINE
-			// ---------- DEBUG
-
-			// fmt.Print(line)
-			// fmt.Println(line)
-			// fmt.Printf("%s", line)
-
-			fmt.Fprint(os.Stdout, line)
-			// fmt.Fprintln(os.Stdout, line)
-			// fmt.Fprintf(os.Stdout, "%s", line)
-
-			// LINE NUMBERS LOGIC (turn this back on later)
-			// if *numberFlag {
-			// 	fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
-			// 	lineNumber++
-			// } else {
-			// 	fmt.Fprintf(os.Stdout, "%s", line)
-			// }
+			if *numberFlag {
+				fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
+				lineNumber++
+			} else {
+				fmt.Fprint(os.Stdout, line)
+			}
 		}
 
 	}

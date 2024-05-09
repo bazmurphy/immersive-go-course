@@ -1,5 +1,3 @@
-// projects/cli-files/go-ls/cmd/root_test.go
-
 package cmd
 
 import (
