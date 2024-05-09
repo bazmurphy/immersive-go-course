@@ -1,12 +1,6 @@
 name: docker-cloud
 
-on:
-  pull_request:
-    branches:
-      - 'main'
-    # paths:
-    #   - "projects/docker-cloud/**"
-  workflow_dispatch:
+on: [push]
 
 defaults:
   run:
