@@ -81,6 +81,38 @@ func TestExecute(t *testing.T) {
 			testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye"},
 			expectedOutput:   "1\thello\n2\tfrom the\n3\ttest file\n4\tgoodbye",
 		},
+		{
+			name:             "no flags, args: 3 files, each with one line, ending WITH a new line",
+			flags:            Flags{},
+			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFileContents: []string{"hello from 1\n", "hello from 2\n", "hello from 3\n"},
+			expectedOutput:   "hello from 1\nhello from 2\nhello from 3\n",
+		},
+		{
+			name:             "no flags, args: 3 files, each with one line, ending WITHOUT a new line",
+			flags:            Flags{},
+			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFileContents: []string{"hello from 1", "hello from 2", "hello from 3"},
+			expectedOutput:   "hello from 1hello from 2hello from 3",
+		},
+		{
+			name:             "-n flag, args: 3 files, each with one line, ending WITH a new line",
+			flags:            Flags{Number: true},
+			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFileContents: []string{"hello from 1\n", "hello from 2\n", "hello from 3\n"},
+			expectedOutput:   "1\thello from 1\n1\thello from 2\n1\thello from 3\n",
+		},
+		{
+			name:             "-n flag, args: 3 files, each with one line, ending WITHOUT a new line",
+			flags:            Flags{Number: true},
+			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testFileContents: []string{"hello from 1", "hello from 2", "hello from 3"},
+			expectedOutput:   "1\thello from 11\thello from 21\thello from 3",
+		},
 	}
 
 	for _, testCase := range testCases {
