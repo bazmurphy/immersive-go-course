@@ -3,9 +3,11 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"io"
 	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -99,6 +101,62 @@ func TestMain(t *testing.T) {
 			if actualOutput != testCase.expectedOutput {
 				t.Errorf("actual: %v | expected: %v", actualOutput, testCase.expectedOutput)
 			}
+		})
+	}
+}
+
+func TestMainOSExec(t *testing.T) {
+	testCases := []struct {
+		name           string
+		args           []string
+		expectedStdout string
+		expectedStderr string
+	}{
+		{
+			name:           "no args",
+			args:           []string{},
+			expectedStdout: "assets\ncmd\ngo.mod\nmain.go\nmain_test.go\n",
+			expectedStderr: "",
+		},
+		{
+			name:           "arg: 1 folder (with 3 files inside)",
+			args:           []string{"assets"},
+			expectedStdout: "dew.txt\nfor_you.txt\nrain.txt\n",
+			expectedStderr: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// janky way to add all the args together as a single string:
+			cmd := exec.Command("go", append([]string{"run", "."}, testCase.args...)...)
+
+			// create buffers to capture the stdout/stderr
+			var stdoutBuffer bytes.Buffer
+			var stderrBuffer bytes.Buffer
+
+			// set the stdout/stderr of the command to those buffers^
+			cmd.Stdout = &stdoutBuffer
+			cmd.Stderr = &stderrBuffer
+
+			// run the command
+			err := cmd.Run()
+			if err != nil {
+				t.Errorf("error running the command: %v", err)
+				return
+			}
+
+			actualStdout := stdoutBuffer.String()
+			actualStderr := stderrBuffer.String()
+
+			if actualStdout != testCase.expectedStdout {
+				t.Errorf("actualStdout : actual %v | expected %v", actualStdout, testCase.expectedStdout)
+			}
+
+			if actualStderr != testCase.expectedStderr {
+				t.Errorf("actualStderr : actual %v | expected %v", actualStderr, testCase.expectedStderr)
+			}
+
 		})
 	}
 }
