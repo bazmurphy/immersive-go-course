@@ -3,33 +3,35 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"testing"
 )
 
 func TestMain(t *testing.T) {
 	testCases := []struct {
-		name              string
-		flags             []string
-		args              []string
-		expectedStdOutput string
-		expectedStdErr    string
+		name           string
+		flags          []string
+		args           []string
+		expectedStdout string
+		expectedStderr string
 	}{
 		{
-			name:              "no flags, args: 1 file",
-			flags:             []string{},
-			args:              []string{"assets/sample.txt"},
-			expectedStdOutput: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)",
-			expectedStdErr:    "",
+			name:           "no flags, args: 1 file",
+			flags:          []string{},
+			args:           []string{"assets/sample.txt"},
+			expectedStdout: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)",
+			expectedStderr: "",
 		},
 		{
-			name:              "no flags, no args",
-			flags:             []string{},
-			args:              []string{},
-			expectedStdOutput: "",
-			expectedStdErr:    "go-cat: no filename provided",
+			name:           "no flags, no args",
+			flags:          []string{},
+			args:           []string{},
+			expectedStdout: "",
+			expectedStderr: "go-cat: no filename provided",
 		},
 	}
 
@@ -80,12 +82,63 @@ func TestMain(t *testing.T) {
 			// at the end of the test: restore the original arguments
 			os.Args = originalArgs
 
-			if actualStdout != testCase.expectedStdOutput {
-				t.Errorf("actual: %v | expected: %v", actualStdout, testCase.expectedStdOutput)
+			if actualStdout != testCase.expectedStdout {
+				t.Errorf("actual: %v | expected: %v", actualStdout, testCase.expectedStdout)
 			}
 
-			if actualStderr != testCase.expectedStdErr {
-				t.Errorf("actual: %v | expected: %v", actualStderr, testCase.expectedStdErr)
+			if actualStderr != testCase.expectedStderr {
+				t.Errorf("actual: %v | expected: %v", actualStderr, testCase.expectedStderr)
+			}
+		})
+	}
+}
+
+func TestMainOSExec(t *testing.T) {
+	testCases := []struct {
+		name           string
+		flags          []string
+		args           []string
+		expectedStdout string
+		expectedStderr string
+	}{
+		{
+			name:           "arg: 1 file",
+			flags:          []string{},
+			args:           []string{"assets/sample.txt"},
+			expectedStdout: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)",
+			expectedStderr: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// janky way to add all the args together as a single string:
+			cmd := exec.Command("go", append([]string{"run", "."}, testCase.args...)...)
+
+			// create buffers to capture the stdout/stderr
+			var stdoutBuffer bytes.Buffer
+			var stderrBuffer bytes.Buffer
+
+			// set the stdout/stderr of the command to those buffers^
+			cmd.Stdout = &stdoutBuffer
+			cmd.Stderr = &stderrBuffer
+
+			// run the command
+			err := cmd.Run()
+			if err != nil {
+				t.Errorf("error running the command: %v", err)
+				return
+			}
+
+			actualStdout := stdoutBuffer.String()
+			actualStderr := stderrBuffer.String()
+
+			if actualStdout != testCase.expectedStdout {
+				t.Errorf("actualStdout : actual %v | expected %v", actualStdout, testCase.expectedStdout)
+			}
+
+			if actualStderr != testCase.expectedStderr {
+				t.Errorf("actualStderr : actual %v | expected %v", actualStderr, testCase.expectedStderr)
 			}
 		})
 	}
