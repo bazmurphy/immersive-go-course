@@ -1,9 +1,22 @@
-// projects/cli-files/go-ls/main.go
-
 package main
 
-import "github.com/bazmurphy/immersive-go-course/projects/cli-files/go-ls/cmd"
+import (
+	"flag"
+	"fmt"
+	"os"
+
+	"github.com/bazmurphy/immersive-go-course/projects/cli-files/go-ls/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	flags := &cmd.Flags{}
+	flag.BoolVar(&flags.Help, "h", false, "show go-ls help")
+	flag.Parse()
+
+	args := flag.Args()
+
+	err := cmd.Execute(flags, args)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+	}
 }
