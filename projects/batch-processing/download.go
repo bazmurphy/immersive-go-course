@@ -108,7 +108,6 @@ func DownloadImages(imageUrlObjects []ParsedImageUrlObject, temporaryDownloadsDi
 		}
 
 		downloadedImageObjects = append(downloadedImageObjects, downloadedImageObject)
-
 	}
 
 	log.Printf("🟢 success: downloaded %d images from the image urls", len(downloadedImageObjects))
