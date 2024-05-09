@@ -10,7 +10,7 @@ import (
 func TestExecute(t *testing.T) {
 	testCases := []struct {
 		name             string
-		flags            *Flags
+		flags            Flags
 		args             []string
 		testFiles        []string
 		testFileContents []string
@@ -19,7 +19,7 @@ func TestExecute(t *testing.T) {
 	}{
 		{
 			name:             "no flags, args: 1 file, with a single line, ending WITH a new line",
-			flags:            &Flags{},
+			flags:            Flags{},
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\n"},
@@ -27,7 +27,7 @@ func TestExecute(t *testing.T) {
 		},
 		{
 			name:             "no flags, args: 1 file, with a single line, ending WITHOUT a new line",
-			flags:            &Flags{},
+			flags:            Flags{},
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello"},
@@ -35,7 +35,7 @@ func TestExecute(t *testing.T) {
 		},
 		// {
 		// 	name:             "-n flag, args: 1 file, with a single line, ending WITH a new line",
-		// 	flags:            &Flags{true},
+		// 	flags:            &Flags{Number: true},
 		// 	args:             []string{"test-file.txt"},
 		// 	testFiles:        []string{"test-file.txt"},
 		// 	testFileContents: []string{"hello\n"},
@@ -127,15 +127,13 @@ func TestExecute(t *testing.T) {
 			// redirect stdout to the write end of the pipe
 			os.Stdout = pipeWrite
 
-			Execute(testCase.flags, testCase.args)
+			Execute(&testCase.flags, testCase.args)
 
 			// close the write end of the pipe
 			pipeWrite.Close()
 
 			// read the captured output from the read end of the pipe
 			pipeReadBytes, _ := io.ReadAll(pipeRead)
-			// and this is bad because i am reading the whole thing at once and not streaming it...
-			// which totally defeats the point of reading it line by line earlier...
 
 			actualOutput := string(pipeReadBytes)
 

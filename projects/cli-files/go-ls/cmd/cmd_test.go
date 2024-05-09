@@ -10,6 +10,8 @@ import (
 func TestExecute(t *testing.T) {
 	testCases := []struct {
 		name             string
+		flags            Flags
+		args             []string
 		testFiles        []string
 		testFileContents []string
 		testDirectories  []string
@@ -17,24 +19,32 @@ func TestExecute(t *testing.T) {
 	}{
 		{
 			name:            "no files, no folders",
+			flags:           Flags{},
+			args:            []string{},
 			testFiles:       []string{},
 			testDirectories: []string{},
 			expectedOutput:  "",
 		},
 		{
 			name:            "3 files, no folders",
+			flags:           Flags{},
+			args:            []string{},
 			testFiles:       []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testDirectories: []string{},
 			expectedOutput:  "test-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
 		},
 		{
 			name:            "no files, 3 folders",
+			flags:           Flags{},
+			args:            []string{},
 			testFiles:       []string{},
 			testDirectories: []string{"test-directory-1", "test-directory-2", "test-directory-3"},
 			expectedOutput:  "test-directory-1\ntest-directory-2\ntest-directory-3\n",
 		},
 		{
 			name:            "3 files, 3 folders",
+			flags:           Flags{},
+			args:            []string{},
 			testFiles:       []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testDirectories: []string{"test-directory-1", "test-directory-2", "test-directory-3"},
 			expectedOutput:  "test-directory-1\ntest-directory-2\ntest-directory-3\ntest-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
@@ -103,15 +113,13 @@ func TestExecute(t *testing.T) {
 			// redirect stdout to the write end of the pipe
 			os.Stdout = pipeWrite
 
-			Execute()
+			Execute(&testCase.flags, testCase.args)
 
 			// close the write end of the pipe
 			pipeWrite.Close()
 
 			// read the captured output from the read end of the pipe
 			pipeReadBytes, _ := io.ReadAll(pipeRead)
-			// and this is bad because i am reading the whole thing at once and not streaming it...
-			// which totally defeats the point of reading it line by line earlier...
 
 			actualOutput := string(pipeReadBytes)
 
