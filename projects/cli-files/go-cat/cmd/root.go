@@ -1,9 +1,12 @@
+// projects/cli-files/go-cat/cmd/root.go
+
 package cmd
 
 import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -19,7 +22,7 @@ func Execute() {
 
 	// if there is no non-flag argument given then error
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "error: no filename provided\n")
+		fmt.Fprintf(os.Stderr, "go-cat: no filename provided\n")
 		os.Exit(2)
 	}
 
@@ -37,6 +40,7 @@ func Execute() {
 			continue
 		}
 
+		// try to open the file
 		file, err := os.Open(filename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "go-cat: %v: failed to open the file\n", file)
@@ -46,56 +50,69 @@ func Execute() {
 
 		lineNumber := 1
 
-		// -------------------- METHOD 1 bufio.NewScanner
+		reader := bufio.NewReader(file)
 
-		// bufio.NewScanner() creates a new Scanner to read input from a specified io.Reader
-		scanner := bufio.NewScanner(file)
+		for {
+			line, err := reader.ReadString('\n')
 
-		// Scan() advances the Scanner to the next token (default is a line)
-		// and returns true if there are more tokens to read
-		// and returns false when it reaches the end of the input or encounters an error
-		for scanner.Scan() {
-			// Text() returns the most recently scanned token as a string
-			// it should be called only after a successful call to Scan()
-			line := scanner.Text()
+			if err != nil {
+				if err == io.EOF {
+					// LAST LINE OF THE FILE
+					// ---------- DEBUG
 
-			if *numberFlag {
-				fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
-				lineNumber++
-			} else {
-				// need to somehow work out whether this has a newline or not at the end
-				// and don't add the \n if it doesn't
-				fmt.Fprintf(os.Stdout, "%s", line)
+					// fmt.Print(line)
+
+					// actual hellohello | expected hello
+
+					// fmt.Println(line)
+
+					// 	output: actual hello
+					//
+					//  | expected hello
+
+					// fmt.Printf("%s", line)
+
+					// output: actual hellohello | expected hello
+
+					fmt.Fprint(os.Stdout, line)
+
+					// output: actual hellohello | expected hello
+
+					// fmt.Fprintln(os.Stdout, line)
+
+					// output: actual hello
+					//
+					//  | expected hello
+
+					// fmt.Fprintf(os.Stdout, "%s", line)
+
+					// output: actual hellohello | expected hello
+
+					break
+				}
+				fmt.Fprintf(os.Stderr, "go-cat: %v: failed to read line %d", file, lineNumber)
+				break
 			}
+
+			// REGULAR LINE
+			// ---------- DEBUG
+
+			// fmt.Print(line)
+			// fmt.Println(line)
+			// fmt.Printf("%s", line)
+
+			fmt.Fprint(os.Stdout, line)
+			// fmt.Fprintln(os.Stdout, line)
+			// fmt.Fprintf(os.Stdout, "%s", line)
+
+			// LINE NUMBERS LOGIC (turn this back on later)
+			// if *numberFlag {
+			// 	fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
+			// 	lineNumber++
+			// } else {
+			// 	fmt.Fprintf(os.Stdout, "%s", line)
+			// }
 		}
 
-		// Err() returns the first non-EOF error that was encountered by the scanner
-		err = scanner.Err()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "go-cat: %v: failed to read the file\n", file)
-		}
-
-		// -------------------- METHOD 2 bufio.NewReader
-
-		// reader := bufio.NewReader(file)
-
-		// // attempt to read the file
-		// for {
-		// 	line, err := reader.ReadString('\n')
-		// 	if err != nil {
-		// 		if err == io.EOF {
-		// 			break
-		// 		}
-		// 		fmt.Fprintf(os.Stderr, "go-cat: %v: failed to read line %d", file, lineNumber)
-		// 		continue
-		// 	}
-
-		// 	if *numberFlag {
-		// 		fmt.Fprintf(os.Stdout, "%d\t%s", lineNumber, line)
-		// 		lineNumber++
-		// 	} else {
-		// 		fmt.Fprint(os.Stdout, line)
-		// 	}
-		// }
 	}
 }

@@ -1,3 +1,5 @@
+// projects/cli-files/go-cat/cmd/root_test.go
+
 package cmd
 
 import (
@@ -142,8 +144,6 @@ func TestExecute(t *testing.T) {
 				os.Args = append(os.Args, testCase.args...)
 			}
 
-			// ---------- I found this difficult to fully grasp ----------
-
 			// store the original stdout
 			originalStdout := os.Stdout
 
@@ -165,10 +165,10 @@ func TestExecute(t *testing.T) {
 
 			// read the captured output from the read end of the pipe
 			pipeReadBytes, _ := io.ReadAll(pipeRead)
+			// and this is bad because i am reading the whole thing at once and not streaming it...
+			// which totally defeats the point of reading it line by line earlier...
 
 			actualOutput := string(pipeReadBytes)
-
-			// -----------------------------------------------------------
 
 			if actualOutput != testCase.expectedOutput {
 				t.Errorf("output: actual %v | expected %v", actualOutput, testCase.expectedOutput)
