@@ -61,7 +61,9 @@ func TestParseRepeatedJSON(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			records, err := parseRepeatedJSON(testCase.repeatedjson)
+			var repeatedJsonParser RepeatedJSONParser
+
+			records, err := repeatedJsonParser.Parse(testCase.repeatedjson)
 			if err != nil {
 				if testCase.expectedError != nil {
 					if err.Error() != testCase.expectedError.Error() {

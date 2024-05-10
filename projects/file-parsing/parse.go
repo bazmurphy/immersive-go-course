@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
+	"strings"
 )
 
 // (!) ` ` are struct tags
@@ -14,38 +14,47 @@ type Record struct {
 	HighScore int32  `json:"high_score"`
 }
 
+// define an interface for a FileParser
+type FileParser interface {
+	// to implement this interface the type must have the Parse method (with the exact function signature)
+	Parse(file []byte) ([]Record, error)
+}
+
 func parseFile(filename string) ([]Record, error) {
 	file, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("[1] error reading the file: %w", err)
 	}
 
-	fileExtension := path.Ext(filename)
+	// get the file extension
+	fileExtension := strings.ToLower(filepath.Ext(filename))
+	// fileExtension := path.Ext(filename)
 	fmt.Println("DEBUG | fileExtension", fileExtension)
+
+	// instantiate the FileParser interface
+	var fileParser FileParser
+
+	switch fileExtension {
+	// but in examples/ :
+	// the json file is .txt
+	// the repeated json file is .txt
+	case ".json":
+		fileParser = &JSONParser{}
+	case ".csv":
+		fileParser = &CSVParser{}
+	case ".bin":
+		fileParser = &BinaryParser{}
+	default:
+		return nil, fmt.Errorf("[1] error cannot handle this file extension")
+	}
 
 	var records []Record
 
-	switch fileExtension {
-	case "json":
-		records, err = parseJSON(file)
-		if err != nil {
-			return nil, fmt.Errorf("[2] could not parse the json file: %w", err)
-		}
-	case "txt":
-		records, err = parseRepeatedJSON(file)
-		if err != nil {
-			return nil, fmt.Errorf("[2] could not parse the repeated json file: %w", err)
-		}
-	case "csv":
-		records, err = parseCSV(file)
-		if err != nil {
-			return nil, fmt.Errorf("[2] could not parse the csv file: %w", err)
-		}
-	case "bin":
-		records, err = parseBinary(file)
-		if err != nil {
-			return nil, fmt.Errorf("[2] could not parse the binary file: %w", err)
-		}
+	// try to parse the file
+	records, err = fileParser.Parse(file)
+	if err != nil {
+		// if we can't parse the file then error
+		return nil, fmt.Errorf("[1] error parsing data from the file: %w", err)
 	}
 
 	return records, nil
@@ -67,14 +76,14 @@ func parseFilesFromDirectory(directory string) error {
 		filePath := filepath.Join(directory, file.Name())
 
 		// try to parse the file
-		dataSlice, err := parseFile(filePath)
+		records, err := parseFile(filePath)
 		if err != nil {
 			// if we can't parse the file then error
-			return fmt.Errorf("[0] error parsing data from the file: %w", err)
+			return fmt.Errorf("[0] error parsing records from the file: %w", err)
 		}
 
 		// try to get the highest/lowest scoring players
-		playerWithHighestScore, playerWithLowestScore, err := getHighestLowestScoringPlayers(dataSlice)
+		playerWithHighestScore, playerWithLowestScore, err := getHighestLowestScoringPlayers(records)
 		if err != nil {
 			// if we can't get the highest/lowest scoring players then error
 			return fmt.Errorf("[0] error getting the highest/lowest scoring players: %w", err)

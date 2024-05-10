@@ -9,7 +9,9 @@ import (
 	"strconv"
 )
 
-func parseCSV(file []byte) ([]Record, error) {
+type CSVParser struct{}
+
+func (p *CSVParser) Parse(file []byte) ([]Record, error) {
 	// because of the way we have tried to use file []byte as a parameter..
 	// it means we have to use bytes.NewReader on the file... this is JANKY
 	reader := csv.NewReader(bytes.NewReader(file))
@@ -36,6 +38,7 @@ func parseCSV(file []byte) ([]Record, error) {
 
 		// get the player name...
 		// (!) but this is assuming the name is at index position 0 which it may not be(?)
+		// TODO: fix this bad assumption
 		name := line[0]
 
 		if len(name) == 0 {

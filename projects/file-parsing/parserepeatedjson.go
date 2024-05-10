@@ -6,7 +6,9 @@ import (
 	"strings"
 )
 
-func parseRepeatedJSON(file []byte) ([]Record, error) {
+type RepeatedJSONParser struct{}
+
+func (p *RepeatedJSONParser) Parse(file []byte) ([]Record, error) {
 	var records []Record
 
 	// convert the file to a string and then split it on a newline character
@@ -25,11 +27,13 @@ func parseRepeatedJSON(file []byte) ([]Record, error) {
 
 		// if the line is empty keep going
 		if len(line) == 0 {
+			// TODO: maybe add a log here
 			continue
 		}
 
 		// if the line starts with a # it is a comment so ignore it ((!)use single quotes for characters)
 		if line[0] == '#' {
+			// TODO: maybe add a log here
 			continue
 		}
 

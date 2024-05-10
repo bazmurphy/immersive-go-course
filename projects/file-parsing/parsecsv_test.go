@@ -36,7 +36,9 @@ func TestParseCSV(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			records, err := parseCSV(testCase.csv)
+			var csvParser CSVParser
+
+			records, err := csvParser.Parse(testCase.csv)
 			if err != nil {
 				if testCase.expectedError != nil {
 					if err.Error() != testCase.expectedError.Error() {
@@ -48,11 +50,11 @@ func TestParseCSV(t *testing.T) {
 			}
 
 			if len(records) != testCase.expectedRecordCount {
-				t.Errorf("got %d playerCount | expected %d playerCount", len(records), testCase.expectedRecordCount)
+				t.Errorf("len(records) actual %v | expected %v", len(records), testCase.expectedRecordCount)
 			}
 
 			if !reflect.DeepEqual(records, testCase.expectedRecords) {
-				t.Errorf("got dataSlice %v | expected %v", records, testCase.expectedRecords)
+				t.Errorf("records actual %v | expected %v", records, testCase.expectedRecords)
 			}
 		})
 	}

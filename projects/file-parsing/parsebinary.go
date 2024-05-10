@@ -6,7 +6,9 @@ import (
 	"errors"
 )
 
-func parseBinary(file []byte) ([]Record, error) {
+type BinaryParser struct{}
+
+func (p *BinaryParser) Parse(file []byte) ([]Record, error) {
 	// each record contains exactly four bytes
 	// representing the score as a signed 32-bit integer (in the above endian format)
 	// then the name of the player stored in UTF-8

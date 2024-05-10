@@ -5,7 +5,9 @@ import (
 	"errors"
 )
 
-func parseJSON(file []byte) ([]Record, error) {
+type JSONParser struct{}
+
+func (p *JSONParser) Parse(file []byte) ([]Record, error) {
 	var records []Record
 
 	// try to "unmarshal" the data from the json file into the data slice variable

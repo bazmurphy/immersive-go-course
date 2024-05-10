@@ -39,7 +39,9 @@ func TestParseJSON(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			records, err := parseJSON(testCase.json)
+			var jsonParser JSONParser
+
+			records, err := jsonParser.Parse(testCase.json)
 			if err != nil {
 				if testCase.expectedError != nil {
 					if err.Error() != testCase.expectedError.Error() {
@@ -50,12 +52,12 @@ func TestParseJSON(t *testing.T) {
 				}
 			}
 
-			if !reflect.DeepEqual(records, testCase.expectedRecords) {
-				t.Errorf("records actual %v | expected %v", records, testCase.expectedRecords)
+			if len(records) != testCase.expectedRecordCount {
+				t.Errorf("recordCount actual %v | expected %v", len(records), testCase.expectedRecordCount)
 			}
 
-			if len(records) != testCase.expectedRecordCount {
-				t.Errorf("got %d playerCount | expected %d playerCount", len(records), testCase.expectedRecordCount)
+			if !reflect.DeepEqual(records, testCase.expectedRecords) {
+				t.Errorf("records actual %v | expected %v", records, testCase.expectedRecords)
 			}
 		})
 	}

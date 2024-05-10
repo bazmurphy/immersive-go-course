@@ -1,9 +1,8 @@
 package main
 
 func main() {
-	// err := parseFilesFromDirectory("examples")
-
-	// records, err := parseFile()
+	// records, err := parseFilesFromDirectory("examples")
+	// records, err := parseFile("examples/data.csv")
 
 	// if err != nil {
 	// 	fmt.Fprint(os.Stderr, err)
