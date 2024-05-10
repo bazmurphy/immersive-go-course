@@ -8,19 +8,21 @@ import (
 
 type Flags struct {
 	Help bool
+	All  bool
 }
 
-func Execute(flags *Flags, args []string) error {
+func Execute(flags *Flags, args []string) {
 	if flags.Help {
-		fmt.Fprintf(os.Stdout, "go-ls help message")
-		return nil
+		fmt.Fprintf(os.Stdout, "go-ls: help message")
+		return
 	}
 
 	// if there are no arguments passed in then use the current working directory
 	if len(args) == 0 {
 		workingDirectory, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("could not get the current working directory: %v", err)
+			fmt.Fprintf(os.Stderr, "go-ls: could not get the current working directory: %v", err)
+			return
 		}
 		args = append(args, workingDirectory)
 	}
@@ -30,7 +32,8 @@ func Execute(flags *Flags, args []string) error {
 		// get the "FileInfo" about the path
 		pathInfo, err := os.Stat(path)
 		if err != nil {
-			return fmt.Errorf("could not read the file/directory information: %v", err)
+			fmt.Fprintf(os.Stderr, "go-ls: could not read the file/directory information: %v", err)
+			return
 		}
 
 		// if the path is a file then simply print it back to the user
@@ -42,7 +45,7 @@ func Execute(flags *Flags, args []string) error {
 		// otherwise read from that directory
 		directory, err := os.ReadDir(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error reading from the directory: %v\n", err)
+			fmt.Fprintf(os.Stderr, "go-ls: error reading from the directory: %v\n", err)
 		}
 
 		// if we have more than one arg then first print the "path:"
@@ -52,9 +55,14 @@ func Execute(flags *Flags, args []string) error {
 
 		// loop through the files/directories and print them
 		for _, file := range directory {
-			// ignore any hidden files
-			if !strings.HasPrefix(file.Name(), ".") {
+			if flags.All {
+				// include hidden files
 				fmt.Fprintf(os.Stdout, "%v\n", file.Name())
+			} else {
+				// ignore hidden files
+				if !strings.HasPrefix(file.Name(), ".") {
+					fmt.Fprintf(os.Stdout, "%v\n", file.Name())
+				}
 			}
 		}
 
@@ -63,6 +71,4 @@ func Execute(flags *Flags, args []string) error {
 			fmt.Fprint(os.Stdout, "\n")
 		}
 	}
-
-	return nil
 }

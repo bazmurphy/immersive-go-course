@@ -16,23 +16,26 @@ func TestMain(t *testing.T) {
 	}{
 		{
 			name:           "no flags, no args",
-			flags:          []string{},
-			args:           []string{},
 			expectedStdout: "assets\ncmd\ngo.mod\nmain.go\nmain_test.go\n",
 			expectedStderr: "",
 		},
 		{
-			name:           "no flags, arg: 1 folder (with 3 files inside)",
-			flags:          []string{},
+			name:           "no flags, arg: 1 folder (with 4 files inside (including 1 hidden))",
 			args:           []string{"assets"},
 			expectedStdout: "dew.txt\nfor_you.txt\nrain.txt\n",
 			expectedStderr: "",
 		},
 		{
-			name:           "-h, no args",
+			name:           "help flag, no args",
 			flags:          []string{"-h"},
-			args:           []string{""},
-			expectedStdout: "go-ls help message",
+			expectedStdout: "go-ls: help message",
+			expectedStderr: "",
+		},
+		{
+			name:           "all flag, arg: 1 folder (with 4 files inside (including 1 hidden))",
+			flags:          []string{"-a"},
+			args:           []string{"assets"},
+			expectedStdout: ".hidden.txt\ndew.txt\nfor_you.txt\nrain.txt\n",
 			expectedStderr: "",
 		},
 	}

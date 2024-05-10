@@ -9,45 +9,67 @@ import (
 
 func TestExecute(t *testing.T) {
 	testCases := []struct {
-		name             string
-		flags            Flags
-		args             []string
-		testFiles        []string
-		testFileContents []string
-		testDirectories  []string
-		expectedStdout   string
+		name                    string
+		flags                   Flags
+		args                    []string
+		testFiles               []string
+		testSubdirectories      []string
+		testSubdirectoriesFiles []string
+		expectedStdout          string
+		expectedStderr          string
 	}{
 		{
-			name:            "no files, no folders",
-			flags:           Flags{},
-			args:            []string{},
-			testFiles:       []string{},
-			testDirectories: []string{},
-			expectedStdout:  "",
+			name:           "an empty directory",
+			expectedStdout: "",
 		},
 		{
-			name:            "3 files, no folders",
-			flags:           Flags{},
-			args:            []string{},
-			testFiles:       []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
-			testDirectories: []string{},
-			expectedStdout:  "test-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
+			name:           "with the help flag",
+			flags:          Flags{Help: true},
+			expectedStdout: "go-ls: help message",
 		},
 		{
-			name:            "no files, 3 folders",
-			flags:           Flags{},
-			args:            []string{},
-			testFiles:       []string{},
-			testDirectories: []string{"test-directory-1", "test-directory-2", "test-directory-3"},
-			expectedStdout:  "test-directory-1\ntest-directory-2\ntest-directory-3\n",
+			name:           "with the all flag",
+			flags:          Flags{All: true},
+			testFiles:      []string{"test-file-1.txt", ".test-hidden-file"},
+			expectedStdout: ".test-hidden-file\ntest-file-1.txt\n",
 		},
 		{
-			name:            "3 files, 3 folders",
-			flags:           Flags{},
-			args:            []string{},
-			testFiles:       []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
-			testDirectories: []string{"test-directory-1", "test-directory-2", "test-directory-3"},
-			expectedStdout:  "test-directory-1\ntest-directory-2\ntest-directory-3\ntest-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
+			name:           "a directory with 3 files",
+			testFiles:      []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			expectedStdout: "test-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
+		},
+		{
+			name:               "a directory with 3 subdirectories",
+			testSubdirectories: []string{"test-subdirectory-1", "test-subdirectory-2", "test-subdirectory-3"},
+			expectedStdout:     "test-subdirectory-1\ntest-subdirectory-2\ntest-subdirectory-3\n",
+		},
+		{
+			name:               "a directory with 3 subdirectories and 3 files",
+			testFiles:          []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testSubdirectories: []string{"test-subdirectory-1", "test-subdirectory-2", "test-subdirectory-3"},
+			expectedStdout:     "test-subdirectory-1\ntest-subdirectory-2\ntest-subdirectory-3\ntest-file-1.txt\ntest-file-2.txt\ntest-file-3.txt\n",
+		},
+		{
+			name:               "a non-existant directory",
+			args:               []string{"non-existant-directory"},
+			testFiles:          []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
+			testSubdirectories: []string{"test-directory-1", "test-directory-2", "test-directory-3"},
+			expectedStderr:     "go-ls: could not read the file/directory information: stat non-existant-directory: no such file or directory",
+		},
+		{
+			name:               "a subdirectory and a non-existant directory",
+			args:               []string{".", "non-existant-directory"},
+			testFiles:          []string{"test-file-1.txt"},
+			testSubdirectories: []string{"test-subdirectory-1"},
+			expectedStdout:     ".:\ntest-subdirectory-1\ntest-file-1.txt\n\n",
+			expectedStderr:     "go-ls: could not read the file/directory information: stat non-existant-directory: no such file or directory",
+		},
+		{
+			name:                    "two subdirectories with files",
+			args:                    []string{"test-directory-1", "test-directory-2"},
+			testSubdirectories:      []string{"test-directory-1", "test-directory-2"},
+			testSubdirectoriesFiles: []string{"test-subdirectory-1-file-1.txt", "test-subdirectory-2-file-1.txt"},
+			expectedStdout:          "test-directory-1:\ntest-subdirectory-1-file-1.txt\n\ntest-directory-2:\ntest-subdirectory-2-file-1\n",
 		},
 	}
 
@@ -66,23 +88,36 @@ func TestExecute(t *testing.T) {
 			}
 			defer os.RemoveAll(temporaryDirectory)
 
-			// create the test directories
-			for _, testDirectory := range testCase.testDirectories {
-				testDirectoryPath := filepath.Join(temporaryDirectory, testDirectory)
-				err := os.MkdirAll(testDirectoryPath, os.ModePerm)
-				if err != nil {
-					t.Fatalf("failed to create test directory: %v", err)
+			if len(testCase.testSubdirectories) > 0 {
+				// create the test subdirectories
+				for index, testDirectory := range testCase.testSubdirectories {
+					testDirectoryPath := filepath.Join(temporaryDirectory, testDirectory)
+					err := os.MkdirAll(testDirectoryPath, os.ModePerm)
+					if err != nil {
+						t.Fatalf("failed to create test subdirectory: %v", err)
+					}
+					// create the subdirectory test files
+					if len(testCase.testSubdirectoriesFiles) > 0 {
+						testSubdirectoryFilePath := filepath.Join(testDirectoryPath, testCase.testSubdirectoriesFiles[index])
+						createdSubdirectoryTestFile, err := os.Create(testSubdirectoryFilePath)
+						if err != nil {
+							t.Fatalf("failed to create test subdirectory file: %v", err)
+						}
+						createdSubdirectoryTestFile.Close()
+					}
 				}
 			}
 
-			// create the test files
-			for _, testFile := range testCase.testFiles {
-				testFilePath := filepath.Join(temporaryDirectory, testFile)
-				createdTestFile, err := os.Create(testFilePath)
-				if err != nil {
-					t.Fatalf("failed to create test file: %v", err)
+			if len(testCase.testFiles) > 0 {
+				// create the test files
+				for _, testFile := range testCase.testFiles {
+					testFilePath := filepath.Join(temporaryDirectory, testFile)
+					createdTestFile, err := os.Create(testFilePath)
+					if err != nil {
+						t.Fatalf("failed to create test file: %v", err)
+					}
+					createdTestFile.Close()
 				}
-				createdTestFile.Close()
 			}
 
 			// change to the temporary directory to run Execute()
@@ -95,36 +130,70 @@ func TestExecute(t *testing.T) {
 			defer func() {
 				err = os.Chdir(originalWorkingDirectory)
 				if err != nil {
-					t.Fatalf("failed to change to the temporary directory: %v", err)
+					t.Fatalf("failed to change to the original directory: %v", err)
 				}
 			}()
 
+			// (!!!) HIJACKING STDOUT AND STDERR IS BAD but i cannot figure out how to do it with bytes.Buffer like in main_test.go
+
 			// store the original stdout
 			originalStdout := os.Stdout
+			originalStderr := os.Stderr
+
+			// create a pipe to capture stdout/stderr
+			stdoutPipeRead, stdoutPipeWrite, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("failed to create stdout pipe: %v", err)
+			}
+
+			stderrPipeRead, stderrPipeWrite, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("failed to create stderr pipe: %v", err)
+			}
+
+			// redirect stdout to the write end of the pipe
+			os.Stdout = stdoutPipeWrite
+			os.Stderr = stderrPipeWrite
 
 			// at the end of the test: restore the original stdout
 			defer func() {
 				os.Stdout = originalStdout
+				os.Stderr = originalStderr
 			}()
-
-			// create a pipe to capture the output
-			pipeRead, pipeWrite, _ := os.Pipe()
-
-			// redirect stdout to the write end of the pipe
-			os.Stdout = pipeWrite
 
 			Execute(&testCase.flags, testCase.args)
 
 			// close the write end of the pipe
-			pipeWrite.Close()
+			stdoutPipeWrite.Close()
+			if err != nil {
+				t.Fatalf("failed to close stdout pipe: %v", err)
+			}
+
+			stderrPipeWrite.Close()
+			if err != nil {
+				t.Fatalf("failed to close stderr pipe: %v", err)
+			}
 
 			// read the captured output from the read end of the pipe
-			pipeReadBytes, _ := io.ReadAll(pipeRead)
+			stdoutPipeReadBytes, err := io.ReadAll(stdoutPipeRead)
+			if err != nil {
+				t.Fatalf("failed to read from stdout pipe: %v", err)
+			}
 
-			actualStdout := string(pipeReadBytes)
+			stdoutPipeReadErr, err := io.ReadAll(stderrPipeRead)
+			if err != nil {
+				t.Fatalf("failed to read from stderr pipe: %v", err)
+			}
+
+			actualStdout := string(stdoutPipeReadBytes)
+			actualStderr := string(stdoutPipeReadErr)
 
 			if actualStdout != testCase.expectedStdout {
-				t.Errorf("output: actual %v | expected %v", actualStdout, testCase.expectedStdout)
+				t.Errorf("stdout: actual %v | expected %v", actualStdout, testCase.expectedStdout)
+			}
+
+			if actualStderr != testCase.expectedStderr {
+				t.Errorf("stderr: actual %v | expected %v", actualStderr, testCase.expectedStderr)
 			}
 		})
 	}
