@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"testing"
 )
@@ -15,18 +16,25 @@ func TestMain(t *testing.T) {
 		expectedStderr string
 	}{
 		{
-			name:           "arg: 1 file",
-			flags:          []string{},
-			args:           []string{"assets/sample.txt"},
-			expectedStdout: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)",
-			expectedStderr: "",
-		},
-		{
 			name:           "no flags, no args",
 			flags:          []string{},
 			args:           []string{},
 			expectedStdout: "",
-			expectedStderr: "go-cat: no filename provided\n",
+			expectedStderr: "go-cat: no filename provided",
+		},
+		{
+			name:           "arg: 1 file",
+			flags:          []string{},
+			args:           []string{"assets/sample1.txt"},
+			expectedStdout: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)",
+			expectedStderr: "",
+		},
+		{
+			name:           "arg: 2 files",
+			flags:          []string{},
+			args:           []string{"assets/sample1.txt", "assets/sample2.txt"},
+			expectedStdout: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)this is line 1 from the second sample file\nthis is line 2 from the second sample file",
+			expectedStderr: "",
 		},
 	}
 
@@ -39,6 +47,8 @@ func TestMain(t *testing.T) {
 
 			// construct the command
 			cmd := exec.Command("go", commandArgs...)
+
+			fmt.Println("DEBUG | cmd", cmd)
 
 			// create buffers to capture the stdout/stderr
 			var stdoutBuffer bytes.Buffer

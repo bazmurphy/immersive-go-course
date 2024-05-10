@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
 	"github.com/bazmurphy/immersive-go-course/projects/cli-files/go-cat/cmd"
 )
@@ -13,5 +15,8 @@ func main() {
 
 	args := flag.Args()
 
-	cmd.Execute(flags, args)
+	err := cmd.Execute(flags, args)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+	}
 }
