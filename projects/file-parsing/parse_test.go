@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// TODO: write these tests
-func TestMain(t *testing.T) {
+// TODO: create these tests
+func TestParseFile(t *testing.T) {
 	testCases := []struct {
 		name string
 	}{
@@ -16,7 +16,6 @@ func TestMain(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		// placeholder
 		fmt.Println(testCase)
 	}
 }
