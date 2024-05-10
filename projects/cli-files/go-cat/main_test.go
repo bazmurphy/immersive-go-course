@@ -17,24 +17,23 @@ func TestMain(t *testing.T) {
 	}{
 		{
 			name:           "no flags, no args",
-			flags:          []string{},
-			args:           []string{},
-			expectedStdout: "",
 			expectedStderr: "go-cat: no filename provided",
 		},
 		{
-			name:           "arg: 1 file",
-			flags:          []string{},
+			name:           "no flags, args: 1 file",
 			args:           []string{"assets/sample1.txt"},
 			expectedStdout: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)",
-			expectedStderr: "",
 		},
 		{
-			name:           "arg: 2 files",
-			flags:          []string{},
+			name:           "no flags, args: 2 files",
 			args:           []string{"assets/sample1.txt", "assets/sample2.txt"},
 			expectedStdout: "this is the first line\nthis is line 2\nthis is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\nthis is line 4\nthis is the last line (deliberately with no newline)this is line 1 from the second sample file\nthis is line 2 from the second sample file",
-			expectedStderr: "",
+		},
+		{
+			name:           "-n flag, args: 1 file",
+			flags:          []string{"-n"},
+			args:           []string{"assets/sample1.txt"},
+			expectedStdout: "1	this is the first line\n2	this is line 2\n3	this is line 3 (deliberately longer to test text wrapping) this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3 this is still line 3\n4	this is line 4\n5	this is the last line (deliberately with no newline)",
 		},
 	}
 
