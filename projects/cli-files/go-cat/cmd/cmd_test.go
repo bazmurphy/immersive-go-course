@@ -14,16 +14,24 @@ func TestExecute(t *testing.T) {
 		args             []string
 		testFiles        []string
 		testFileContents []string
-		expectedOutput   string
-		expectedError    error
+		expectedStdout   string
+		expectedStderr   string
 	}{
+		{
+			name:             "no flags, no args",
+			flags:            Flags{},
+			args:             []string{},
+			testFiles:        []string{},
+			testFileContents: []string{},
+			expectedStderr:   "",
+		},
 		{
 			name:             "no flags, args: 1 file, with a single line, ending WITH a new line",
 			flags:            Flags{},
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\n"},
-			expectedOutput:   "hello\n",
+			expectedStdout:   "hello\n",
 		},
 		{
 			name:             "no flags, args: 1 file, with a single line, ending WITHOUT a new line",
@@ -31,7 +39,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello"},
-			expectedOutput:   "hello",
+			expectedStdout:   "hello",
 		},
 		{
 			name:             "-n flag, args: 1 file, with a single line, ending WITH a new line",
@@ -39,7 +47,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\n"},
-			expectedOutput:   "1\thello\n",
+			expectedStdout:   "1\thello\n",
 		},
 		{
 			name:             "-n flag, args: 1 file, with a single line, ending WITHOUT a new line",
@@ -47,7 +55,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello"},
-			expectedOutput:   "1\thello",
+			expectedStdout:   "1\thello",
 		},
 		{
 			name:             "no flags, args: 1 file, with multiple lines, ending WITH a new line",
@@ -55,7 +63,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye\n"},
-			expectedOutput:   "hello\nfrom the\ntest file\ngoodbye\n",
+			expectedStdout:   "hello\nfrom the\ntest file\ngoodbye\n",
 		},
 		{
 			name:             "no flags, args: 1 file, with multiple lines, ending WITHOUT a new line",
@@ -63,7 +71,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye"},
-			expectedOutput:   "hello\nfrom the\ntest file\ngoodbye",
+			expectedStdout:   "hello\nfrom the\ntest file\ngoodbye",
 		},
 		{
 			name:             "-n flag, args: 1 file, with multiple lines, ending WITH a new line",
@@ -71,7 +79,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye\n"},
-			expectedOutput:   "1\thello\n2\tfrom the\n3\ttest file\n4\tgoodbye\n",
+			expectedStdout:   "1\thello\n2\tfrom the\n3\ttest file\n4\tgoodbye\n",
 		},
 		{
 			name:             "-n flag, args: 1 file, with multiple lines, ending WITHOUT a new line",
@@ -79,7 +87,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file.txt"},
 			testFiles:        []string{"test-file.txt"},
 			testFileContents: []string{"hello\nfrom the\ntest file\ngoodbye"},
-			expectedOutput:   "1\thello\n2\tfrom the\n3\ttest file\n4\tgoodbye",
+			expectedStdout:   "1\thello\n2\tfrom the\n3\ttest file\n4\tgoodbye",
 		},
 		{
 			name:             "no flags, args: 3 files, each with one line, ending WITH a new line",
@@ -87,7 +95,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFileContents: []string{"hello from 1\n", "hello from 2\n", "hello from 3\n"},
-			expectedOutput:   "hello from 1\nhello from 2\nhello from 3\n",
+			expectedStdout:   "hello from 1\nhello from 2\nhello from 3\n",
 		},
 		{
 			name:             "no flags, args: 3 files, each with one line, ending WITHOUT a new line",
@@ -95,7 +103,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFileContents: []string{"hello from 1", "hello from 2", "hello from 3"},
-			expectedOutput:   "hello from 1hello from 2hello from 3",
+			expectedStdout:   "hello from 1hello from 2hello from 3",
 		},
 		{
 			name:             "-n flag, args: 3 files, each with one line, ending WITH a new line",
@@ -103,7 +111,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFileContents: []string{"hello from 1\n", "hello from 2\n", "hello from 3\n"},
-			expectedOutput:   "1\thello from 1\n1\thello from 2\n1\thello from 3\n",
+			expectedStdout:   "1\thello from 1\n1\thello from 2\n1\thello from 3\n",
 		},
 		{
 			name:             "-n flag, args: 3 files, each with one line, ending WITHOUT a new line",
@@ -111,7 +119,7 @@ func TestExecute(t *testing.T) {
 			args:             []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFiles:        []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"},
 			testFileContents: []string{"hello from 1", "hello from 2", "hello from 3"},
-			expectedOutput:   "1\thello from 11\thello from 21\thello from 3",
+			expectedStdout:   "1\thello from 11\thello from 21\thello from 3",
 		},
 	}
 
@@ -153,24 +161,66 @@ func TestExecute(t *testing.T) {
 				}
 			}()
 
-			// create a pipe to capture the output
-			pipeRead, pipeWrite, _ := os.Pipe()
+			// (!!!) HIJACKING STDOUT AND STDERR IS BAD but i cannot figure out how to do it with bytes.Buffer like in main_test.go
+
+			// store the original stdout
+			originalStdout := os.Stdout
+			originalStderr := os.Stderr
+
+			// create a pipe to capture stdout/stderr
+			stdoutPipeRead, stdoutPipeWrite, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("failed to create stdout pipe: %v", err)
+			}
+
+			stderrPipeRead, stderrPipeWrite, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("failed to create stderr pipe: %v", err)
+			}
 
 			// redirect stdout to the write end of the pipe
-			os.Stdout = pipeWrite
+			os.Stdout = stdoutPipeWrite
+			os.Stderr = stderrPipeWrite
+
+			// at the end of the test: restore the original stdout
+			defer func() {
+				os.Stdout = originalStdout
+				os.Stderr = originalStderr
+			}()
 
 			Execute(&testCase.flags, testCase.args)
 
 			// close the write end of the pipe
-			pipeWrite.Close()
+			stdoutPipeWrite.Close()
+			if err != nil {
+				t.Fatalf("failed to close stdout pipe: %v", err)
+			}
+
+			stderrPipeWrite.Close()
+			if err != nil {
+				t.Fatalf("failed to close stderr pipe: %v", err)
+			}
 
 			// read the captured output from the read end of the pipe
-			pipeReadBytes, _ := io.ReadAll(pipeRead)
+			stdoutPipeReadBytes, err := io.ReadAll(stdoutPipeRead)
+			if err != nil {
+				t.Fatalf("failed to read from stdout pipe: %v", err)
+			}
 
-			actualOutput := string(pipeReadBytes)
+			stdoutPipeReadErr, err := io.ReadAll(stderrPipeRead)
+			if err != nil {
+				t.Fatalf("failed to read from stderr pipe: %v", err)
+			}
 
-			if actualOutput != testCase.expectedOutput {
-				t.Errorf("output: actual %v | expected %v", actualOutput, testCase.expectedOutput)
+			actualStdout := string(stdoutPipeReadBytes)
+			actualStderr := string(stdoutPipeReadErr)
+
+			if actualStdout != testCase.expectedStdout {
+				t.Errorf("stdout: actual %v | expected %v", actualStdout, testCase.expectedStdout)
+			}
+
+			if actualStderr != testCase.expectedStderr {
+				t.Errorf("stderr: actual %v | expected %v", actualStderr, testCase.expectedStderr)
 			}
 		})
 	}

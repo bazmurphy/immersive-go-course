@@ -11,11 +11,10 @@ type Flags struct {
 	Number bool
 }
 
-func Execute(flags *Flags, args []string) {
+func Execute(flags *Flags, args []string) error {
 	// if there are no arguments provided
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "go-cat: no filename provided\n")
-		return
+		return fmt.Errorf("go-cat: no filename provided")
 	}
 
 	for _, filename := range args {
@@ -72,4 +71,6 @@ func Execute(flags *Flags, args []string) {
 			}
 		}
 	}
+
+	return nil
 }
