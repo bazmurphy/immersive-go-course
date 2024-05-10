@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TODO: create these tests
+// TODO: write these tests
 func TestParseBinary(t *testing.T) {
 	testCases := []struct {
 		name string
