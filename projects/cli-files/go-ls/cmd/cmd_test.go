@@ -69,7 +69,7 @@ func TestExecute(t *testing.T) {
 			args:                    []string{"test-directory-1", "test-directory-2"},
 			testSubdirectories:      []string{"test-directory-1", "test-directory-2"},
 			testSubdirectoriesFiles: []string{"test-subdirectory-1-file-1.txt", "test-subdirectory-2-file-1.txt"},
-			expectedStdout:          "test-directory-1:\ntest-subdirectory-1-file-1.txt\n\ntest-directory-2:\ntest-subdirectory-2-file-1\n",
+			expectedStdout:          "test-directory-1:\ntest-subdirectory-1-file-1.txt\n\ntest-directory-2:\ntest-subdirectory-2-file-1.txt\n",
 		},
 	}
 

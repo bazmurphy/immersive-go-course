@@ -53,17 +53,38 @@ func Execute(flags *Flags, args []string) {
 			fmt.Fprintf(os.Stdout, "%v:\n", path)
 		}
 
-		// loop through the files/directories and print them
+		var directories []os.DirEntry
+		var files []os.DirEntry
+
+		// loop through the files/directories
 		for _, file := range directory {
 			if flags.All {
 				// include hidden files
-				fmt.Fprintf(os.Stdout, "%v\n", file.Name())
+				if file.IsDir() {
+					directories = append(directories, file)
+				} else {
+					files = append(files, file)
+				}
 			} else {
 				// ignore hidden files
 				if !strings.HasPrefix(file.Name(), ".") {
-					fmt.Fprintf(os.Stdout, "%v\n", file.Name())
+					if file.IsDir() {
+						directories = append(directories, file)
+					} else {
+						files = append(files, file)
+					}
 				}
 			}
+		}
+
+		// print the directories first
+		for _, dir := range directories {
+			fmt.Fprintf(os.Stdout, "%v\n", dir.Name())
+		}
+
+		// print the files after
+		for _, file := range files {
+			fmt.Fprintf(os.Stdout, "%v\n", file.Name())
 		}
 
 		// add a newline to separate multiple paths
