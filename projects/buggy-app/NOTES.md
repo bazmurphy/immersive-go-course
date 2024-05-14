@@ -406,3 +406,64 @@ Now let's move onto the `auth` folder
 
 `return runErr`  
 -return the auth server error
+
+### `type grpcAuthService struct {}`
+
+-internal grpcAuthService struct that implements the gRPC server interface  
+-`pb.UnimplementedAuthServer` (generated automatically by grpc)  
+-`pool` `*pgxpool.Pool`  
+-pool is a reference to the database that we can use for queries
+
+### `func newGrpcService() *grpcAuthService {}`
+
+-constructor  
+-returns a grpcAuthService `&grpcAuthService{}`
+
+### `type userRow struct {}`
+
+-`id` `string`  
+-`password` `string`  
+-`status` `string`
+
+- the type definition for a user in the database
+
+### `func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*pb.VerifyResponse, error) {}`
+
+-arguments: -`ctx context.Context` a context  
+-`in *pb.VerifyRequest` a pointer to a protocol buffer verify request
+
+-returns: -`*pb.VerifyResponse` a protocol buffer verify response  
+-`error` an error
+
+-verify checks an `input` for authentication validity  
+-`log.Printf("verify: id %v, start\n", in.Id)`  
+-logs out the verify ?? should we leave this here ??
+
+-`var row userRow`  
+-create a row
+
+`err := as.pool.QueryRow(ctx,"SELECT id, password, status FROM public.user WHERE id = $1", in.Id,).Scan(&row.id, &row.password, &row.status)`  
+-queries a row from the database id|password|status from `public.user` where `id`  
+-id is coming from `in.Id` which is the `*pb.VerifyRequest` (protocol buffer)
+
+`if err != nil {}`  
+-if there is an error then:  
+-if no rows then the user doesn't exist  
+-or if a real error
+-then:  
+`return &pb.VerifyResponse{State: pb.State_DENY}, nil`  
+-return a `pb.State_DENY`
+
+`err = bcrypt.CompareHashAndPassword([]byte(row.password), []byte(in.Password))`  
+-"bcrypt require us to compare the input to the hash directly"  
+-we compare the database user `password` and the grpc `in.Password`  
+-if there is an error  
+-mismatch between the database user password and the grpc in.Password
+-then log ?? this is a problem why does it say it "is OK" ??
+-regardless:  
+-`return &pb.VerifyResponse{State: pb.State_DENY}, nil`  
+-return a `pb.State_DENY`
+
+-if we reach here it was successful  
+-`return &pb.VerifyResponse{State: pb.State_ALLOW}, nil`  
+-so we return a `pb.State_ALLOW`
