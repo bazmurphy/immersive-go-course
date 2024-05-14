@@ -1,5 +1,7 @@
 # Notes to Understand the App
 
+---
+
 ## `/cmd/api/main_cmd.go`
 
 I will start here as the entry point of the API
@@ -20,6 +22,8 @@ passing it:
 -run the api service passing it the context
 
 -if there is an error then fatal
+
+---
 
 ## `/api/api.go`
 
@@ -293,3 +297,33 @@ The ID can be retrieved later using the `FromAuthenticatedContext` function.
 -why do we need `f[1]` ?? to remove the `#` ??
 `return tags`  
 -return the tags slice
+
+---
+
+So that is all the `api` folder covered
+
+Now let's move onto the `auth` folder
+
+## `/cmd/auth/main_cmd.go`
+
+`port := flag.Int("port", 80, "port the server will listen on")`  
+-is the port meant to be `80`, the same as the `api` ??
+
+`passwd, err := util.ReadPasswd()`  
+-same logic as the `api` use the `util.ReadPasswd()` function
+
+`ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)`  
+-same logic as the `api` create a `NotifyContext`  
+-what happens if `auth` recieves a shutdown signal but `api` does not ??
+
+`as := auth.New(auth.Config{}`  
+-create a new auth service  
+-takes an `auth.Config` struct, with:  
+`Port: *port`  
+`DatabaseURL: fmt.Sprintf("postgres://postgres:%s@postgres:5432/app", passwd),`
+`Log: log.Default()`
+-why does the auth service need access to the database ??
+-i assume we are creating users and storing their hashed/salted passwords there?
+
+`if err := as.Run(ctx); err != nil {}`
+-if we get an err from the `Run()` then fatal exit
