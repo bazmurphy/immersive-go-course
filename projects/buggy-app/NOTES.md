@@ -692,3 +692,92 @@ Now let's move onto the `auth` folder
 -a enumeration named `State`  
 -`DENY` with value `0`  
 -`ALLOW` with value `1`
+
+---
+
+Run: `make migrate`
+
+Then Run: `make run build`
+
+Connect to the postgresql docker container
+Then connect to postgresql and specifically the `app` database
+Then query the `user` table to see the users and their `id` and `password` and `status`
+
+```sh
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ docker exec -it buggy-app-postgres-1 bash
+root@03b211ceff98:/# psql -U postgres -d app
+psql (16.3 (Debian 16.3-1.pgdg120+1))
+Type "help" for help.
+
+app=# \dt
+               List of relations
+ Schema |       Name        | Type  |  Owner
+--------+-------------------+-------+----------
+ public | note              | table | postgres
+ public | schema_migrations | table | postgres
+ public | user              | table | postgres
+(3 rows)
+
+app=# SELECT * from "user";
+    id    |                           password                           |          created           |          modified          |  status
+----------+--------------------------------------------------------------+----------------------------+----------------------------+----------
+ usIgrmzp | $2y$10$O8VPlcAPa/iKHrkdyzN1cu7TvF5Goq6nRjSdaz9uXm1zPcVgRxQnK | 2024-05-14 17:48:42.571513 | 2024-05-14 17:48:42.579355 | inactive
+ jBfa2Ww0 | $2y$10$wd5QGX9NNg6Kz1EKqn5pn.Ee6tiLem0pmjqF.tVeSPPsmG9PW9vUW | 2024-05-14 17:48:42.571513 | 2024-05-14 17:48:42.579355 | active
+(2 rows)
+
+app=#
+```
+
+The first user is `usIgrmzp` is `inactive`
+The second user is `jBfa2Ww0` is `active`
+
+From `/migrations/app/000002_create_dummy_users.up.sql`
+We can see
+the first user has `password: banana`
+the second user has `password: apple`
+
+So let's convert their user:password combinations into base64
+
+`usIgrmzp:banana`
+
+`jBfa2Ww0:apple`
+
+```sh
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ echo -n "usIgrmzp:banana" | base64
+dXNJZ3JtenA6YmFuYW5h
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ echo -n "jBfa2Ww0:apple" | base64
+akJmYTJXdzA6YXBwbGU=
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
+```
+
+Now we can use these to send the `curl` requests
+
+```sh
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic akJmYTJXdzA6YXBwbGU=' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Tue, 14 May 2024 18:04:13 GMT
+Content-Length: 12
+
+{"notes":[]}baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
+```
+
+```sh
+baz@baz-pc:/media/baz/external/coding/immersive-go-course/projectscurl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic dXNJZ3JtenA6YmFuYW5h' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Tue, 14 May 2024 18:04:44 GMT
+Content-Length: 12
+
+{"notes":[]}baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
+```
+
+And check the logs
+
+```sh
+api-1       | 2024/05/14 18:04:13 HTTP - 172.18.0.1:49128 - - 14/May/2024:18:04:13 +0000 "GET /1/my/notes.json HTTP/1.1" 200 12 curl/8.5.0 55387753us
+api-1       | 2024/05/14 18:04:44 HTTP - 172.18.0.1:35190 - - 14/May/2024:18:04:44 +0000 "GET /1/my/notes.json HTTP/1.1" 200 12 curl/8.5.0 996173us
+```
+
+(BUG) `inactive` users should NOT be able to access their notes !!
+So I need to check the authorization logic
