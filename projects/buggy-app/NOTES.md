@@ -458,7 +458,7 @@ Now let's move onto the `auth` folder
 -"bcrypt require us to compare the input to the hash directly"  
 -we compare the database user `password` and the grpc `in.Password`  
 -if there is an error  
--mismatch between the database user password and the grpc in.Password
+-mismatch between the database user password and the grpc in.Password  
 -then log ?? this is a problem why does it say it "is OK" ??
 -regardless:  
 -`return &pb.VerifyResponse{State: pb.State_DENY}, nil`  
@@ -467,3 +467,135 @@ Now let's move onto the `auth` folder
 -if we reach here it was successful  
 -`return &pb.VerifyResponse{State: pb.State_ALLOW}, nil`  
 -so we return a `pb.State_ALLOW`
+
+## `/auth/client.go`
+
+### `type Client interface`
+
+-interface for the auth client (with two methods)
+`Close() error`  
+`Verify(ctx context.Context, id, passwd string) (*VerifyResult, error)`
+
+### `type VerifyResult struct`
+
+-`State` `string`  
+-struct for the verify result
+
+### `var ()`
+
+-`StateDeny = pb.State_name[int32(pb.State_DENY)]`  
+-`StateAllow = pb.State_name[int32(pb.State_ALLOW)]`  
+-the state constants for deny and allow (both strings)
+-DENY is 0, ALLOW is 1
+
+### `type GrpcClient struct`
+
+-This is the struct for the gRPC client
+-grpcClient is meant to be used by other services to talk with the Auth service  
+-`conn` `*grpc.ClientConn` this the grpc client connection  
+-`cancel` `context.CancelFunc` this is the context canceller  
+-`aC` `pb.AuthClient` protocol buffer auth client  
+-`cache` `*cache.Cache[VerifyResult]` we create a cache for the grpc client to use
+
+### `func NewClient(ctx context.Context, target string) (*GrpcClient, error)`
+
+-Create a new Client for the auth service
+
+-arguments:  
+-`ctx context.Context` the context  
+-`target string` target is for `grpc.DialContext`
+-Call `Close()` to release resources associated with this Client
+-returns:  
+`return newClientWithOpts(ctx, target, defaultOpts()...)`
+
+### `func (c *GrpcClient) Close() error`
+
+-a method on the GrpcClient (that satisfies the Client interface)  
+-`c.cancel()`  
+-cancel the context in case the connection is still being formed  
+-`return c.conn.Close()`  
+-according to grpc.DialContext docs, we still need to call `conn.Close()`  
+-Call `Close()` to release resources associated with this Client
+
+### `func (c *GrpcClient) Verify(ctx context.Context, id, passwd string) (*VerifyResult, error)`
+
+-a method on the GrpcClient (that satisfies the Client interface)
+-arguments:  
+-`ctx context.Context` the context  
+-`id string` used to first check the cache and if not then the auth service  
+-`passwd string` used to first check the cache and if not then the auth service
+
+-`cacheKey := c.cache.Key(fmt.Sprintf("%s:%s", id, passwd))`  
+-check the cache to see if we have this id/passwd combo already there  
+-`if v, ok := c.cache.Get(cacheKey); ok { return v, nil }`  
+-if we do, return it so we don't contact the auth service twice  
+-`res, err := c.aC.Verify(ctx, &pb.VerifyRequest{ Id: id, Password: passwd, })`  
+-call the auth service to check the id/password we've been given  
+-`if err != nil { return nil, fmt.Errorf("failed to verify: %w", err) }`  
+-if there's an error, return it  
+-`vR := &VerifyResult{ State: pb.State_name[int32(res.State)], }`  
+-looking good: turn this gRPC result into our output type  
+-`c.cache.Put(cacheKey, vR)`  
+-remember this verify result for next time  
+-`return vR, nil`
+-return the verify result
+
+### `func defaultOpts() []grpc.DialOption`
+
+-returns:  
+-`[]grpc.DialOption` from grpc "DialOption configures how we set up the connection"  
+-`return []grpc.DialOption{ grpc.WithTransportCredentials(insecure.NewCredentials()), }`
+-"WithTransportCredentials returns a DialOption which configures a connection level security credentials (e.g., TLS/SSL). This should not be used together with WithCredentialsBundle."  
+-TODO: insecure connection should move to TLS
+
+### `func newClientWithOpts(ctx context.Context, target string, opts ...grpc.DialOption) (*GrpcClient, error)`
+
+-Use this function in tests to configure the underlying client with options
+
+-arguments:  
+-`ctx context.Context` the context  
+-`target string` target is for `grpc.DialContext`  
+-`opts ...grpc.DialOption` spread in a slice of `grpc.Dialoptions`
+
+returns:  
+-`*GrpcClient` our own GrpcClient that other services uses to talk with the Auth service  
+-`error`
+
+-`ctx, cancel := context.WithCancel(ctx)`  
+-Wrapping the context WithCancel allows us to cancel the connection if the caller chooses to immediately `Close()` the Client  
+-`conn, err := grpc.DialContext(ctx, target, opts...)`  
+-Create the gRPC connection -`if err != nil { return nil, fmt.Errorf("failed to create client: %w", err) }`  
+-If there's an error, return it  
+-`return &GrpcClient{ conn: conn, cancel: cancel, aC: pb.NewAuthClient(conn), cache: cache.New[VerifyResult](), }, nil`  
+-`conn` is `*grpc.ClientConn`  
+-`cancel` is `context.CancelFunc`  
+-`aC` is `pb.AuthClient` protocol buffer AuthClient  
+-`cache` is `*cache.Cache[VerifyResult]` a new cache with a key as `VerifyResult`
+-Return the new gRPC client
+
+### `type MockClient struct`
+
+-This is the struct for the mock client  
+-`result` `*VerifyResult`
+
+### `func NewMockClient(result *VerifyResult) *MockClient`
+
+-arguments:  
+-`result *VerifyResult`  
+-`return &MockClient{	result: result }`  
+-create a new mock client with the given verify result
+
+### `func (ac *MockClient) Close() error`
+
+-`return nil`  
+-this is a "no-op" for the mock client
+
+### `func (ac *MockClient) Verify(ctx context.Context, id, passwd string) (*VerifyResult, error)`
+
+-arguments:  
+-`ctx.Context` the context  
+-`id` the id for auth  
+-`passwd` the password for auth  
+-`return ac.result, nil`  
+-Return the mock verify result  
+-Use this in tests to Mock out the client
