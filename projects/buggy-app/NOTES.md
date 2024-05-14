@@ -667,3 +667,28 @@ Now let's move onto the `auth` folder
 -`c.entries.Store(k, Entry[Value]{ value: v, })`  
 -`Store` is from `sync.Map` "Store sets the value for a key"
 -create a new `Entry[Value]` with the given value `v` and store it in the `entries` map with the given `Key` `k`.
+
+## `auth/service/auth.proto`
+
+`package service`
+-the package name for the generated grpc Go code
+
+`service Auth {}`
+-the `Auth` service definition  
+-`rpc Verify(VerifyRequest) returns (VerifyResponse) {}`
+-an RPC method `Verify` that takes a `VerifyRequest` message as input and returns a `VerifyResponse` message
+-"Callers should deny access to resources unless the Result is ALLOW" ?? How can i verify this is happening ??
+
+`message VerifyRequest { string id = 1;  string password = 2; }`  
+-a message definition  
+-`string id = 1` a string field `id` with field number `1`  
+-`string password = 2` a string field `password` with field number `2`
+
+`message VerifyResponse { State state = 1; }`  
+-a message definition  
+-`State state = 1` a field `state` of type `State` with field number `1`
+
+-`enum State { DENY = 0; ALLOW = 1; }`  
+-a enumeration named `State`  
+-`DENY` with value `0`  
+-`ALLOW` with value `1`
