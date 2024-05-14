@@ -166,3 +166,44 @@ Q: why are some of these logging to the logger and some just to Printf ??
 
 -`w.Write(res)`  
 -write the body
+
+## `/api/api_auth.go`
+
+### `wrapAuth()`
+
+`func (as *Service) wrapAuth(client auth.Client, handler http.HandlerFunc) http.HandlerFunc {}`
+
+`wrapAuth` takes a handler function (likely to be the API endpoint)  
+and wraps it with an authentication check using an `AuthClient`
+If the authentication passes, it adds the authenticated user ID to the context  
+using the `authuserctx` package, and then calls the inner handler.  
+The ID can be retrieved later using the `FromAuthenticatedContext` function.
+
+-arguments:  
+-`client` `auth.Client`  
+-`handler` `http.HandlerFunc`
+
+`return func(w http.ResponseWriter, r *http.Request) {}`
+-it returns a function that is an `http.HandlerFunc` -`ctx, cancel := context.WithCancel(r.Context())`
+-what is `r.Context()` ?
+
+-`id, passwd, ok := r.BasicAuth()`
+-if not ok then return http error
+
+-`result, err := client.Verify(ctx, id, passwd)`  
+-use the auth client to check if this id/password combo is approved  
+-`client.Verify()` is coming from `/auth/client.go`  
+-if err then return http error
+
+-`if result.State != auth.StateAllow`  
+-unless we get an allow then deny  
+-`.State` is coming from `/auth/client.go`  
+-`auth.StateAllow` is coming from `/auth/client.go`
+
+-`ctx = authuserctx.NewAuthenticatedContext(ctx, id)`
+-add the ID to the context and call the inner handler  
+-`NewAuthenticatedContext` is coming from `/util/authuserctx`
+
+-`handler(w, r.WithContext(ctx))`
+-returns a reader with `ctx` from the line above^
+-returns a `handler` - i assume this is an implicit return?
