@@ -557,7 +557,7 @@ Now let's move onto the `auth` folder
 -`target string` target is for `grpc.DialContext`  
 -`opts ...grpc.DialOption` spread in a slice of `grpc.Dialoptions`
 
-returns:  
+-returns:  
 -`*GrpcClient` our own GrpcClient that other services uses to talk with the Auth service  
 -`error`
 
@@ -595,7 +595,75 @@ returns:
 -arguments:  
 -`ctx.Context` the context  
 -`id` the id for auth  
--`passwd` the password for auth  
+-`passwd` the password for auth
+
+-returns:  
+`*VerifyResult`  
+`error`
+
 -`return ac.result, nil`  
 -Return the mock verify result  
 -Use this in tests to Mock out the client
+
+## `/auth/cache/cache.go`
+
+### `type Key [16]byte`
+
+-defines the `Key` type as an array of 16 bytes
+
+### `type Entry[Value any] struct`
+
+-`value` `*Value`  
+-defines a generic `Entry` struct that holds a pointer to a value of the specified type `Value`
+
+### `type Cache[Value any] struct`
+
+-`entries` `*sync.Map`  
+-defines a generic `Cache` struct that holds a pointer to a `sync.Map` containing entries of the specified type `Value`
+
+### `func New[Value any]() *Cache[Value]`
+
+-returns:  
+-`*Cache[Value]`
+
+-`return &Cache[Value]{ entries: &sync.Map{}, }`  
+-constructor function that creates and returns a new `Cache` instance with an empty `sync.Map` for entries
+
+### `func (c *Cache[V]) Key(k string) Key`
+
+-arguments:  
+-`k string` the key to hash
+
+-returns:  
+-`Key   type Key [16]byte`
+
+-`return md5.Sum([]byte(k))`
+-method takes a string `k` and returns its MD5 hash as a `Key`
+
+### `func (c *Cache[Value]) Get(k Key) (*Value, bool)`
+
+-arguments:  
+-`k string` the key to get
+
+-returns:  
+-`*Value` the value of the key  
+-`bool` if the entry was found
+
+-`if value, ok := c.entries.Load(k); ok`  
+-attempt to load the entry with the given `Key` from the `entries` map -`Load` is from `sync.Map` "Load returns the value stored in the map for a key, or nil if no value is present. The ok result indicates whether value was found in the map."
+
+-`if entry, ok := value.(Entry[Value]); ok`  
+-if the entry exists and can be type-asserted to `Entry[Value]`, return the value and `true`
+
+-`return nil, false`  
+-if the entry doesn't exist or cannot be type-asserted, return `nil` and `false`
+
+### `func (c *Cache[Value]) Put(k Key, v *Value)`
+
+-arguments:  
+-`k Key`  
+-`v *Value`
+
+-`c.entries.Store(k, Entry[Value]{ value: v, })`  
+-`Store` is from `sync.Map` "Store sets the value for a key"
+-create a new `Entry[Value]` with the given value `v` and store it in the `entries` map with the given `Key` `k`.
