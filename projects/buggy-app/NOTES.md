@@ -59,6 +59,26 @@ and takes in
 
 -`as.authClient` is SET at this point from the client (created just above)
 
-- `mux` is created by `as.Handler()`  
-  mux is an abbreviation of multiplex  
-  which is the root handler that works out where to route the various requests
+-`mux` is created by `as.Handler()`  
+mux is an abbreviation of multiplex  
+which is the root handler that works out where to route the various requests
+
+-`server` is created from a new `http.Server{}` taking  
+-`Addr: listen` (which is the `listen` port created above)  
+-`Handler: mux` (which is the `mux` created above)
+
+-`runErr` created
+
+-`wg` wait group created  
+-add 1 to the wg
+-spawn a new goroutine (but why do we do this in a new goroutine ??)  
+-`defer wg.Done()` -`server.ListenAndServe()` runs the server
+
+-`as.config.Log.Printf` we write a message to the logger
+
+-`<-ctx.Done()` if we receive the context Done
+
+-`server.Shutdown(context.TODO())` (is it ok to use .TODO() here ??)
+
+-`wg.Wait()` wait for the waitgroups to finish (the single goroutine that is running the server)  
+-`return runErr` if any
