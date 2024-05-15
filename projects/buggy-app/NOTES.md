@@ -2,59 +2,65 @@
 
 ---
 
+I will start here as it is the entry point of the API Service
+
 ## `/cmd/api/main_cmd.go`
 
-I will start here as the entry point of the API
+-`port` the API Service will listen on (from )
 
--get the port it will listen on
-
+-`passwd, err`  
 -read the postgres password from the env or a file
 
+`ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)`  
 -setup a context that can be sent a signal to graceful shutdown
 
+`as := auth.New()`
 -make a new api service
-passing it:
--port
--a logger
--a url "auth:80" ?? (weird?)
--a database url (using the password above) ("postgres://postgres:%s@postgres:5432/app", passwd)
+-passing ita an `auth.Config`  
+-`Port:        *port,` port for the API  
+-`DatabaseUrl: fmt.Sprintf("postgres://postgres:%s@postgres:5432/app", passwd),` Database URL -`Log:         log.Default(),` A Logger
 
--run the api service passing it the context
+`if err := as.Run(ctx);`  
+-run the API Service passing it the context
 
--if there is an error then fatal
+`err != nil { log.Fatal(err) }`  
+-if there is an error running the API Service then fatal
 
 ---
+
+And now move to where `Run()` from above comes from...
 
 ## `/api/api.go`
 
 ### `DbClient` `interface`
 
 -with 3 methods  
--QueryRow  
--Query  
--Close
+-`QueryRow(context.Context, string, ...interface{}) pgx.Row` used to get an individual note  
+-`Query(context.Context, string, ...interface{}) (pgx.Rows, error)` used to get many notes  
+-`Close`
+-this is the `pool` on the `Service` struct
 
 ### `Config` `struct`
 
--this is what was used above in `/cmd/api/main_cmd.go`
--Port  
--Log  
--AuthServiceUrl  
--DatabaseUrl
+-this is what was used above in `/cmd/api/main_cmd.go` -`Port`  
+-`Log`  
+-`AuthServiceUrl`  
+-`DatabaseUrl`
+-this is the `config` on the `Service` struct
 
 ### `Service` `struct`
 
--config (Config)  
--authClient (auth.Client)  
--pool (DbClient)
+-`config` `Config`  
+-`authClient` `auth.Client` an interface (with `Close()` and `Verify()`) coming from `/auth/client.go`  
+-`pool` `DbClient`
 
 ### `New` Service constructor
 
-returns a new Service  
+returns a new `Service`  
 and takes in  
--config  
--but where is the authClient (auth.Client) ??  
--where is the pool (DbClient) ??
+-`config`  
+-where is the `authClient` `auth.Client` provided ?? (answer it is directly set in `Run()`)  
+-where is the `pool` `DbClient` provided ?? (answer it is directly set in `Run()`)
 
 ### `Run()`
 
@@ -62,7 +68,7 @@ and takes in
 
 `listen` gets the port form the `config.Port`
 
-pgsql `pool` created, passed:  
+pgsql `pool` create and passed:  
 `context`
 `as.config.AuthServiceUrl` (API Service config)
 
@@ -73,8 +79,8 @@ pgsql `pool` created, passed:
 `as.authClient` is SET at this point from the client (created just above)
 
 `mux` is created by `as.Handler()`  
-mux is an abbreviation of multiplex  
-which is the root handler that works out where to route the various requests
+-mux is an abbreviation of multiplex  
+-which is the root handler that works out where to route the various requests
 
 `server` is created from a new `http.Server{}` taking  
 `Addr: listen` (which is the `listen` port created above)  
@@ -83,17 +89,17 @@ which is the root handler that works out where to route the various requests
 `runErr` created
 
 `wg` wait group created  
--add 1 to the wg
--spawn a new goroutine (but why do we do this in a new goroutine ??)  
+-increment the wait group
+-spawn a new goroutine (but why do we do this in a new goroutine ?? is it blocking ??)  
 `defer wg.Done()` -`server.ListenAndServe()` runs the server
 
 `as.config.Log.Printf` we write a message to the logger
 
-`<-ctx.Done()` if we receive the context Done
+`<-ctx.Done()` if we receive the context Done (where is this Done coming from ?? `pool` and auth `client` both have a context ??)
 
-`server.Shutdown(context.TODO())` (is it ok to use .TODO() here ??)
+`server.Shutdown(context.TODO())` (is it ok to use .TODO() here ??) ?? (BUG)
 
-`wg.Wait()` wait for the waitgroups to finish (the single goroutine that is running the server)  
+`wg.Wait()` wait for the waitgroup to finish (the single goroutine that is running the server)  
 `return runErr` if any
 
 ### `Handler()`
@@ -101,18 +107,18 @@ which is the root handler that works out where to route the various requests
 `func (as *Service) Handler() http.Handler {}`
 
 `mux := new(http.ServeMux)`  
-this is what determines how to handle the routes  
+-this is what determines how to handle the routes  
 "`ServeMux` is an HTTP request multiplexer. It matches the URL of each incoming request against a list of registered patterns and calls the handler for the pattern that most closely matches the URL."
 
 `mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))`  
-/1/my/note/ uses `handleMyNotById` handler
+-/1/my/note/ uses `handleMyNotById` handler
 
 `mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))`
-/1/my/notes.json uses `handleMyNotes` handler
+-/1/my/notes.json uses `handleMyNotes` handler
 
-both are wrapped in `as.wrapAuth` (which is like a middleware)
+-both are wrapped in `as.wrapAuth` (which is like a middleware)
 
-`return httplogger.HTTPLogger(mux)` why are we wrapping the `mux` in this ??
+`return httplogger.HTTPLogger(mux)` why are we wrapping the `mux` in this logger ?? I don't understand ?? So that it logs all requests presumably ??
 
 ### `handleMyNotes()`
 
@@ -152,7 +158,7 @@ Q: why are some of these logging to the logger and some just to Printf ??
 -"Context returns the request's context."
 
 `_, ok := authuserctx.FromAuthenticatedContext(ctx)`  
--why this time do we not use `owner` ?? [BUG] (like the above)  
+-why this time do we not use `owner` ?? (like the above) (BUG) ??  
 -if not ok return http error
 
 `id := strings.Replace(path.Base(r.URL.Path), ".json", "", 1)`  
@@ -162,8 +168,8 @@ Q: why are some of these logging to the logger and some just to Printf ??
 
 `note, err := model.GetNoteById(ctx, as.pool, id)`  
 -use the "model" layer to get a list of the owner's notes  
--how do we get the owner here?
--and why are we allowing to get all the owner's notes? can everyone access this ?? look at the auth after this ??
+-how do we get the owner here?  
+-and why are we allowing to get all the owner's notes? can everyone access this ?? look at the auth after this ??  
 -if err then error (failed to get the note)
 
 `response := struct`  
@@ -173,11 +179,13 @@ Q: why are some of these logging to the logger and some just to Printf ??
 -again we are passing an empty string into the `util.MarshalWithIdent`... why ?? [BUG] ??
 
 `w.Header().Add("Content-Type", "text/json")`
--write the header
+-write the header  
 -this should be `application/json` !! [BUG]
 
 -`w.Write(res)`  
 -write the body
+
+---
 
 ## `/api/api_auth.go`
 
@@ -221,6 +229,8 @@ The ID can be retrieved later using the `FromAuthenticatedContext` function.
 -returns a reader with `ctx` from the line above^
 -returns a `handler` - i assume this is an implicit return?
 
+---
+
 ## `/api/model/notes.go`
 
 ### `type` `Note` `struct`
@@ -244,12 +254,17 @@ The ID can be retrieved later using the `FromAuthenticatedContext` function.
 -`Query()`  
 -`QueryRow`
 
-### `func GetNotesForOwner(ctx context.Context, conn dbConn, owner string) (Notes, error) {}`
+### `GetNotesForOwner()`
+
+`func GetNotesForOwner(ctx context.Context, conn dbConn, owner string) (Notes, error) {}`
 
 -arguments:  
 -`ctx` `context.Context`  
 -`conn` `dbConn`  
 -`owner` `string`
+
+-returns:  
+-`Notes, error`
 
 `if owner == ""`  
 -the query needs an owner
@@ -265,7 +280,9 @@ The ID can be retrieved later using the `FromAuthenticatedContext` function.
 
 -return `notes, nil`
 
-### `func GetNoteById(ctx context.Context, conn dbConn, id string) (Note, error) {}`
+### `GetNoteById()`
+
+`func GetNoteById(ctx context.Context, conn dbConn, id string) (Note, error) {}`
 
 -arguments:  
 -`ctx` `context.Context`  
@@ -273,7 +290,7 @@ The ID can be retrieved later using the `FromAuthenticatedContext` function.
 -`id` `string`
 
 `if id == ""`  
--the query needs an id
+-the query needs an id  
 -return an empty note ?? why are we doing this ?? we should return `nil` ?? [BUG]
 
 `row := conn.QueryRow(ctx, "SELECT id, owner, content, created, modified FROM public.note WHERE id = $1", id)`  
@@ -288,7 +305,9 @@ The ID can be retrieved later using the `FromAuthenticatedContext` function.
 `return note, nil`  
 -return the note and no error
 
-### `func extractTags(input string) []string {}`
+### `extractTags()`
+
+`func extractTags(input string) []string {}`
 
 -arguments:  
 -`input` `string`
@@ -352,7 +371,9 @@ Now let's move onto the `auth` folder
 -`grpcService` `*grpcAuthService`  
 -this is the auth service
 
-### `func New(config Config) *Service {}`
+### `New()` (Service)
+
+`func New(config Config) *Service {}`
 
 -the new service constructor
 
@@ -427,7 +448,9 @@ Now let's move onto the `auth` folder
 
 - the type definition for a user in the database
 
-### `func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*pb.VerifyResponse, error) {}`
+### `Verify()` (grpcAuthService)
+
+`func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*pb.VerifyResponse, error) {}`
 
 -arguments: -`ctx context.Context` a context  
 -`in *pb.VerifyRequest` a pointer to a protocol buffer verify request
@@ -497,7 +520,9 @@ Now let's move onto the `auth` folder
 -`aC` `pb.AuthClient` protocol buffer auth client  
 -`cache` `*cache.Cache[VerifyResult]` we create a cache for the grpc client to use
 
-### `func NewClient(ctx context.Context, target string) (*GrpcClient, error)`
+### `NewClient()`
+
+`func NewClient(ctx context.Context, target string) (*GrpcClient, error)`
 
 -Create a new Client for the auth service
 
@@ -508,7 +533,9 @@ Now let's move onto the `auth` folder
 -returns:  
 `return newClientWithOpts(ctx, target, defaultOpts()...)`
 
-### `func (c *GrpcClient) Close() error`
+### `Close()` (GrpcClient)
+
+`func (c *GrpcClient) Close() error`
 
 -a method on the GrpcClient (that satisfies the Client interface)  
 -`c.cancel()`  
@@ -517,7 +544,9 @@ Now let's move onto the `auth` folder
 -according to grpc.DialContext docs, we still need to call `conn.Close()`  
 -Call `Close()` to release resources associated with this Client
 
-### `func (c *GrpcClient) Verify(ctx context.Context, id, passwd string) (*VerifyResult, error)`
+### `Verify()` (GrpcClient)
+
+`func (c *GrpcClient) Verify(ctx context.Context, id, passwd string) (*VerifyResult, error)`
 
 -a method on the GrpcClient (that satisfies the Client interface)
 -arguments:  
@@ -540,7 +569,9 @@ Now let's move onto the `auth` folder
 -`return vR, nil`
 -return the verify result
 
-### `func defaultOpts() []grpc.DialOption`
+### `defaultOpts()` (grpc Dial Options)
+
+`func defaultOpts() []grpc.DialOption`
 
 -returns:  
 -`[]grpc.DialOption` from grpc "DialOption configures how we set up the connection"  
@@ -578,19 +609,25 @@ Now let's move onto the `auth` folder
 -This is the struct for the mock client  
 -`result` `*VerifyResult`
 
-### `func NewMockClient(result *VerifyResult) *MockClient`
+### `NewMockClient` (for tests)
+
+`func NewMockClient(result *VerifyResult) *MockClient`
 
 -arguments:  
 -`result *VerifyResult`  
--`return &MockClient{	result: result }`  
+-`return &MockClient{ result: result }`  
 -create a new mock client with the given verify result
 
-### `func (ac *MockClient) Close() error`
+### `Close` (on MockClient for tests)
+
+`func (ac *MockClient) Close() error`
 
 -`return nil`  
 -this is a "no-op" for the mock client
 
-### `func (ac *MockClient) Verify(ctx context.Context, id, passwd string) (*VerifyResult, error)`
+### `Verify` (on MockClient for tests)
+
+`func (ac *MockClient) Verify(ctx context.Context, id, passwd string) (*VerifyResult, error)`
 
 -arguments:  
 -`ctx.Context` the context  
@@ -621,7 +658,9 @@ Now let's move onto the `auth` folder
 -`entries` `*sync.Map`  
 -defines a generic `Cache` struct that holds a pointer to a `sync.Map` containing entries of the specified type `Value`
 
-### `func New[Value any]() *Cache[Value]`
+### New() (create a new Cache)
+
+`func New[Value any]() *Cache[Value]`
 
 -returns:  
 -`*Cache[Value]`
@@ -629,7 +668,9 @@ Now let's move onto the `auth` folder
 -`return &Cache[Value]{ entries: &sync.Map{}, }`  
 -constructor function that creates and returns a new `Cache` instance with an empty `sync.Map` for entries
 
-### `func (c *Cache[V]) Key(k string) Key`
+### Key() (Cache) (convert the key to a hashed key)
+
+`func (c *Cache[V]) Key(k string) Key`
 
 -arguments:  
 -`k string` the key to hash
@@ -640,7 +681,9 @@ Now let's move onto the `auth` folder
 -`return md5.Sum([]byte(k))`
 -method takes a string `k` and returns its MD5 hash as a `Key`
 
-### `func (c *Cache[Value]) Get(k Key) (*Value, bool)`
+### Get() (Cache) (lookup the key, return the entry and found boolean)
+
+`func (c *Cache[Value]) Get(k Key) (*Value, bool)`
 
 -arguments:  
 -`k string` the key to get
@@ -658,7 +701,9 @@ Now let's move onto the `auth` folder
 -`return nil, false`  
 -if the entry doesn't exist or cannot be type-asserted, return `nil` and `false`
 
-### `func (c *Cache[Value]) Put(k Key, v *Value)`
+### Put() (Cache) (create or update a cache key)
+
+`func (c *Cache[Value]) Put(k Key, v *Value)`
 
 -arguments:  
 -`k Key`  
@@ -668,7 +713,7 @@ Now let's move onto the `auth` folder
 -`Store` is from `sync.Map` "Store sets the value for a key"
 -create a new `Entry[Value]` with the given value `v` and store it in the `entries` map with the given `Key` `k`.
 
-## `auth/service/auth.proto`
+## `auth/service/auth.proto` (VerifyRequest (id and password) -> VerifyResponse (State Deny/Allow))
 
 `package service`
 -the package name for the generated grpc Go code
@@ -692,6 +737,62 @@ Now let's move onto the `auth` folder
 -a enumeration named `State`  
 -`DENY` with value `0`  
 -`ALLOW` with value `1`
+
+---
+
+## `/util/authuserctx/authctx.go`
+
+-this package basically handles adding and retrieving a user id to/from a context
+
+`type key int`
+-custom key type as an integer
+
+`const authenticatedIdKey key = 0`
+-what is a "user identifier" in this case ??  
+-"this constant serves as the key for storing and retrieving the authenticated user's ID in the context"
+
+-this is done so we can lookup key 0 which relates to the authenticatedIdKey  
+-if for example we had other context values we need some way to make sure they are all separate, so this is why we give it a fixed key  
+-if we wanted to add another value, we could use const someOtherKey = 1
+
+## `NewAuthenticatedContext()`
+
+`func NewAuthenticatedContext(ctx context.Context, id string) context.Context {}`
+
+-arguments:  
+`ctx context.Context` the context  
+`id string` the user id
+
+-returns:  
+`context.Context` a context
+
+`return context.WithValue(ctx, authenticatedIdKey, id)`
+-returns a context (that has a value that can be accessed by other parts of the app)
+-the key is `authenticatedIdKey` (the constant from above)  
+-the value is `id` `string`
+
+-this function is for creating a new context with the user id added to it
+
+## `FromAuthenticatedContext()`
+
+`func FromAuthenticatedContext(ctx context.Context) (string, bool) {}`
+
+-arguments: -`ctx context.Context`
+
+-returns:
+`string` the user id  
+`bool` successful or not in getting the user id
+
+`id, ok := ctx.Value(authenticatedIdKey).(string)`  
+-get the value of the `authenticatedIdKey`  
+-type assert the value to a `string`
+
+`return id, ok`  
+-return the user id (string) and ok (success) (boolean)  
+-user user id string and true if found  
+-empty string and false if not found
+
+-this function is for getting the user id from a context
 
 ---
 
