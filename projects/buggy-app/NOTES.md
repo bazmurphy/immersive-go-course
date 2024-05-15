@@ -862,89 +862,202 @@ Now let's move onto the `auth` folder
 
 ---
 
-Run: `make migrate`
+I want to look at the container/build stuff now...
 
-Then Run: `make run build`
+## `Dockerfile`
 
-Connect to the postgresql docker container
-Then connect to postgresql and specifically the `app` database
-Then query the `user` table to see the users and their `id` and `password` and `status`
+`# This Dockerfile contains all code for the entire repository.`  
+`# To run a different executable, supply a different command.`  
+`# To avoid the "wait for Postgres" feature, supply a different entrypoint.`
 
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ docker exec -it buggy-app-postgres-1 bash
-root@03b211ceff98:/# psql -U postgres -d app
-psql (16.3 (Debian 16.3-1.pgdg120+1))
-Type "help" for help.
+`WORKDIR /app`  
+working directory on the container is `/app`
 
-app=# \dt
-               List of relations
- Schema |       Name        | Type  |  Owner
---------+-------------------+-------+----------
- public | note              | table | postgres
- public | schema_migrations | table | postgres
- public | user              | table | postgres
-(3 rows)
+copy across the `go.mod` and `go.sum` files
 
-app=# SELECT * from "user";
-    id    |                           password                           |          created           |          modified          |  status
-----------+--------------------------------------------------------------+----------------------------+----------------------------+----------
- usIgrmzp | $2y$10$O8VPlcAPa/iKHrkdyzN1cu7TvF5Goq6nRjSdaz9uXm1zPcVgRxQnK | 2024-05-14 17:48:42.571513 | 2024-05-14 17:48:42.579355 | inactive
- jBfa2Ww0 | $2y$10$wd5QGX9NNg6Kz1EKqn5pn.Ee6tiLem0pmjqF.tVeSPPsmG9PW9vUW | 2024-05-14 17:48:42.571513 | 2024-05-14 17:48:42.579355 | active
-(2 rows)
+run a `go mod download`
 
-app=#
-```
+copy across the various folders (into `/app`)  
+`api`  
+`auth`  
+`cmd`  
+`migrations`  
+`util`
 
-The first user is `usIgrmzp` is `inactive`
-The second user is `jBfa2Ww0` is `active`
+make the `/out` directory
 
-From `/migrations/app/000002_create_dummy_users.up.sql`
-We can see
-the first user has `password: banana`
-the second user has `password: apple`
+build the binaries and put them in `/out`  
+i assume `./...` is recursively? (like `go test`)
 
-So let's convert their user:password combinations into base64
+copy `bin` to `/bin`  
+(these contain the scripts `docker-entrypoint.sh` and `wait-for-it.sh`)
 
-`usIgrmzp:banana`
+copy `migrations` to `/migrations`
 
-`jBfa2Ww0:apple`
+expose the container port `80`
 
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ echo -n "usIgrmzp:banana" | base64
-dXNJZ3JtenA6YmFuYW5h
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ echo -n "jBfa2Ww0:apple" | base64
-akJmYTJXdzA6YXBwbGU=
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
-```
+"The entrypoint will, by default, wait for postgres to become available at `postgres://postgres:5432` before running the command that follows"
 
-Now we can use these to send the `curl` requests
+`ENTRYPOINT [ "/bin/docker-entrypoint.sh" ]`
 
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic akJmYTJXdzA6YXBwbGU=' -i
-HTTP/1.1 200 OK
-Content-Type: text/json
-Date: Tue, 14 May 2024 18:04:13 GMT
-Content-Length: 12
+this entrypoint defines what runs when the container starts
 
-{"notes":[]}baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
-```
+---
 
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projectscurl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic dXNJZ3JtenA6YmFuYW5h' -i
-HTTP/1.1 200 OK
-Content-Type: text/json
-Date: Tue, 14 May 2024 18:04:44 GMT
-Content-Length: 12
+## `/bin/docker-entrypoint.sh`
 
-{"notes":[]}baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
-```
+`set -e`
+"this line enables the "exit immediately" option for the shell. If any command in the script fails (returns a non-zero exit code), the script will immediately abort execution. This helps in catching and propagating errors."
 
-And check the logs
+`/bin/wait-for-it.sh postgres:5432 -t 60 --`
 
-```sh
-api-1       | 2024/05/14 18:04:13 HTTP - 172.18.0.1:49128 - - 14/May/2024:18:04:13 +0000 "GET /1/my/notes.json HTTP/1.1" 200 12 curl/8.5.0 55387753us
-api-1       | 2024/05/14 18:04:44 HTTP - 172.18.0.1:35190 - - 14/May/2024:18:04:44 +0000 "GET /1/my/notes.json HTTP/1.1" 200 12 curl/8.5.0 996173us
-```
+"this line executes the `wait-for-it.sh` script, which is a common utility script used to wait for a specific host and port to become available before proceeding. In this case, it waits for the `postgres` host on port `5432` to be accessible. The `-t 60` option specifies a timeout of `60` seconds, so if the `postgres` host is not available within that time, the script will abort. The `--` at the end is used to separate the options of `wait-for-it.sh` from the rest of the command."
 
-(BUG) `inactive` users should NOT be able to access their notes !!
-So I need to check the authorization logic
+`exec "$@"`
+
+"this line replaces the current shell process with the command specified by the arguments passed to the script. "$@" expands to all the arguments passed to the script. The exec command ensures that the specified command becomes the main process of the container, replacing the script itself."
+
+so the commands passed to the dockerfile (or docker compose, or the makefile running all of that)
+
+for example: `docker run someimage command1 command2 command2`
+
+the commands will be run via `"$@"` at the end of the script
+
+---
+
+## `docker-compose.yml`
+
+5 services: `postgres` `migrate` `auth` `api` `test`
+
+### `postgres`
+
+`image: postgres` get the official postgres image
+`restart: always` always restart
+`volumes:` mounts volumes to the container
+`/tmp/buggy-app-data` is mounted as the data storage volume
+`/volumes/secrets` is mounted as a read-only volume for the secrets
+`/volumes/init` is mounted as a read-only volume for the initialisation scripts
+`environment:` sets environment variables for the container
+`POSTGRES_PASSWORD_FILE=/run/secrets/postgres-passwd` this is the file containing the postgres password
+`POSTGRES_HOST=postgres` this sets the host name for the postgres service
+`ports` maps the container port 5432 to the host port 5432
+
+### `migrate`
+
+`build: .` builds the docker image using the Dockerfile
+`depends_on : postgres` it depends on the `postgres` service above
+`volumes:` mounts volumes to the container
+`/volumes/secrets` is mounted as a read-only volume for the secrets
+`environment:` sets environment variables for the container
+`POSTGRES_PASSWORD_FILE=/run/secrets/postgres-passwd` this is the file containing the postgres password
+`command: /out/migrate --path /migrations up` this is the command that runs when the container starts (it runs the database migrations)
+`profiles: ["migrate"]` this service is linked to the `migrate` `profile`
+
+### `auth`
+
+`build: .` builds the docker image using the Dockerfile
+`ports: 127.0.0.1:8080:80` maps the containers port `80` to the host's port 8080 (why do we need 127.0.0.1 ??)
+`depends_on: postgres` it depends on the `postgres` service above
+`volumes:` mounts volumes to the container
+`/volumes/secrets` is mounted as a read-only volume for the secrets
+`environment:` sets environment variables for the container
+`POSTGRES_PASSWORD_FILE=/run/secrets/postgres-passwd` this is the file containing the postgres password
+`command: /out/auth` this is the command that runs when the container starts (it runs the auth service)
+
+### `api`
+
+`build: .` builds the docker image using the Dockerfile
+`ports: 127.0.0.1:8090:80` maps the containers port `80` to the host's port 8080 (why do we need 127.0.0.1 ??)
+`depends_on:` it depends on the `postgres` and `auth` services above
+`- postgres`
+`- auth`
+`volumes:` mounts volumes to the container
+`/volumes/secrets` is mounted as a read-only volume for the secrets
+`environment:` sets environment variables for the container
+`POSTGRES_PASSWORD_FILE=/run/secrets/postgres-passwd` this is the file containing the postgres password
+`command: /out/auth` this is the command that runs when the container starts (it runs the api service)
+
+### `test`
+
+`build: .` builds the docker image using the Dockerfile
+`depends_on: postgres` it depends on the `postgres` service above
+`volumes:` mounts volumes to the container
+`/volumes/secrets` is mounted as a read-only volume for the secrets
+`command: go test /app/...` his is the command that runs when the container starts (it runs the tests)
+`environment:` sets environment variables for the container (why is this after command ??)
+`POSTGRES_PASSWORD_FILE=/run/secrets/postgres-passwd` this is the file containing the postgres password
+
+---
+
+## `Makefile`
+
+`.PHONY: protoc volumes volumes-reset test run`
+
+- this declares the targets that are not associated with file names. It helps avoid conflicts with files that might have the same name as the targets.
+
+`volumes/secrets/postgres-passwd:`
+
+- this target creates a random password for the Postgres database and stores it in the `volumes/secrets/postgres-passwd` file.
+- it first creates the `volumes/secrets` directory using `mkdir -p`.
+- then, it generates a random password using `openssl rand -hex 24`, removes any newline characters with `tr -d '\\n'`, and saves it to the `volumes/secrets/postgres-passwd` file.
+
+`volumes: volumes/secrets/postgres-passwd`
+
+- this target depends on the `volumes/secrets/postgres-passwd` target and creates the `/tmp/buggy-app-data` directory using `mkdir -p`.
+- the `/tmp/buggy-app-data` directory is used for storing the Postgres database data.
+
+`volumes-reset:`
+
+- this target is used to completely reset the database state by removing the `/tmp/buggy-app-data` directory using `rm -rf`.
+- it should be used with caution and not run while the containers are running.
+
+`protoc: auth/service/auth.proto`
+
+- this target compiles the `auth/service/auth.proto` protobuf file using the `protoc` command.
+- it generates Go code and gRPC code based on the protobuf definitions.
+
+`test: volumes`
+
+- this target runs the tests for the application.
+- it first builds the Go code using `go build ./...` to ensure that the code compiles.
+- it then builds the Docker containers for the test profile using `docker compose --profile test build`.
+- finally, it runs the tests using `docker compose run -T test`. The `-T` flag forces Docker not to allocate a TTY, which is important for pre-commit hooks.
+
+`build: volumes`
+
+- this target builds the application.
+- it first builds the Go code using `go build ./...` to ensure that the code compiles.
+- it then builds the Docker containers for the run profile using `docker compose --profile run build`.
+
+`migrate: volumes`
+
+- this target runs the database migrations.
+- it builds the Docker containers for the migrate profile using `docker compose --profile migrate build`.
+- it then runs the migrations using `docker compose run migrate`.
+
+`run:`
+
+- this target runs the application using `docker compose --profile run up`.
+
+`run-database:`
+
+- this target starts only the Postgres database container using `docker compose up`. (BUG ?? this is starting all the containers not just the database)
+
+`build-run: | build run`
+
+- this target first runs the `build` target and then the `run` target.
+- the `|` symbol is used to specify that `build` and `run` are order-only prerequisites, meaning they will be executed in the specified order.
+
+`migrate-local:`
+
+- this target runs the database migrations locally without using Docker.
+- it sets the `POSTGRES_PASSWORD_FILE` environment variable to `volumes/secrets/postgres-passwd`.
+- it then runs the `migrate` command using `go run ./cmd/migrate --hostport localhost:5432 --path migrations up`.
+
+`migrate-local-down:`
+
+- this target rolls back the database migrations locally without using Docker.
+- it sets the`POSTGRES_PASSWORD_FILE`environment variable to`volumes/secrets/postgres-passwd`.
+- it then runs the `migrate`command using`go run ./cmd/migrate --hostport localhost:5432 --path migrations down`.
+
+---
