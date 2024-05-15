@@ -658,7 +658,7 @@ Now let's move onto the `auth` folder
 -`entries` `*sync.Map`  
 -defines a generic `Cache` struct that holds a pointer to a `sync.Map` containing entries of the specified type `Value`
 
-### New() (create a new Cache)
+### `New()` (create a new Cache)
 
 `func New[Value any]() *Cache[Value]`
 
@@ -668,7 +668,7 @@ Now let's move onto the `auth` folder
 -`return &Cache[Value]{ entries: &sync.Map{}, }`  
 -constructor function that creates and returns a new `Cache` instance with an empty `sync.Map` for entries
 
-### Key() (Cache) (convert the key to a hashed key)
+### `Key()` (Cache) (convert the key to a hashed key)
 
 `func (c *Cache[V]) Key(k string) Key`
 
@@ -681,7 +681,7 @@ Now let's move onto the `auth` folder
 -`return md5.Sum([]byte(k))`
 -method takes a string `k` and returns its MD5 hash as a `Key`
 
-### Get() (Cache) (lookup the key, return the entry and found boolean)
+### `Get()` (Cache) (lookup the key, return the entry and found boolean)
 
 `func (c *Cache[Value]) Get(k Key) (*Value, bool)`
 
@@ -701,7 +701,7 @@ Now let's move onto the `auth` folder
 -`return nil, false`  
 -if the entry doesn't exist or cannot be type-asserted, return `nil` and `false`
 
-### Put() (Cache) (create or update a cache key)
+### `Put()` (Cache) (create or update a cache key)
 
 `func (c *Cache[Value]) Put(k Key, v *Value)`
 
@@ -793,6 +793,72 @@ Now let's move onto the `auth` folder
 -empty string and false if not found
 
 -this function is for getting the user id from a context
+
+---
+
+## `/util/basic_auth.go`
+
+### `BasicAuthValue()`
+
+`func BasicAuthValue(id, password string) string {}`
+
+- generates a Value for Basic Auth Header
+
+-arguments:  
+-`id string`  
+-`password string`
+
+-returns:  
+`string` base64 encoded id:password combination
+
+### `BasicAuthHeaderValue()`
+
+-generates a Basic Auth Header Value
+
+-arguments:  
+-`id string`  
+-`password string`
+
+-returns:  
+`string` Basic id:password(as base64)
+
+---
+
+## `/util/postgres.go`
+
+### `ReadPasswd()`
+
+`func ReadPasswd() (string, error) {}`
+
+-returns:
+`string` the postgresql database password
+`error` error if we can't get it
+
+-when we `os.ReadFile` we directly dump the err out, is that ok, shouldn't we add more information ??  
+-this `pwdFile` could be multi-line ??
+
+---
+
+## `/util/service.go`
+
+### `MarshalWithIndent()`
+
+`func MarshalWithIndent(data interface{}, indent string) ([]byte, error) {}`
+
+-arguments:  
+-`data interface{}` interface{} is `any`  
+-`indent string` the amount to indent by (restricted from 1 to 10)
+
+-try to convert the `indent` to an integer  
+-`if i, err := strconv.Atoi(indent)`  
+-a `err == nil` check is done  
+-but the `err` here is never handled ?? (BUG)
+
+-if `ident` is a number between 1 and 10 then it uses `json.MarshalIndent`  
+-otherwise it uses `json.Marshal`
+
+`return b, nil`
+-return the bytes slice, and nil err
 
 ---
 
