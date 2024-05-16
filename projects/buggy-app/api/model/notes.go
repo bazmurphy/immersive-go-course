@@ -70,6 +70,9 @@ func GetNoteById(ctx context.Context, conn dbConn, id string) (Note, error) {
 
 	err := row.Scan(&note.Id, &note.Owner, &note.Content, &note.Created, &note.Modified)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return note, fmt.Errorf("model: note not found")
+		}
 		return note, fmt.Errorf("model: query scan failed: %w", err)
 	}
 	note.Tags = extractTags(note.Content)

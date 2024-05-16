@@ -188,6 +188,56 @@ But User2 can still query their own note by ID
 
 ---
 
+## Querying non-existent Note IDs returns an Internal Server Error 500
+
+If you query a non-existent Note ID the API Service returns an Internal Server Error 500
+
+```sh
+baz@baz-pc:/media/baz/external/coding/immersive-go-course$ curl 127.0.0.1:8090/1/my/notes/abc.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+HTTP/1.1 500 Internal Server Error
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Thu, 16 May 2024 14:48:22 GMT
+Content-Length: 22
+
+Internal Server Error
+baz@baz-pc:/media/baz/external/coding/immersive-go-course$
+```
+
+It should instead return a 404 Not Found
+
+`/api/model/notes.go` Line 71
+
+```go
+	err := row.Scan(&note.Id, &note.Owner, &note.Content, &note.Created, &note.Modified)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return note, fmt.Errorf("model: note not found")
+		}
+		return note, fmt.Errorf("model: query scan failed: %w", err)
+	}
+```
+
+Added logic to handle a no rows error (which means the Note ID was not found)
+
+`/api/api.go` Line 117
+
+```go
+	if err != nil {
+		fmt.Println("DEBUG | handleMyNoteById | model.GetNoteById | err", err)
+		if err.Error() == "model: note not found" {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		} else {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		return
+	}
+```
+
+Added logic to handle that error to return a 404 not a 500
+
+---
+
 ## JSON Indentation
 
 `/api/api.go` Line 72
@@ -216,7 +266,7 @@ There is no error handling of the `strconv.Itoa()` only a `err == nil`
 
 (Not really a bug but `data interface{}` could be updated with `data any` (syntactic sugar))
 
---
+---
 
 ## Using the outdated Context package address
 
