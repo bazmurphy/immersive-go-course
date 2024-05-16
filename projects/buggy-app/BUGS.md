@@ -480,6 +480,8 @@ run-database:
     docker compose up postgres
 ```
 
+I will adjust it to this^
+
 ---
 
 ## `docker-compose.yml`
