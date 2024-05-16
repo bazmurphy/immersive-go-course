@@ -348,7 +348,7 @@ baz@baz-pc:/buggy-app$
 Check the database to see if they were all created successfully
 
 ```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ docker exec -it buggy-app-postgres-1 bash
+baz@baz-pc:/buggy-app$ docker exec -it buggy-app-postgres-1 bash
 root@ad9b1da1b77f:/# psql -U postgres -d app
 psql (16.3 (Debian 16.3-1.pgdg120+1))
 Type "help" for help.
@@ -375,6 +375,18 @@ app=# SELECT * FROM "note";
 
 app=#
 ```
+
+User1 Note1 ID: `fLLJ1DeX`
+
+User1 Note2 ID: `SI-brU7V`
+
+User1 Note3 ID: `S-opG2sL`
+
+User2 Note1 ID: `lxUr6TWQ`
+
+User2 Note2 ID: `bxuYPp0r`
+
+User2 Note3 ID: `PZU8GVDj`
 
 ## All Possible Requests
 
@@ -408,7 +420,7 @@ baz@baz-pc:/buggy-app$
 `curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
 
 ```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
 HTTP/1.1 200 OK
 Content-Type: text/json
 Date: Thu, 16 May 2024 12:09:28 GMT
@@ -423,7 +435,7 @@ baz@baz-pc:/buggy-app$
 `curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
 
 ```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
 X-Content-Type-Options: nosniff
@@ -440,7 +452,7 @@ Content-Length: 19
 `curl 127.0.0.1:8090/1/my/notes/SI-brU7V.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
 
 ```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes/SI-brU7V.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/SI-brU7V.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
 X-Content-Type-Options: nosniff
@@ -457,7 +469,7 @@ Content-Length: 19
 `curl 127.0.0.1:8090/1/my/notes/S-opG2sL.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
 
 ```
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes/S-opG2sL.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/S-opG2sL.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
 X-Content-Type-Options: nosniff
@@ -474,7 +486,7 @@ Content-Length: 19
 `curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
 
 ```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
 X-Content-Type-Options: nosniff
@@ -491,7 +503,7 @@ Content-Length: 19
 `curl 127.0.0.1:8090/1/my/notes/bxuYPp0r.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
 
 ```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes/bxuYPp0r.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/bxuYPp0r.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
 X-Content-Type-Options: nosniff
@@ -508,7 +520,7 @@ Content-Length: 19
 `curl 127.0.0.1:8090/1/my/notes/PZU8GVDj.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
 
 ```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes/PZU8GVDj.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/PZU8GVDj.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
 HTTP/1.1 404 Not Found
 Content-Type: text/plain; charset=utf-8
 X-Content-Type-Options: nosniff
@@ -519,5 +531,107 @@ Content-Length: 19
 ```
 
 (BUG) it should retrieve the note3 owned by user2
+
+---
+
+(!!!) After fixing the bug above which was a `/notes` routing issue see `BUGS.md` `## Individual Note Route Error`
+
+Try to request notes which are NOT the authenticated users
+
+### User1 request for User2 note1
+
+`curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 12:46:32 GMT
+Content-Length: 172
+
+{"note":{"id":"lxUr6TWQ","owner":"3NjqW1xx","content":"user2 note1 with 0 tags","created":"2024-05-16T11:56:43.144587Z","modified":"2024-05-16T11:56:43.144587Z","tags":[]}}
+```
+
+(BUG) User1 can see User2 note1 - this should NOT be allowed
+
+### User1 request for User2 note2
+
+`curl 127.0.0.1:8090/1/my/notes/bxuYPp0r.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/bxuYPp0r.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 12:47:44 GMT
+Content-Length: 225
+
+{"note":{"id":"bxuYPp0r","owner":"3NjqW1xx","content":"user2 note2 with 2 tags #anothertag1 #anothertag2","created":"2024-05-16T11:56:52.244208Z","modified":"2024-05-16T11:56:52.244208Z","tags":["anothertag1","anothertag2"]}}baz@baz-pc:/buggy-app$
+```
+
+(BUG) User1 can see User2 note2 - this should NOT be allowed
+
+### User1 request for User2 note3
+
+`curl 127.0.0.1:8090/1/my/notes/PZU8GVDj.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/PZU8GVDj.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 12:48:44 GMT
+Content-Length: 197
+
+{"note":{"id":"PZU8GVDj","owner":"3NjqW1xx","content":"user2 note3 with 1 tag #anothertag1","created":"2024-05-16T11:56:58.230549Z","modified":"2024-05-16T11:56:58.230549Z","tags":["anothertag1"]}}
+```
+
+(BUG) User1 can see User2 note3 - this should NOT be allowed
+
+### User2 request for User1 note1
+
+`curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 12:50:48 GMT
+Content-Length: 213
+
+{"note":{"id":"fLLJ1DeX","owner":"ncFWbLZk","content":"user1 note1 with 2 tags #sometag1 #sometag2","created":"2024-05-16T11:56:20.510991Z","modified":"2024-05-16T11:56:20.510991Z","tags":["sometag1","sometag2"]}}
+```
+
+(BUG) User2 can see User1 note1 - this should NOT be allowed
+
+### User2 request for User1 note2
+
+`curl 127.0.0.1:8090/1/my/notes/SI-brU7V.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/SI-brU7V.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 12:51:29 GMT
+Content-Length: 191
+
+{"note":{"id":"SI-brU7V","owner":"ncFWbLZk","content":"user1 note2 with 1 tag #sometag1","created":"2024-05-16T11:56:26.537306Z","modified":"2024-05-16T11:56:26.537306Z","tags":["sometag1"]}}
+```
+
+(BUG) User2 can see User1 note2 - this should NOT be allowed
+
+### User2 request for User1 note3
+
+`curl 127.0.0.1:8090/1/my/notes/S-opG2sL.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/S-opG2sL.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 12:51:42 GMT
+Content-Length: 172
+
+{"note":{"id":"S-opG2sL","owner":"ncFWbLZk","content":"user1 note3 with 0 tags","created":"2024-05-16T11:56:35.532484Z","modified":"2024-05-16T11:56:35.532484Z","tags":[]}}
+```
+
+(BUG) User2 can see User1 note3 - this should NOT be allowed
 
 ---

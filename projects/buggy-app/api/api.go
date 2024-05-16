@@ -84,27 +84,34 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// Get the authenticated user from the context -- this will have been written earlier
-	_, ok := authuserctx.FromAuthenticatedContext(ctx)
+	userId, ok := authuserctx.FromAuthenticatedContext(ctx)
 	if !ok {
 		as.config.Log.Printf("api: route handler reached with invalid auth context")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	}
 
+	log.Println("DEBUG | userId:", userId)
+
 	// The URL.Path will be something like /1/my/notes/abc123.json.
 	// path.Base strips everything but "abc123.json". We then Replace out the ".json" to give us
 	// just the ID.
-	id := strings.Replace(path.Base(r.URL.Path), ".json", "", 1)
-	if id == "" {
+	noteId := strings.Replace(path.Base(r.URL.Path), ".json", "", 1)
+
+	log.Println("DEBUG | noteId:", noteId)
+
+	if noteId == "" {
 		fmt.Printf("api: no ID supplied: url path %v\n", r.URL.Path)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
 
 	// Use the "model" layer to get a list of the owner's notes
-	note, err := model.GetNoteById(ctx, as.pool, id)
+	note, err := model.GetNoteById(ctx, as.pool, noteId)
 	if err != nil {
 		fmt.Printf("api: GetNoteById failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
+
+	log.Println("DEBUG | note:", note)
 
 	response := struct {
 		Note model.Note `json:"note"`
@@ -128,7 +135,9 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 // rather than running the whole server.
 func (as *Service) Handler() http.Handler {
 	mux := new(http.ServeMux)
-	mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	// [BUG]
+	// mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes/", as.wrapAuth(as.authClient, as.handleMyNoteById))
 	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
 	return httplogger.HTTPLogger(mux)
 }

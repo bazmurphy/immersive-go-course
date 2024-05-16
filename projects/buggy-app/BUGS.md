@@ -293,6 +293,43 @@ We could use a `.dockerignore` file to make sure anything we don't want is left 
 
 ---
 
+## Individual Note Route Error
+
+`/api/api.go`
+
+The individual `note` route is incorrect
+
+In the README it says `/1/my/notes/:id.json`
+
+But in the `Handler()` Line 136 it is `/1/my/note/`
+
+```go
+func (as *Service) Handler() http.Handler {
+	mux := new(http.ServeMux)
+	mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
+	return httplogger.HTTPLogger(mux)
+}
+```
+
+So we need to add an `s` to `/1/my/note/`
+
+```go
+func (as *Service) Handler() http.Handler {
+	mux := new(http.ServeMux)
+	// mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
+	return httplogger.HTTPLogger(mux)
+}
+```
+
+And now it is resolved.
+
+---
+
+---
+
 ## More Hints
 
 1. Try out as a User: Work out if when logged in as a one user you can see the notes of the other user
