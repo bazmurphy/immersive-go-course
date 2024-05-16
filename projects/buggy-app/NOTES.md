@@ -6,7 +6,7 @@ I will start here as it is the entry point of the API Service
 
 ## `/cmd/api/main_cmd.go`
 
--`port` the API Service will listen on (from )
+-`port` the API Service will listen on (from)
 
 -`passwd, err`  
 -read the postgres password from the env or a file
