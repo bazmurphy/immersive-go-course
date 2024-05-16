@@ -128,10 +128,20 @@ func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*p
 		}, nil
 	}
 
+	// [BUG]
+	// add logic to prevent "inactive" users from accessing any notes (even their own)
+	log.Printf("DEBUG | id %s | password %s | status %s\n", row.id, row.password, row.status)
+	if row.status == "inactive" {
+		return &pb.VerifyResponse{
+			State: pb.State_DENY,
+		}, nil
+	}
+
 	// bcrypt require us to compare the input to the hash directly
 	// https://auth0.com/blog/hashing-in-action-understanding-bcrypt/
 	err = bcrypt.CompareHashAndPassword([]byte(row.password), []byte(in.Password))
 	if err != nil {
+		log.Printf("DEBUG | bycrpt.ComparehashAndPassword err: %v\n", err)
 		// Mismatched hash and password is OK, but other errors need logging
 		if err != bcrypt.ErrMismatchedHashAndPassword {
 			log.Printf("verify: compare error: %v\n", err)
