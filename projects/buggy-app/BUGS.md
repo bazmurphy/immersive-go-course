@@ -248,11 +248,70 @@ Added logic to handle that error to return a 404 not a 500
 
 No `ident` string value is ever passed into the `MarshalWithIndent` ?
 
-We need to get this from the client somehow
-
 It expects a `string` (optimally `"1"` to `"10"` that it can convert to an integer)
 
-`/util/service.go` Line 17
+`api/api.go`
+
+In both handlers add
+
+```go
+	indent := r.URL.Query().Get("indent")
+```
+
+Before the Marshalling happens and then pass the indent to the Marshalling function
+
+```go
+	// [BUG]
+	// res, err := util.MarshalWithIndent(response, "")
+	res, err := util.MarshalWithIndent(response, indent)
+```
+
+Now when we query with `/1/my/notes.json?indent=4`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json?indent=4 -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=
+' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 15:21:46 GMT
+Content-Length: 976
+
+{
+    "notes": [
+        {
+            "id": "lxUr6TWQ",
+            "owner": "3NjqW1xx",
+            "content": "user2 note1 with 0 tags",
+            "created": "2024-05-16T11:56:43.144587Z",
+            "modified": "2024-05-16T11:56:43.144587Z",
+            "tags": []
+        },
+        {
+            "id": "bxuYPp0r",
+            "owner": "3NjqW1xx",
+            "content": "user2 note2 with 2 tags #anothertag1 #anothertag2",
+            "created": "2024-05-16T11:56:52.244208Z",
+            "modified": "2024-05-16T11:56:52.244208Z",
+            "tags": [
+                "anothertag1",
+                "anothertag2"
+            ]
+        },
+        {
+            "id": "PZU8GVDj",
+            "owner": "3NjqW1xx",
+            "content": "user2 note3 with 1 tag #anothertag1",
+            "created": "2024-05-16T11:56:58.230549Z",
+            "modified": "2024-05-16T11:56:58.230549Z",
+            "tags": [
+                "anothertag1"
+            ]
+        }
+    ]
+}baz@baz-pc:/buggy-app$
+```
+
+Also in `/util/service.go` Line 17
 
 ```go
   if i, err := strconv.Atoi(indent); err == nil && i > 0 && i <= 10 {
@@ -443,23 +502,19 @@ We could use a `.dockerignore` file to make sure anything we don't want is left 
 
 ---
 
----
-
 ## More Hints
 
-1. Try out as a User: Work out if when logged in as a one user you can see the notes of the other user
+1. Try out as a User: Work out if when logged in as a one user you can see the notes of the other user - FIXED
 
 2. Someone was suspicious that someone else had gotten their password
 
    - they saw changes to the their notes that they hand not made
    - they changed their password and they are still seeing changes to their own notes that they haven't made
 
-3. Expect the Server to give us a status code in the 200-300-400 range
-
-   - Can you make the server return a 500 code
+3. Expect the Server to give us a status code in the 200-300-400 range, but can you make the server return a 500 code - FIXED
 
 4. Can you find ways the server could be faster
 
-5. `http.Error` implicit / explicit returns ?
+5. `http.Error` implicit / explicit returns ? - BRUTE FORCED THEM ALL TO BE
 
 6. In terms of the Cache on the API Service, what problems may you have if you have multiple instances of these API Services, what does it make harder?

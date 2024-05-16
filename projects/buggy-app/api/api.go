@@ -70,8 +70,12 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 		Notes: notes,
 	}
 
+	indent := r.URL.Query().Get("indent")
+
 	// Convert the []Row into JSON
-	res, err := util.MarshalWithIndent(response, "")
+	// [BUG]
+	// res, err := util.MarshalWithIndent(response, "")
+	res, err := util.MarshalWithIndent(response, indent)
 	if err != nil {
 		fmt.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -130,8 +134,12 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 		Note: note,
 	}
 
+	indent := r.URL.Query().Get("indent")
+
 	// Convert the []Row into JSON
-	res, err := util.MarshalWithIndent(response, "")
+	// [BUG]
+	// res, err := util.MarshalWithIndent(response, "")
+	res, err := util.MarshalWithIndent(response, indent)
 	if err != nil {
 		fmt.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
