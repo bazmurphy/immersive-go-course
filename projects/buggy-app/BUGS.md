@@ -454,7 +454,9 @@ So maybe this is not a Bug and this is ok?
 
 Because `Shutdown()` needs a context... and so an empty one is put in there??
 
-But shouldn't it be `context.Background()` ??
+But shouldn't it be `context.Background()`
+
+I will adjust it to this^
 
 ---
 

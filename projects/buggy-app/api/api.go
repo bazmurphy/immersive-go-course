@@ -197,7 +197,7 @@ func (as *Service) Run(ctx context.Context) error {
 	// Wait for a signal to shut down...
 	<-ctx.Done()
 	// ... and then do it as gracefully as possible.
-	server.Shutdown(context.TODO())
+	server.Shutdown(context.Background())
 
 	wg.Wait()
 	return runErr
