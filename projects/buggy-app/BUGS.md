@@ -88,6 +88,42 @@ func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*p
 
 ---
 
+## Individual Note Route Error
+
+`/api/api.go`
+
+The individual `note` route is incorrect
+
+In the README it says `/1/my/notes/:id.json`
+
+But in the `Handler()` Line 136 it is `/1/my/note/`
+
+```go
+func (as *Service) Handler() http.Handler {
+	mux := new(http.ServeMux)
+	mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
+	return httplogger.HTTPLogger(mux)
+}
+```
+
+So we need to add an `s` to `/1/my/note/`
+
+```go
+func (as *Service) Handler() http.Handler {
+	mux := new(http.ServeMux)
+	// [BUG]
+	// mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
+	return httplogger.HTTPLogger(mux)
+}
+```
+
+And now it is resolved.
+
+---
+
 ## JSON Indentation
 
 `/api/api.go` Line 72
@@ -290,41 +326,6 @@ Shouldn't the `environment` be before the `command` like the others above?
 ## `.dockerignore` file
 
 We could use a `.dockerignore` file to make sure anything we don't want is left out of the image
-
----
-
-## Individual Note Route Error
-
-`/api/api.go`
-
-The individual `note` route is incorrect
-
-In the README it says `/1/my/notes/:id.json`
-
-But in the `Handler()` Line 136 it is `/1/my/note/`
-
-```go
-func (as *Service) Handler() http.Handler {
-	mux := new(http.ServeMux)
-	mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
-	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
-	return httplogger.HTTPLogger(mux)
-}
-```
-
-So we need to add an `s` to `/1/my/note/`
-
-```go
-func (as *Service) Handler() http.Handler {
-	mux := new(http.ServeMux)
-	// mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
-	mux.HandleFunc("/1/my/notes/", as.wrapAuth(as.authClient, as.handleMyNoteById))
-	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
-	return httplogger.HTTPLogger(mux)
-}
-```
-
-And now it is resolved.
 
 ---
 
