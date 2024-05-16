@@ -7,7 +7,7 @@ services:
     volumes:
       # Data storage
       - type: bind
-        source: /home/baz/buggy-app-data
+        source: /tmp/buggy-app-data
         target: /var/lib/postgresql/data
       # Secrets (passwords etc.)
       - type: bind
