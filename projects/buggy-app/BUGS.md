@@ -4,6 +4,8 @@
 
 ## Reported Bug 1
 
+"An (imaginary) user of our app has reported that the note "#Monday Remember to take time for self-care" was behaving strangely... the tags didn't look right."
+
 `/api/model/notes.go` Line 80
 
 The regular expression is not working properly for the specific Bug Report Case
@@ -62,112 +64,27 @@ Now the reported bug test passes
 
 ## Reported Bug 2
 
-Run: `make migrate`
+"Another user reported a bug where they deactivated their account, but were still able to see their notes. What's going on there?"
 
-Then Run: `make run build`
+`/auth/auth.go`
 
-Connect to the postgresql docker container
-Then connect to postgresql and specifically the `app` database
-Then query the `user` table to see the users and their `id` and `password` and `status`
+There is no logic in the middleware to check if the user's status is "active" or "inactive" and to reject them if "inactive
 
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ docker exec -it buggy-app-postgres-1 bash
-root@03b211ceff98:/# psql -U postgres -d app
-psql (16.3 (Debian 16.3-1.pgdg120+1))
-Type "help" for help.
+So I can add some basic logic from Line 129+
 
-app=# \dt
-               List of relations
- Schema |       Name        | Type  |  Owner
---------+-------------------+-------+----------
- public | note              | table | postgres
- public | schema_migrations | table | postgres
- public | user              | table | postgres
-(3 rows)
-
-app=# SELECT * FROM "user";
-    id    |                           password                           |          created           |          modified          |  status
-----------+--------------------------------------------------------------+----------------------------+----------------------------+----------
- usIgrmzp | $2y$10$O8VPlcAPa/iKHrkdyzN1cu7TvF5Goq6nRjSdaz9uXm1zPcVgRxQnK | 2024-05-14 17:48:42.571513 | 2024-05-14 17:48:42.579355 | inactive
- jBfa2Ww0 | $2y$10$wd5QGX9NNg6Kz1EKqn5pn.Ee6tiLem0pmjqF.tVeSPPsmG9PW9vUW | 2024-05-14 17:48:42.571513 | 2024-05-14 17:48:42.579355 | active
-(2 rows)
-
-app=#
+```go
+func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*pb.VerifyResponse, error) {
+  ...
+	// add logic to prevent "inactive" users from accessing any notes
+	// log.Printf("DEBUG | id %s | password %s | status %s\n", row.id, row.password, row.status)
+	if row.status == "inactive" {
+		return &pb.VerifyResponse{
+			State: pb.State_DENY,
+		}, nil
+	}
+  ...
+}
 ```
-
-The first user is `usIgrmzp` is `inactive`
-The second user is `jBfa2Ww0` is `active`
-
-From `/migrations/app/000002_create_dummy_users.up.sql`
-We can see
-the first user has `password: banana`
-the second user has `password: apple`
-
-So let's convert their user:password combinations into base64
-
-`usIgrmzp:banana`
-
-`jBfa2Ww0:apple`
-
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ echo -n "usIgrmzp:banana" | base64
-dXNJZ3JtenA6YmFuYW5h
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ echo -n "jBfa2Ww0:apple" | base64
-akJmYTJXdzA6YXBwbGU=
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
-```
-
-Now we can use these to send the `curl` requests
-
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic akJmYTJXdzA6YXBwbGU=' -i
-HTTP/1.1 200 OK
-Content-Type: text/json
-Date: Tue, 14 May 2024 18:04:13 GMT
-Content-Length: 12
-
-{"notes":[]}baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
-```
-
-```sh
-baz@baz-pc:/media/baz/external/coding/immersive-go-course/projectscurl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic dXNJZ3JtenA6YmFuYW5h' -i
-HTTP/1.1 200 OK
-Content-Type: text/json
-Date: Tue, 14 May 2024 18:04:44 GMT
-Content-Length: 12
-
-{"notes":[]}baz@baz-pc:/media/baz/external/coding/immersive-go-course/projects/buggy-app$
-```
-
-And check the logs
-
-```sh
-api-1       | 2024/05/14 18:04:13 HTTP - 172.18.0.1:49128 - - 14/May/2024:18:04:13 +0000 "GET /1/my/notes.json HTTP/1.1" 200 12 curl/8.5.0 55387753us
-api-1       | 2024/05/14 18:04:44 HTTP - 172.18.0.1:35190 - - 14/May/2024:18:04:44 +0000 "GET /1/my/notes.json HTTP/1.1" 200 12 curl/8.5.0 996173us
-```
-
-(BUG) `inactive` users should NOT be able to access their notes !!
-So I need to check the authorization logic
-
----
-
-NOTE:
-(!!!) The database is going weird and I have to remake the users :S
-Answer: This is probably because it is stored in `/tmp/` which gets wiped after reboot
-
-```sh
-app=# SELECT * FROM "user";
-    id    |                           password                           |          created           |         modified          |  status
-----------+--------------------------------------------------------------+----------------------------+---------------------------+----------
- gEh2w0__ | $2y$10$O8VPlcAPa/iKHrkdyzN1cu7TvF5Goq6nRjSdaz9uXm1zPcVgRxQnK | 2024-05-15 10:03:09.911299 | 2024-05-15 10:03:09.91911 | inactive
- IVm4D594 | $2y$10$wd5QGX9NNg6Kz1EKqn5pn.Ee6tiLem0pmjqF.tVeSPPsmG9PW9vUW | 2024-05-15 10:03:09.911299 | 2024-05-15 10:03:09.91911 | active
-```
-
-user 1 basic auth `Z0VoMncwX186YmFuYW5h`
-user 2 basic auth `SVZtNEQ1OTQ6YXBwbGU=`
-
-request from user 1 `curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic Z0VoMncwX186YmFuYW5h' -i`
-request from user 1 `curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic SVZtNEQ1OTQ6YXBwbGU=' -i`
 
 ---
 
@@ -375,3 +292,22 @@ Shouldn't the `environment` be before the `command` like the others above?
 We could use a `.dockerignore` file to make sure anything we don't want is left out of the image
 
 ---
+
+## More Hints
+
+1. Try out as a User: Work out if when logged in as a one user you can see the notes of the other user
+
+2. Someone was suspicious that someone else had gotten their password
+
+   - they saw changes to the their notes that they hand not made
+   - they changed their password and they are still seeing changes to their own notes that they haven't made
+
+3. Expect the Server to give us a status code in the 200-300-400 range
+
+   - Can you make the server return a 500 code
+
+4. Can you find ways the server could be faster
+
+5. `http.Error` implicit / explicit returns ?
+
+6. In terms of the Cache on the API Service, what problems may you have if you have multiple instances of these API Services, what does it make harder?
