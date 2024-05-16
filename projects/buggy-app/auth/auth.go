@@ -141,7 +141,6 @@ func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*p
 	// https://auth0.com/blog/hashing-in-action-understanding-bcrypt/
 	err = bcrypt.CompareHashAndPassword([]byte(row.password), []byte(in.Password))
 	if err != nil {
-		log.Printf("DEBUG | bycrpt.ComparehashAndPassword err: %v\n", err)
 		// Mismatched hash and password is OK, but other errors need logging
 		if err != bcrypt.ErrMismatchedHashAndPassword {
 			log.Printf("verify: compare error: %v\n", err)
