@@ -333,7 +333,13 @@ The Go version is 1.19 by that time the std library `context` package should hav
 
 So why are we importing `"golang.org/x/net/context"` everywhere
 
-We should update this to `"context"`
+Updated it in the following places:
+
+`auth/client.go`
+
+`cmd/api/main_cmd.go`
+
+`cmd/auth/main_cmd.go`
 
 ---
 
