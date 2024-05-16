@@ -1,10 +1,8 @@
-# Notes to Understand the App
-
----
-
-I will start here as it is the entry point of the API Service
+# Understanding the App Code
 
 ## `/cmd/api/main_cmd.go`
+
+-I will start here as it is the entry point of the API Service
 
 -`port` the API Service will listen on (from)
 
