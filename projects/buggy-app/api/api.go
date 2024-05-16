@@ -59,7 +59,7 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 	// Use the "model" layer to get a list of the owner's notes
 	notes, err := model.GetNotesForOwner(ctx, as.pool, owner)
 	if err != nil {
-		fmt.Printf("api: GetNotesForOwner failed: %v\n", err)
+		as.config.Log.Printf("api: GetNotesForOwner failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -77,7 +77,7 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 	// res, err := util.MarshalWithIndent(response, "")
 	res, err := util.MarshalWithIndent(response, indent)
 	if err != nil {
-		fmt.Printf("api: response marshal failed: %v\n", err)
+		as.config.Log.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -104,7 +104,7 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	noteId := strings.Replace(path.Base(r.URL.Path), ".json", "", 1)
 
 	if noteId == "" {
-		fmt.Printf("api: no note id supplied: url path %v\n", r.URL.Path)
+		as.config.Log.Printf("api: no note id supplied: url path %v\n", r.URL.Path)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -119,7 +119,6 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		fmt.Println("DEBUG | handleMyNoteById | model.GetNoteById | err", err)
 		if err.Error() == "model: note not found" {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		} else {
@@ -141,7 +140,7 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	// res, err := util.MarshalWithIndent(response, "")
 	res, err := util.MarshalWithIndent(response, indent)
 	if err != nil {
-		fmt.Printf("api: response marshal failed: %v\n", err)
+		as.config.Log.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
