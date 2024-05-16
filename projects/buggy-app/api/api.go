@@ -53,6 +53,7 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		as.config.Log.Printf("api: route handler reached with invalid auth context")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
 	}
 
 	// Use the "model" layer to get a list of the owner's notes
@@ -60,6 +61,7 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("api: GetNotesForOwner failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 
 	response := struct {
@@ -73,6 +75,7 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 
 	// Write it back out!
@@ -84,34 +87,38 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// Get the authenticated user from the context -- this will have been written earlier
-	userId, ok := authuserctx.FromAuthenticatedContext(ctx)
+	requestUser, ok := authuserctx.FromAuthenticatedContext(ctx)
 	if !ok {
 		as.config.Log.Printf("api: route handler reached with invalid auth context")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
 	}
-
-	log.Println("DEBUG | userId:", userId)
 
 	// The URL.Path will be something like /1/my/notes/abc123.json.
 	// path.Base strips everything but "abc123.json". We then Replace out the ".json" to give us
 	// just the ID.
 	noteId := strings.Replace(path.Base(r.URL.Path), ".json", "", 1)
 
-	log.Println("DEBUG | noteId:", noteId)
-
 	if noteId == "" {
-		fmt.Printf("api: no ID supplied: url path %v\n", r.URL.Path)
+		fmt.Printf("api: no note id supplied: url path %v\n", r.URL.Path)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
 	}
 
 	// Use the "model" layer to get a list of the owner's notes
 	note, err := model.GetNoteById(ctx, as.pool, noteId)
+
+	// if we get a note back but it is not owned by the request user then reject as unauthorized
+	if err == nil && note.Owner != requestUser {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
 	if err != nil {
 		fmt.Printf("api: GetNoteById failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
-
-	log.Println("DEBUG | note:", note)
 
 	response := struct {
 		Note model.Note `json:"note"`
@@ -124,6 +131,7 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 
 	// Write it back out!

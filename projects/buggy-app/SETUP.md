@@ -534,9 +534,91 @@ Fixed in `BUGS.md` `## Reported Bug 2`
 
 ---
 
-(!!!) After fixing the above bug above
+## status `active` vs `inactive`
 
-Try to request notes which are NOT the authenticated users
+User1 `status` is `inactive`
+
+BEFORE: (BUG) User1 can retrieve notes (as seen above) when they should not be able to
+
+Fixed in `BUGS.md` `## Reported Bug 2`
+
+AFTER:
+
+### User1 `inactive` request for all their notes
+
+`curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+HTTP/1.1 401 Unauthorized
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Thu, 16 May 2024 13:13:10 GMT
+Content-Length: 13
+
+Unauthorized
+baz@baz-pc:/buggy-app$
+```
+
+User1 is now Unauthorized to see all their notes
+
+### User1 `inactive` request for their note1 (note id: `fLLJ1DeX`)
+
+`curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+HTTP/1.1 401 Unauthorized
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Thu, 16 May 2024 13:13:47 GMT
+Content-Length: 13
+
+Unauthorized
+baz@baz-pc:/buggy-app$
+```
+
+User1 is now Unauthorized to see their note1
+
+### User2 `active` request for all their notes
+
+`curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 13:15:07 GMT
+Content-Length: 581
+
+{"notes":[{"id":"lxUr6TWQ","owner":"3NjqW1xx","content":"user2 note1 with 0 tags","created":"2024-05-16T11:56:43.144587Z","modified":"2024-05-16T11:56:43.144587Z","tags":[]},{"id":"bxuYPp0r","owner":"3NjqW1xx","content":"user2 note2 with 2 tags #anothertag1 #anothertag2","created":"2024-05-16T11:56:52.244208Z","modified":"2024-05-16T11:56:52.244208Z","tags":["anothertag1","anothertag2"]},{"id":"PZU8GVDj","owner":"3NjqW1xx","content":"user2 note3 with 1 tag #anothertag1","created":"2024-05-16T11:56:58.230549Z","modified":"2024-05-16T11:56:58.230549Z","tags":["anothertag1"]}]}
+baz@baz-pc:/buggy-app$
+```
+
+User2 `active` is Authorized to see all their own notes
+
+### User2 `active` request for their note1 (note id: `lxUr6TWQ`)
+
+`curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 13:15:22 GMT
+Content-Length: 172
+
+{"note":{"id":"lxUr6TWQ","owner":"3NjqW1xx","content":"user2 note1 with 0 tags","created":"2024-05-16T11:56:43.144587Z","modified":"2024-05-16T11:56:43.144587Z","tags":[]}}
+baz@baz-pc:/buggy-app$
+```
+
+User2 `active` is Authorized to see their note1
+
+---
+
+(!!!) After fixing the `/note` to `/notes` bug above - AND - adjusting User1 to `active` from formerly `inactive`
+
+Try to request notes which do NOT belong the authenticated user
 
 ### User1 request for User2 note1
 
@@ -633,87 +715,5 @@ Content-Length: 172
 ```
 
 (BUG) User2 can see User1 note3 - this should NOT be allowed
-
----
-
-## status `active` vs `inactive`
-
-User1 `status` is `inactive`
-
-BEFORE: (BUG) User1 can retrieve notes (as seen above) when they should not be able to
-
-Fixed in `BUGS.md` `## Reported Bug 2`
-
-AFTER:
-
-### User1 `inactive` request for all their notes
-
-`curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
-
-```sh
-baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
-HTTP/1.1 401 Unauthorized
-Content-Type: text/plain; charset=utf-8
-X-Content-Type-Options: nosniff
-Date: Thu, 16 May 2024 13:13:10 GMT
-Content-Length: 13
-
-Unauthorized
-baz@baz-pc:/buggy-app$
-```
-
-User1 is now Unauthorized to see all their notes
-
-### User1 `inactive` request for their note1 (note id: `fLLJ1DeX`)
-
-`curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i`
-
-```sh
-baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/fLLJ1DeX.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
-HTTP/1.1 401 Unauthorized
-Content-Type: text/plain; charset=utf-8
-X-Content-Type-Options: nosniff
-Date: Thu, 16 May 2024 13:13:47 GMT
-Content-Length: 13
-
-Unauthorized
-baz@baz-pc:/buggy-app$
-```
-
-User1 is now Unauthorized to see their note1
-
-### User2 `active` request for all their notes
-
-`curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
-
-```sh
-baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
-HTTP/1.1 200 OK
-Content-Type: text/json
-Date: Thu, 16 May 2024 13:15:07 GMT
-Content-Length: 581
-
-{"notes":[{"id":"lxUr6TWQ","owner":"3NjqW1xx","content":"user2 note1 with 0 tags","created":"2024-05-16T11:56:43.144587Z","modified":"2024-05-16T11:56:43.144587Z","tags":[]},{"id":"bxuYPp0r","owner":"3NjqW1xx","content":"user2 note2 with 2 tags #anothertag1 #anothertag2","created":"2024-05-16T11:56:52.244208Z","modified":"2024-05-16T11:56:52.244208Z","tags":["anothertag1","anothertag2"]},{"id":"PZU8GVDj","owner":"3NjqW1xx","content":"user2 note3 with 1 tag #anothertag1","created":"2024-05-16T11:56:58.230549Z","modified":"2024-05-16T11:56:58.230549Z","tags":["anothertag1"]}]}
-baz@baz-pc:/buggy-app$
-```
-
-User2 `active` is Authorized to see all their own notes
-
-### User2 `active` request for their note1 (note id: `lxUr6TWQ`)
-
-`curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i`
-
-```sh
-baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
-HTTP/1.1 200 OK
-Content-Type: text/json
-Date: Thu, 16 May 2024 13:15:22 GMT
-Content-Length: 172
-
-{"note":{"id":"lxUr6TWQ","owner":"3NjqW1xx","content":"user2 note1 with 0 tags","created":"2024-05-16T11:56:43.144587Z","modified":"2024-05-16T11:56:43.144587Z","tags":[]}}
-baz@baz-pc:/buggy-app$
-```
-
-User2 `active` is Authorized to see their note1
 
 ---

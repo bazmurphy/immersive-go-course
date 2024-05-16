@@ -1,7 +1,5 @@
 # Bugs (or what I think are Bugs(?))
 
---
-
 ## Reported Bug 1
 
 "An (imaginary) user of our app has reported that the note "#Monday Remember to take time for self-care" was behaving strangely... the tags didn't look right."
@@ -121,6 +119,72 @@ func (as *Service) Handler() http.Handler {
 ```
 
 And now it is resolved.
+
+---
+
+## User getting all their notes would query all notes not just the owners
+
+`api/model/notes.go`
+
+```go
+	// [BUG]
+	// queryRows, err := conn.Query(ctx, "SELECT id, owner, content, created, modified FROM public.note")
+	queryRows, err := conn.Query(ctx, "SELECT id, owner, content, created, modified FROM public.note WHERE owner = $1", owner)
+```
+
+Now it will only query that specific owner's notes and not everyones
+
+---
+
+## Users can see other Users notes by ID
+
+`api/api.go`
+
+Before User1 could make a request by ID and see User2 note (if they knew the ID)
+
+```go
+	...
+	requestUser, ok := authuserctx.FromAuthenticatedContext(ctx)
+	...
+		// if we get a note back but it is not owned by the request user then reject as unauthorized
+	if err == nil && note.Owner != requestUser {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+	...
+```
+
+I did ALSO consider moving this to the Model and adding another parameter (owner) and making the query more specific with a WHERE AND clause, and handling it there...
+
+### User1 trying to query User2 note1 by ID
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic bmNGV2JMWms6YmFuYW5h' -i
+HTTP/1.1 401 Unauthorized
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Thu, 16 May 2024 14:38:53 GMT
+Content-Length: 13
+
+Unauthorized
+baz@baz-pc:/buggy-app$
+```
+
+Now User1 is Unauthorized to query User2's note by ID
+
+### User2 trying to query User2 note1 by ID
+
+```sh
+baz@baz-pc:/buggy-app$ curl 127.0.0.1:8090/1/my/notes/lxUr6TWQ.json -H 'Authorization: Basic M05qcVcxeHg6YXBwbGU=' -i
+HTTP/1.1 200 OK
+Content-Type: text/json
+Date: Thu, 16 May 2024 14:39:25 GMT
+Content-Length: 172
+
+{"note":{"id":"lxUr6TWQ","owner":"3NjqW1xx","content":"user2 note1 with 0 tags","created":"2024-05-16T11:56:43.144587Z","modified":"2024-05-16T11:56:43.144587Z","tags":[]}}baz@baz-pc:/buggy-app$
+```
+
+But User2 can still query their own note by ID
 
 ---
 
