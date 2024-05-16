@@ -506,6 +506,8 @@ environment:
 
 Shouldn't the `environment` be before the `command` like the others above?
 
+After investigation the order doesn't matter but I will re-order them for readability to match the others.
+
 ---
 
 ## `.dockerignore` file
