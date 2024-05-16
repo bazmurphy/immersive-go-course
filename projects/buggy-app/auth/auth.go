@@ -130,7 +130,7 @@ func (as *grpcAuthService) Verify(ctx context.Context, in *pb.VerifyRequest) (*p
 
 	// [BUG]
 	// add logic to prevent "inactive" users from accessing any notes (even their own)
-	log.Printf("DEBUG | id %s | password %s | status %s\n", row.id, row.password, row.status)
+	// log.Printf("DEBUG | id %s | password %s | status %s\n", row.id, row.password, row.status)
 	if row.status == "inactive" {
 		return &pb.VerifyResponse{
 			State: pb.State_DENY,
