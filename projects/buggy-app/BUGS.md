@@ -393,6 +393,8 @@ There is also a logger defined in the `Config` when you create a `New` `Auth Ser
 
 Another thought: Is it OK to be logging these Auth attempts... is this not a possible security issue?
 
+I have now fixed the above `/api/api.go` to use the Logger
+
 ---
 
 ## Incorrect Content-Type

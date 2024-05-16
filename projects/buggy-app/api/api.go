@@ -83,7 +83,7 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write it back out!
-	w.Header().Add("Content-Type", "text/json")
+	w.Header().Add("Content-Type", "application/json")
 	w.Write(res)
 }
 
@@ -146,7 +146,7 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write it back out!
-	w.Header().Add("Content-Type", "text/json")
+	w.Header().Add("Content-Type", "application/json")
 	w.Write(res)
 }
 
