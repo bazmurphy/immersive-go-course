@@ -6,21 +6,23 @@ import (
 	"os"
 
 	"github.com/bazmurphy/immersive-go-course/projects/multiple-servers/api"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Printf("error loading the .env file: %v", err)
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		fmt.Println("api-server environment: DATABASE_URL not provided")
 		os.Exit(1)
 	}
-
-	databaseURL := os.Getenv("DATABASE_URL")
 
 	port := flag.String("port", "8080", "port to run the api server on")
 
 	flag.Parse()
+
+	if *port == "" {
+		fmt.Println("api server flag: port not provided")
+		os.Exit(1)
+	}
 
 	api.Run(databaseURL, *port)
 }

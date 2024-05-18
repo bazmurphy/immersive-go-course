@@ -1,0 +1,47 @@
+services:
+  database:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: testdatabase
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: postgres://testuser:testpassword@database:5432/testdatabase
+    depends_on:
+      database:
+        condition: service_healthy
+
+  static:
+    build:
+      context: .
+      dockerfile: Dockerfile.static
+    volumes:
+      - ./assets:/app/assets
+    depends_on:
+      database:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+      - static
+
+volumes:
+  database_data:

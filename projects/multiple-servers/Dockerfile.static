@@ -1,0 +1,16 @@
+FROM golang:1.22
+
+WORKDIR /app
+
+COPY go.mod ./
+COPY go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+RUN go build -o static-server ./cmd/static-server
+
+EXPOSE 8082
+
+CMD ["/app/static-server", "--path", "/app/assets", "--port", "8082"]
