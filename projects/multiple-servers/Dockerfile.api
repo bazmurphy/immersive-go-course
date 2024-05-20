@@ -13,4 +13,6 @@ RUN go build -o api-server ./cmd/api-server
 
 EXPOSE 8081
 
-CMD ["/app/api-server", "--port", "8081"]
+ENTRYPOINT ["/app/api-server"]
+
+CMD ["--port", "8081"]

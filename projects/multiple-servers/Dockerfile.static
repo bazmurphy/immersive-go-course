@@ -13,4 +13,6 @@ RUN go build -o static-server ./cmd/static-server
 
 EXPOSE 8082
 
-CMD ["/app/static-server", "--path", "/app/assets", "--port", "8082"]
+ENTRYPOINT ["/app/static-server"]
+
+CMD ["--path", "/app/assets", "--port", "8082"]
