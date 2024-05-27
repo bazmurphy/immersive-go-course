@@ -8,7 +8,7 @@ services:
       --seeds "localhost:9092,localhost:9093,localhost:9094" 
       --topic "cron-topic"
       --partitions 3
-      --replication-factor 1
+      --replication-factor 3
     network_mode: host # why do i have to use this...
 
   producer1:

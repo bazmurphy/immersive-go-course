@@ -58,12 +58,14 @@ func main() {
 	replicationFactor := int16(replicationFactorFlag)
 	configs := make(map[string]*string)
 
-	// deleteTopicResponse, err := adminClient.DeleteTopic(ctx, topic)
-	// if err != nil {
-	// 	log.Printf("error: failed to delete topic %s: %v\n", topic, err)
-	// } else {
-	// 	log.Printf("success: topic '%s' deleted: %v\n", topic, deleteTopicResponse)
-	// }
+	deleteTopicResponse, err := adminClient.DeleteTopic(ctx, topic)
+	if err != nil {
+		log.Printf("error: failed to delete topic %s: %v\n", topic, err)
+	} else {
+		log.Printf("success: topic '%s' deleted: %v\n", topic, deleteTopicResponse)
+	}
+
+	time.Sleep(1 * time.Second)
 
 	createTopicResponse, err := adminClient.CreateTopic(ctx, partitions, replicationFactor, configs, topic)
 	if err != nil {
@@ -72,14 +74,31 @@ func main() {
 		log.Printf("success: topic '%s' created: %v\n", topic, createTopicResponse)
 	}
 
+	time.Sleep(1 * time.Second)
+
 	metadata, err := adminClient.Metadata(ctx, topic)
 	if err != nil {
 		log.Printf("error: failed to get metadata for topic %s: %v\n", topic, err)
 	} else {
 		log.Print("success: Metadata:\n")
-		log.Printf("\tCluster: %v\n", metadata.Cluster)
-		log.Printf("\tBrokers: %v\n", metadata.Brokers)
-		log.Printf("\tController: %v\n", metadata.Controller)
-		log.Printf("\tTopics: %v\n", metadata.Topics)
+		log.Printf("  Cluster: %v\n", metadata.Cluster)
+		log.Printf("  Controller Broker: %v\n", metadata.Controller)
+		log.Print("  Brokers:\n")
+		for _, broker := range metadata.Brokers {
+			log.Printf("    - ID: %d, Host: %s, Port: %d\n",
+				broker.NodeID, broker.Host, broker.Port)
+		}
+		log.Print("  Topics:\n")
+		for _, topic := range metadata.Topics.Sorted() {
+			log.Printf("    - Topic: %s\n", topic.Topic)
+			log.Printf("      ID: %s\n", topic.ID)
+			log.Printf("      Partitions:\n")
+			for _, partition := range topic.Partitions.Sorted() {
+				log.Printf("        - Partition: %d\n", partition.Partition)
+				log.Printf("          Leader: %d\n", partition.Leader)
+				log.Printf("          Replicas: %v\n", partition.Replicas)
+				log.Printf("          In Sync Replicas: %v\n", partition.ISR)
+			}
+		}
 	}
 }
