@@ -14,6 +14,9 @@
 
 ## Part 2
 
+### 0. Use Makefile
+- from the base directory `make up` (to bring up the whole project) and `make down` (to bring down the whole project)
+
 ### 1. Bring up both Kafka Clusters - `cluster-a` and `cluster-b`
 - from the base directory `docker compose -f docker-compose-cluster-a.yml up`
 - from the base directory `docker compose -f docker-compose-cluster-b.yml up`
