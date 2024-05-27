@@ -18,20 +18,22 @@ import (
 
 var (
 	crontabFilePathFlag string
-	seedsFlag           string
+	clusterASeedsFlag   string
+	clusterBSeedsFlag   string
 	topicFlag           string
 )
 
 func main() {
 	flag.StringVar(&crontabFilePathFlag, "path", "", "the path to the crontab file")
-	flag.StringVar(&seedsFlag, "seeds", "", "the kafka broker addresses")
+	flag.StringVar(&clusterASeedsFlag, "cluster-a-seeds", "", "the kafka broker addresses of cluster a")
+	flag.StringVar(&clusterBSeedsFlag, "cluster-b-seeds", "", "the kafka broker addresses of cluster b")
 	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
 
 	flag.Parse()
 
-	// log.Println("DEBUG | crontabFilePathFlag", crontabFilePathFlag, "seedsFlag", seedsFlag, "topicFlag", topicFlag, "partitionsFlag")
+	// log.Println("DEBUG | crontabFilePathFlag", crontabFilePathFlag, "clusterASeedsFlag", clusterASeedsFlag, "clusterBSeedsFlag", clusterBSeedsFlag, "topicFlag", topicFlag, "partitionsFlag")
 
-	if crontabFilePathFlag == "" || seedsFlag == "" || topicFlag == "" {
+	if crontabFilePathFlag == "" || clusterASeedsFlag == "" || clusterBSeedsFlag == "" || topicFlag == "" {
 		flag.Usage()
 		log.Fatalf("error: missing or invalid flag values")
 	}
@@ -55,17 +57,26 @@ func main() {
 
 	cronScheduler := cron.New(cron.WithParser(parser))
 
-	log.Printf("new kafka client starting...")
+	clusterASeeds := strings.Split(clusterASeedsFlag, ",")
+	clusterBSeeds := strings.Split(clusterBSeedsFlag, ",")
 
-	seeds := strings.Split(seedsFlag, ",")
+	log.Printf("new kafka clients starting (one for cluster-a, one for cluster-b)...")
 
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(seeds...),
+	clientClusterA, err := kgo.NewClient(
+		kgo.SeedBrokers(clusterASeeds...),
 	)
 	if err != nil {
-		log.Fatalf("error: failed to create new kafka client: %v\n", err)
+		log.Fatalf("error: failed to create new cluster-a kafka client: %v\n", err)
 	}
-	defer client.Close()
+	defer clientClusterA.Close()
+
+	clientClusterB, err := kgo.NewClient(
+		kgo.SeedBrokers(clusterBSeeds...),
+	)
+	if err != nil {
+		log.Fatalf("error: failed to create new cluster-b kafka client: %v\n", err)
+	}
+	defer clientClusterB.Close()
 
 	log.Println("reading crontab file...")
 
@@ -81,20 +92,29 @@ func main() {
 		// TODO: there are (as always) infinite possibilities of what could be wrong with each line...
 
 		// skip empty lines and comments
-		if len(line) == 0 || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "@REM") {
+		if len(line) == 0 || strings.HasPrefix(line, "#") {
 			continue
 		}
 
 		fields := strings.Fields(line)
 
-		if len(fields) < 7 {
-			log.Printf("warn: crontab file line %d invalid (expect a minimum of 7 fields)\n", lineCount)
+		if len(fields) < 8 {
+			log.Printf("warn: crontab file line %d invalid (expect a minimum of 8 fields)\n", lineCount)
 			continue
 		}
-		// TODO: there is no guarantee just because we have 7+ fields that it is correct
+		// TODO: there is no guarantee just because we have 8+ fields that it is correct
 
 		schedule := strings.Join(fields[:6], " ")
-		command := strings.Join(fields[6:], " ")
+
+		command := strings.Join(fields[6:len(fields)-1], " ")
+
+		cluster := fields[len(fields)-1]
+		// TODO: this could panic and/or be totally incorrect
+
+		if cluster != "cluster-a" && cluster != "cluster-b" {
+			log.Printf("warn: crontab file line %d invalid cluster name\n", lineCount)
+			continue
+		}
 
 		// TODO: handle different problem cases, eg. where the schedule or command are empty or invalid (or leave it to the AddJo)
 
@@ -102,10 +122,20 @@ func main() {
 
 		topic := topicFlag
 
+		var client *kgo.Client
+
+		switch cluster {
+		case "cluster-a":
+			client = clientClusterA
+		case "cluster-b":
+			client = clientClusterB
+		}
+
 		job := CustomCronJob{
 			ID:          id,
 			Schedule:    schedule,
 			Command:     command,
+			Cluster:     cluster,
 			KafkaClient: client,
 			Topic:       topic,
 			Context:     ctx,
@@ -136,11 +166,6 @@ func main() {
 	// cancel the producer context
 	cancel()
 
-	log.Println("closing the kafka client...")
-
-	client.Close()
-	// TODO: with the defer client.Close() near the top is this really necessary? I want to control the order of shutdown...
-
 	log.Println("cron scheduler stopping...")
 
 	cronScheduler.Stop()
@@ -152,12 +177,14 @@ type CustomCronJob struct {
 	ID          string
 	Schedule    string
 	Command     string
+	Cluster     string
 	KafkaClient *kgo.Client
 	Topic       string
 	Context     context.Context
 }
 
 type CustomCronJobValue struct {
+	Cluster  string `json:"cluster"`
 	ID       string `json:"id"`
 	Schedule string `json:"schedule"`
 	Command  string `json:"command"`
@@ -169,6 +196,7 @@ func (cj CustomCronJob) Run() {
 	log.Println("running cron job...")
 
 	value := CustomCronJobValue{
+		Cluster:  cj.Cluster,
 		ID:       cj.ID,
 		Schedule: cj.Schedule,
 		Command:  cj.Command,
@@ -196,7 +224,7 @@ func (cj CustomCronJob) Run() {
 			log.Printf("error: failed to produce record: %v\n", err)
 			return
 		}
-		log.Printf("produced record:\n\tkey:%s\n\tvalue:%s\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v", record.Key, record.Value, record.Topic, record.Partition, record.Offset, record.Timestamp)
+		log.Printf("produced record:\n\tcluster:%s\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\n\tkey:%s\n\tvalue:%s\n", cj.Cluster, record.Topic, record.Partition, record.Offset, record.Timestamp, record.Key, record.Value)
 	})
 
 	// TODO: how are errors handled from this Run() function...

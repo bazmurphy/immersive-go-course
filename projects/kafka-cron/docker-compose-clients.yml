@@ -5,7 +5,8 @@ services:
     hostname: admin1
     container_name: admin1
     command: >
-      --seeds "localhost:9092,localhost:9093,localhost:9094" 
+      --cluster-a-seeds "localhost:9092,localhost:9092,localhost:9094"
+      --cluster-b-seeds "localhost:9095,localhost:9096,localhost:9097"
       --topic "cron-topic"
       --partitions 3
       --replication-factor 3
@@ -20,7 +21,8 @@ services:
       - ./producer/customcrontab:/app/customcrontab
     command: >
       --path "customcrontab"
-      --seeds "localhost:9092,localhost:9092,localhost:9094"
+      --cluster-a-seeds "localhost:9092,localhost:9092,localhost:9094"
+      --cluster-b-seeds "localhost:9095,localhost:9096,localhost:9097"
       --topic "cron-topic"
     depends_on:
       - admin1
@@ -59,6 +61,45 @@ services:
     container_name: consumer3
     command: >
       --seeds "localhost:9092,localhost:9092,localhost:9094"
+      --topic "cron-topic"
+    depends_on:
+      - admin1
+      - producer1
+    network_mode: host # why do i have to use this...
+
+  consumer4:
+    build:
+      context: consumer
+    hostname: consumer4
+    container_name: consumer4
+    command: >
+      --seeds "localhost:9095,localhost:9096,localhost:9097"
+      --topic "cron-topic"
+    depends_on:
+      - admin1
+      - producer1
+    network_mode: host # why do i have to use this...
+
+  consumer5:
+    build:
+      context: consumer
+    hostname: consumer5
+    container_name: consumer5
+    command: >
+      --seeds "localhost:9095,localhost:9096,localhost:9097"
+      --topic "cron-topic"
+    depends_on:
+      - admin1
+      - producer1
+    network_mode: host # why do i have to use this...
+
+  consumer6:
+    build:
+      context: consumer
+    hostname: consumer6
+    container_name: consumer6
+    command: >
+      --seeds "localhost:9095,localhost:9096,localhost:9097"
       --topic "cron-topic"
     depends_on:
       - admin1

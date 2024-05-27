@@ -78,7 +78,7 @@ func main() {
 
 		for !iterator.Done() {
 			record := iterator.Next()
-			log.Printf("consumed record:\n\tkey:%s\n\tvalue:%s\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v", record.Key, record.Value, record.Topic, record.Partition, record.Offset, record.Timestamp)
+			log.Printf("consumed record:\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\tkey:%s\n\tvalue:%s\n", record.Topic, record.Partition, record.Offset, record.Timestamp, record.Key, record.Value)
 
 			var cronJobValue CronJobValue
 
@@ -98,7 +98,6 @@ func main() {
 			}
 
 			// TODO: this is related to how cancelling the context affects this loop...
-
 			if ctx.Err() != nil {
 				break
 			}
