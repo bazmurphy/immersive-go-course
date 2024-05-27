@@ -26,7 +26,7 @@ func main() {
 
 	flag.Parse()
 
-	log.Println("DEBUG | seedsFlag:", seedsFlag, "topicFlag:", topicFlag, "partitionsFlag:", partitionsFlag, "replicationFactorFlag:", replicationFactorFlag)
+	// log.Println("DEBUG | seedsFlag:", seedsFlag, "topicFlag:", topicFlag, "partitionsFlag:", partitionsFlag, "replicationFactorFlag:", replicationFactorFlag)
 
 	if seedsFlag == "" || topicFlag == "" || partitionsFlag == 0 || replicationFactorFlag == 0 {
 		flag.Usage()
@@ -34,8 +34,6 @@ func main() {
 	}
 
 	seeds := strings.Split(seedsFlag, ",")
-
-	log.Println("DEBUG | seeds", seeds)
 
 	log.Printf("new kafka admin client starting...")
 
