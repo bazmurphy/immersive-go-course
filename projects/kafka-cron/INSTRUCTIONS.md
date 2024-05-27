@@ -1,16 +1,11 @@
 # Instructions
 
 ## 1. Bring up the Kafka Cluster
-- from the base directory `docker compose -f zk-single-kafka-multiple.yml up`
+- from the base directory `docker compose -f docker-compose-cluster.yml up`
 
-## 2. Create the Kafka Topic
-- from the `admin` directory `go run .`
-  - to create the topic
-
-## 3. Producer
-- from the `producer` directory `go run . --path=customcrontab` 
-  -  to read the `customcrontab` file and run a cron scheduler that produces cronjobs to the topic
-
-## 4. Consumer
-- from the `consumer` directory `go run .` 
-  - to start consuming cronjobs from the topic and executing the cronjobs
+## 2. Bring up the Clients: Admin, Producer, Consumers
+- from the base directory `docker compose -f docker-compose-clients.yml up`
+  ### What happens:
+  1. the `admin` creates the `cron-topic` and shows `metadata`
+  2. the `producer` reads the `customcrontab` file and starts a long running cron scheduler that produces cronjobs to the `cron-topic`
+  3. the `consumer`s start consuming cronjobs from the `cron-topic` and execute the commands from the cronjobs

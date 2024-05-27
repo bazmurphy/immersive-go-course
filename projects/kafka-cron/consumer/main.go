@@ -3,20 +3,38 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func main() {
-	log.Printf("new kafka client starting...")
+var (
+	seedsFlag string
+	topicFlag string
+)
 
-	seeds := []string{"localhost:9092"}
-	// TODO: pass seeds in as a flag/environment variable?
+func main() {
+	flag.StringVar(&seedsFlag, "seeds", "", "the kafka broker addresses")
+	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
+
+	flag.Parse()
+
+	// log.Println("DEBUG | seedsFlag", seedsFlag, "topicFlag", topicFlag)
+
+	if seedsFlag == "" || topicFlag == "" {
+		flag.Usage()
+		log.Fatalf("error: missing or invalid flag values")
+	}
+
+	seeds := strings.Split(seedsFlag, ",")
+
+	log.Printf("new kafka client starting...")
 
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(seeds...),
@@ -81,9 +99,9 @@ func main() {
 
 			// TODO: this is related to how cancelling the context affects this loop...
 
-			// if ctx.Err() != nil {
-			// 	break
-			// }
+			if ctx.Err() != nil {
+				break
+			}
 		}
 	}
 }

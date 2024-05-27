@@ -16,18 +16,29 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
+var (
+	crontabFilePathFlag string
+	seedsFlag           string
+	topicFlag           string
+)
+
 func main() {
-	crontabFile := flag.String("path", "", "the path to the crontab file")
+	flag.StringVar(&crontabFilePathFlag, "path", "", "the path to the crontab file")
+	flag.StringVar(&seedsFlag, "seeds", "", "the kafka broker addresses")
+	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
+
 	flag.Parse()
 
-	if *crontabFile == "" {
+	// log.Println("DEBUG | crontabFilePathFlag", crontabFilePathFlag, "seedsFlag", seedsFlag, "topicFlag", topicFlag, "partitionsFlag")
+
+	if crontabFilePathFlag == "" || seedsFlag == "" || topicFlag == "" {
 		flag.Usage()
-		log.Fatalln("error: failed to provide the path to the crontab file")
+		log.Fatalf("error: missing or invalid flag values")
 	}
 
 	log.Printf("opening crontab file...")
 
-	file, err := os.Open(*crontabFile)
+	file, err := os.Open(crontabFilePathFlag)
 	if err != nil {
 		log.Fatalf("error: failed to open crontab file: %s\n", err)
 	}
@@ -46,8 +57,7 @@ func main() {
 
 	log.Printf("new kafka client starting...")
 
-	seeds := []string{"localhost:9092"}
-	// TODO: pass seeds in as a flag/environment variable?
+	seeds := strings.Split(seedsFlag, ",")
 
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(seeds...),
@@ -71,7 +81,7 @@ func main() {
 		// TODO: there are (as always) infinite possibilities of what could be wrong with each line...
 
 		// skip empty lines and comments
-		if len(line) == 0 || strings.HasPrefix(line, "#") {
+		if len(line) == 0 || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "@REM") {
 			continue
 		}
 
@@ -90,8 +100,7 @@ func main() {
 
 		id := uuid.NewString()
 
-		topic := "cron-topic"
-		// TODO: should this topic should be passed in as a flag/environment variable?
+		topic := topicFlag
 
 		job := CustomCronJob{
 			ID:          id,
