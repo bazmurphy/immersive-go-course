@@ -26,10 +26,10 @@ var (
 )
 
 type CustomCronJobValue struct {
-	Cluster       string `json:"cluster"`
 	ID            string `json:"id"`
 	Schedule      string `json:"schedule"`
 	Command       string `json:"command"`
+	Cluster       string `json:"cluster"`
 	RetryAttempts int    `json:"retry_attempts"`
 }
 
@@ -39,8 +39,9 @@ func main() {
 	flag.BoolVar(&retryTopicFlag, "retry-topic", false, "whether to consume from the retry topic")
 
 	flag.Parse()
-	log.Println("DEBUG | seedsFlag:", seedsFlag, "topicFlag:", topicFlag, "retryTopicFlag:", retryTopicFlag)
+	// log.Println("DEBUG | seedsFlag:", seedsFlag, "topicFlag:", topicFlag, "retryTopicFlag:", retryTopicFlag)
 
+	// TODO: handle the flag errors more specifically
 	if seedsFlag == "" || topicFlag == "" {
 		flag.Usage()
 		log.Fatalf("error: missing or invalid flag values")
@@ -49,10 +50,13 @@ func main() {
 	// --------------------------------------------
 
 	log.Println("connecting to the cluster...")
+
 	client, err := clusterConnection()
 	if err != nil {
 		log.Fatalf("error: failed to establish connection to the cluster: %v", err)
 	}
+	defer client.Close()
+
 	log.Println("connection established to the cluster...")
 
 	// --------------------------------------------
@@ -94,7 +98,7 @@ func main() {
 		for !iterator.Done() {
 			record := iterator.Next()
 
-			log.Printf("consumed record:\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\tkey:%s\n\tvalue:%s\n", record.Topic, record.Partition, record.Offset, record.Timestamp, record.Key, record.Value)
+			printConsumedRecord(record)
 
 			var cronJobValue CustomCronJobValue
 
@@ -108,11 +112,52 @@ func main() {
 
 			output, err := cmd.Output()
 			if err != nil {
-				log.Printf("error: failed to execute command: %v\n", err)
-				// TODO: add Part 3 retry logic here...
+				log.Printf("error: failed to execute cron job command: %v\n", err)
 
+				// (!) Part 3 Retry Logic:
+				if cronJobValue.RetryAttempts == 0 {
+					log.Printf("error: out of retry attempts: %v\n", err)
+					continue
+				}
+
+				if cronJobValue.RetryAttempts > 0 {
+					log.Printf("attempting retry %d...\n", cronJobValue.RetryAttempts)
+
+					retryCronJobValue := cronJobValue
+
+					// 1. reduce the number of attempts
+					retryCronJobValue.RetryAttempts--
+
+					// 2. convert the retry value into json
+					retryValueJSON, err := json.Marshal(retryCronJobValue)
+					if err != nil {
+						log.Printf("error: failed to marshal retry cron job value to json: %v\n", err)
+						continue
+					}
+
+					// 3. define the retry topic
+					retryTopic := topicFlag + "-retry"
+
+					// 4. create the new retry record
+					retryRecord := &kgo.Record{
+						Topic: retryTopic,
+						Key:   record.Key,
+						Value: retryValueJSON,
+					}
+
+					log.Println("producing new retry record...")
+
+					// TODO: fix the context here
+					client.Produce(context.Background(), retryRecord, func(_ *kgo.Record, err error) {
+						if err != nil {
+							log.Printf("error: failed to produce retry record: %v\n", err)
+							return
+						}
+						log.Printf("produced retry record:\n\tcluster:%s\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\n\tkey:%s\n\tvalue:%s\n", cronJobValue.Cluster, retryRecord.Topic, retryRecord.Partition, retryRecord.Offset, retryRecord.Timestamp, retryRecord.Key, retryRecord.Value)
+					})
+				}
 			} else {
-				log.Printf("success: command output: %s\n", output)
+				printCommandOutput(output)
 			}
 		}
 	}
@@ -135,7 +180,6 @@ func clusterConnection() (*kgo.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error: failed to create new client: %w", err)
 	}
-	defer client.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -146,4 +190,34 @@ func clusterConnection() (*kgo.Client, error) {
 	}
 
 	return client, nil
+}
+
+func printConsumedRecord(cj *kgo.Record) {
+	red := "\x1b[31m"
+	green := "\x1b[32m"
+	yellow := "\x1b[33m"
+	blue := "\x1b[34m"
+	magenta := "\x1b[35m"
+	reset := "\x1b[0m"
+
+	log.Printf(
+		"%sConsumed Record%s:\n\t%sTopic%s: %s%s%s\n\t%sPartition%s: %s%d%s\n\t%sOffset%s: %s%d%s\n\t%sTimestamp%s: %s%v%s\n\t%sKey%s: %s%s%s\n\t%sValue%s: %s%s%s\n",
+		yellow, reset,
+		blue, reset, red, cj.Topic, reset,
+		blue, reset, magenta, cj.Partition, reset,
+		blue, reset, magenta, cj.Offset, reset,
+		blue, reset, magenta, cj.Timestamp, reset,
+		blue, reset, green, string(cj.Key), reset,
+		blue, reset, green, string(cj.Value), reset,
+	)
+}
+
+func printCommandOutput(output []byte) {
+	yellow := "\x1b[33m"
+	magenta := "\x1b[35m"
+	reset := "\x1b[0m"
+
+	log.Printf("%sCommand Output%s:\n\t%s%s%s\n",
+		yellow, reset,
+		magenta, output, reset)
 }
