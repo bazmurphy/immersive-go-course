@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -34,7 +35,7 @@ func main() {
 	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
 
 	flag.Parse()
-	log.Println("DEBUG | crontabFilePathFlag:", crontabFilePathFlag, "clusterASeedsFlag:", clusterASeedsFlag, "clusterBSeedsFlag:", clusterBSeedsFlag, "topicFlag:", topicFlag)
+	// log.Println("DEBUG | crontabFilePathFlag:", crontabFilePathFlag, "clusterASeedsFlag:", clusterASeedsFlag, "clusterBSeedsFlag:", clusterBSeedsFlag, "topicFlag:", topicFlag)
 
 	// TODO: handle the flag errors more specifically
 	if crontabFilePathFlag == "" || clusterASeedsFlag == "" || clusterBSeedsFlag == "" || topicFlag == "" {
@@ -92,13 +93,14 @@ func main() {
 	// --------------------------------------------
 
 	log.Println("cron scheduler starting...")
+
 	cronScheduler.Start()
 
-	// wait for the termination signal
 	<-signalChannel
-
 	log.Println("received termination signal, cron scheduler stopping...")
+
 	cronScheduler.Stop()
+
 	log.Println("cron scheduler stopped")
 
 	// --------------------------------------------
@@ -144,12 +146,13 @@ func ClusterConnections() (*kgo.Client, *kgo.Client, error) {
 }
 
 type CustomCronJob struct {
-	ID       string
-	Schedule string
-	Command  string
-	Cluster  string
-	Topic    string
-	Client   *kgo.Client
+	ID            string
+	Schedule      string
+	Command       string
+	Cluster       string
+	RetryAttempts int
+	Topic         string
+	Client        *kgo.Client
 }
 
 func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
@@ -173,33 +176,41 @@ func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 
 		fields := strings.Fields(line)
 
-		if len(fields) < 8 {
-			log.Printf("warn: crontab file line %d invalid (expect a minimum of 8 fields)\n", lineCount)
+		if len(fields) < 9 {
+			log.Printf("warn: crontab file line %d invalid: expect a minimum of 9 fields)\n", lineCount)
 			continue
 		}
-		// TODO: there is no guarantee just because we have 8+ fields that it is correct
+		// TODO: there is no guarantee just because we have 9+ fields that it is correct
 
 		schedule := strings.Join(fields[:6], " ")
 
-		command := strings.Join(fields[6:len(fields)-1], " ")
+		command := strings.Join(fields[6:len(fields)-2], " ")
 
-		cluster := fields[len(fields)-1]
-		// TODO: this could panic and/or be totally incorrect
+		cluster := fields[len(fields)-2] // TODO: this could panic and/or be totally incorrect
 
 		if cluster != "cluster-a" && cluster != "cluster-b" {
-			log.Printf("warn: crontab file line %d invalid cluster name\n", lineCount)
+			log.Printf("warn: crontab file line %d invalid: cluster name\n", lineCount)
+			continue
+		}
+
+		retryAttemptsString := fields[len(fields)-1] // TODO: this could panic and/or be totally incorrect
+
+		retryAttempts, err := strconv.Atoi(retryAttemptsString)
+		if err != nil {
+			log.Printf("warn: crontab file line %d invalid: retry attempt value\n", lineCount)
 			continue
 		}
 
 		// TODO: handle different problem cases, eg. where the schedule or command are empty or invalid (or leave it to the AddJob() ?)
 
 		customCronJob := CustomCronJob{
-			ID:       uuid.NewString(),
-			Schedule: schedule,
-			Command:  command,
-			Cluster:  cluster,
-			Topic:    topicFlag,
-			Client:   nil, // this is provided later
+			ID:            uuid.NewString(),
+			Schedule:      schedule,
+			Command:       command,
+			Cluster:       cluster,
+			RetryAttempts: retryAttempts,
+			Topic:         topicFlag,
+			Client:        nil, // this is provided later
 		}
 
 		customCronJobs = append(customCronJobs, customCronJob)
@@ -237,9 +248,9 @@ func ScheduleCustomCronJobs(customCronJobs []CustomCronJob, clientClusterA *kgo.
 
 type CustomCronJobValue struct {
 	ID            string `json:"id"`
-	Cluster       string `json:"cluster"`
 	Schedule      string `json:"schedule"`
 	Command       string `json:"command"`
+	Cluster       string `json:"cluster"`
 	RetryAttempts int    `json:"retry_attempts"`
 }
 
@@ -251,12 +262,12 @@ func (cj CustomCronJob) Run() {
 		Cluster:       cj.Cluster,
 		Schedule:      cj.Schedule,
 		Command:       cj.Command,
-		RetryAttempts: 3, // TODO: hardcoded
+		RetryAttempts: cj.RetryAttempts,
 	}
 
 	valueJSON, err := json.Marshal(value)
 	if err != nil {
-		log.Printf("error: failed to marshal cron job to json: %v\n", err)
+		log.Printf("error: failed to marshal cron job value to json: %v\n", err)
 		return
 	}
 
@@ -277,8 +288,30 @@ func (cj CustomCronJob) Run() {
 			log.Printf("error: failed to produce record: %v\n", err)
 			return
 		}
-		log.Printf("produced record:\n\tcluster:%s\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\n\tkey:%s\n\tvalue:%s\n", cj.Cluster, record.Topic, record.Partition, record.Offset, record.Timestamp, record.Key, record.Value)
+		printProducedRecord(record, cj.Cluster)
 	})
 
 	// TODO: But how are errors handled from this Run() function...?
+}
+
+func printProducedRecord(cj *kgo.Record, cluster string) {
+	red := "\x1b[31m"
+	green := "\x1b[32m"
+	yellow := "\x1b[33m"
+	blue := "\x1b[34m"
+	magenta := "\x1b[35m"
+	// cyan := "\x1b[36m"
+	reset := "\x1b[0m"
+
+	log.Printf(
+		"%sProduced Record%s:\n\t%sCluster%s: %s%s%s\n\t%sTopic%s: %s%s%s\n\t%sPartition%s: %s%d%s\n\t%sOffset%s: %s%d%s\n\t%sTimestamp%s: %s%v%s\n\t%sKey%s: %s%s%s\n\t%sValue%s: %s%s%s\n",
+		yellow, reset,
+		blue, reset, red, cluster, reset,
+		blue, reset, red, cj.Topic, reset,
+		blue, reset, magenta, cj.Partition, reset,
+		blue, reset, magenta, cj.Offset, reset,
+		blue, reset, magenta, cj.Timestamp, reset,
+		blue, reset, green, string(cj.Key), reset,
+		blue, reset, green, string(cj.Value), reset,
+	)
 }
