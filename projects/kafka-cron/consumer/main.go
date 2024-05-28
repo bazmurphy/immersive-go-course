@@ -48,44 +48,19 @@ func main() {
 
 	// --------------------------------------------
 
-	seeds := strings.Split(seedsFlag, ",")
-
-	topic := topicFlag
-	if retryTopicFlag {
-		topic = topicFlag + "-retry"
-	}
-
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(seeds...),
-		kgo.ConsumerGroup(topic+"-consumer-group"),
-		kgo.ConsumeTopics(topic),
-		// kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
-	)
-	if err != nil {
-		log.Fatalf("error: failed to create new client: %v\n", err)
-	}
-	defer client.Close()
-
-	// --------------------------------------------
-
 	log.Println("connecting to the cluster...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = client.Ping(ctx)
+	client, err := clusterConnection()
 	if err != nil {
-		log.Fatalf("error: failed to ping the cluster: %v\n", err)
+		log.Fatalf("error: failed to establish connection to the cluster: %v", err)
 	}
-
-	log.Println("connection established with cluster...")
+	log.Println("connection established to the cluster...")
 
 	// --------------------------------------------
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	ctx, cancel = context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {
@@ -141,4 +116,34 @@ func main() {
 			}
 		}
 	}
+}
+
+func clusterConnection() (*kgo.Client, error) {
+	seeds := strings.Split(seedsFlag, ",")
+
+	topic := topicFlag
+	if retryTopicFlag {
+		topic = topicFlag + "-retry"
+	}
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(seeds...),
+		kgo.ConsumerGroup(topic+"-consumer-group"),
+		kgo.ConsumeTopics(topic),
+		// kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error: failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = client.Ping(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error: failed to ping the cluster: %w", err)
+	}
+
+	return client, nil
 }
