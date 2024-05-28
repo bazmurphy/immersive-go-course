@@ -80,7 +80,7 @@ func main() {
 			record := iterator.Next()
 			log.Printf("consumed record:\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\tkey:%s\n\tvalue:%s\n", record.Topic, record.Partition, record.Offset, record.Timestamp, record.Key, record.Value)
 
-			var cronJobValue CronJobValue
+			var cronJobValue CustomCronJobValue
 
 			err := json.Unmarshal(record.Value, &cronJobValue)
 			if err != nil {
@@ -105,7 +105,7 @@ func main() {
 	}
 }
 
-type CronJobValue struct {
+type CustomCronJobValue struct {
 	ID       string `json:"id"`
 	Schedule string `json:"schedule"`
 	Command  string `json:"command"`

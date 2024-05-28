@@ -2,6 +2,7 @@ services:
   admin1:
     build:
       context: admin
+      dockerfile: ../Dockerfile
     hostname: admin1
     container_name: admin1
     command: >
@@ -15,6 +16,7 @@ services:
   producer1:
     build:
       context: producer
+      dockerfile: ../Dockerfile
     hostname: producer1
     container_name: producer1
     volumes:
@@ -31,6 +33,7 @@ services:
   consumer1:
     build:
       context: consumer
+      dockerfile: ../Dockerfile
     hostname: consumer1
     container_name: consumer1
     command: >
@@ -44,6 +47,7 @@ services:
   consumer2:
     build:
       context: consumer
+      dockerfile: ../Dockerfile
     hostname: consumer2
     container_name: consumer2
     command: >
@@ -57,6 +61,7 @@ services:
   consumer3:
     build:
       context: consumer
+      dockerfile: ../Dockerfile
     hostname: consumer3
     container_name: consumer3
     command: >
@@ -70,6 +75,7 @@ services:
   consumer4:
     build:
       context: consumer
+      dockerfile: ../Dockerfile
     hostname: consumer4
     container_name: consumer4
     command: >
@@ -83,6 +89,7 @@ services:
   consumer5:
     build:
       context: consumer
+      dockerfile: ../Dockerfile
     hostname: consumer5
     container_name: consumer5
     command: >
@@ -96,6 +103,7 @@ services:
   consumer6:
     build:
       context: consumer
+      dockerfile: ../Dockerfile    
     hostname: consumer6
     container_name: consumer6
     command: >
