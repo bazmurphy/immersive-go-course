@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
@@ -30,66 +32,128 @@ func main() {
 	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
 
 	flag.Parse()
-
 	// log.Println("DEBUG | crontabFilePathFlag", crontabFilePathFlag, "clusterASeedsFlag", clusterASeedsFlag, "clusterBSeedsFlag", clusterBSeedsFlag, "topicFlag", topicFlag, "partitionsFlag")
 
+	// TODO: handle the flag errors more specifically
 	if crontabFilePathFlag == "" || clusterASeedsFlag == "" || clusterBSeedsFlag == "" || topicFlag == "" {
 		flag.Usage()
 		log.Fatalf("error: missing or invalid flag values")
 	}
 
-	log.Printf("opening crontab file...")
-
-	file, err := os.Open(crontabFilePathFlag)
-	if err != nil {
-		log.Fatalf("error: failed to open crontab file: %s\n", err)
-	}
-	defer file.Close()
+	// --------------------------------------------
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// --------------------------------------------
 
-	// create a new parser with a seconds field
-	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	log.Println("establishing cluster connections...")
 
-	cronScheduler := cron.New(cron.WithParser(parser))
+	clientClusterA, clientClusterB, err := ClusterConnections()
+	if err != nil {
+		log.Fatalf("error: failed to establish cluster connections: %v", err)
+	}
+	defer clientClusterA.Close()
+	defer clientClusterB.Close()
 
+	log.Println("cluster connections established")
+
+	// --------------------------------------------
+
+	log.Println("opening crontab file...")
+
+	cronTabFile, err := os.Open(crontabFilePathFlag)
+	if err != nil {
+		log.Fatalf("error: failed to open crontab file: %v\n", err)
+	}
+	defer cronTabFile.Close()
+
+	// --------------------------------------------
+
+	log.Println("parsing crontab file...")
+
+	customCronJobs, err := ParseCronTabFile(cronTabFile)
+	if err != nil {
+		log.Fatalf("error: failed to parse crontab file: %v\n", err)
+	}
+
+	log.Printf("parsed %d cron jobs\n", len(customCronJobs))
+
+	// --------------------------------------------
+
+	log.Println("scheduling cron jobs...")
+
+	cronScheduler := ScheduleCustomCronJobs(customCronJobs, clientClusterA, clientClusterB)
+
+	log.Printf("scheduled %d cron jobs\n", len(cronScheduler.Entries()))
+
+	// --------------------------------------------
+
+	log.Println("cron scheduler starting...")
+	cronScheduler.Start()
+
+	// wait for the termination signal
+	<-signalChannel
+
+	log.Println("received termination signal, cron scheduler stopping...")
+	cronScheduler.Stop()
+	log.Println("cron scheduler stopped")
+
+	// --------------------------------------------
+}
+
+func ClusterConnections() (*kgo.Client, *kgo.Client, error) {
 	clusterASeeds := strings.Split(clusterASeedsFlag, ",")
 	clusterBSeeds := strings.Split(clusterBSeedsFlag, ",")
-
-	log.Printf("new kafka clients starting (one for cluster-a, one for cluster-b)...")
 
 	clientClusterA, err := kgo.NewClient(
 		kgo.SeedBrokers(clusterASeeds...),
 	)
 	if err != nil {
-		log.Fatalf("error: failed to create new cluster-a kafka client: %v\n", err)
+		return nil, nil, fmt.Errorf("error: failed to create new cluster-a kafka client: %w", err)
 	}
-	defer clientClusterA.Close()
+	// defer clientClusterA.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = clientClusterA.Ping(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error: failed to ping cluster-a: %w", err)
+	}
 
 	clientClusterB, err := kgo.NewClient(
 		kgo.SeedBrokers(clusterBSeeds...),
 	)
 	if err != nil {
-		log.Fatalf("error: failed to create new cluster-b kafka client: %v\n", err)
+		return nil, nil, fmt.Errorf("error: failed create new cluster-b kafka client: %w", err)
 	}
-	defer clientClusterB.Close()
+	// defer clientClusterB.Close()
 
-	log.Println("reading crontab file...")
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	scanner := bufio.NewScanner(file)
+	err = clientClusterB.Ping(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error: failed to ping cluster-b: %w", err)
+	}
+
+	return clientClusterA, clientClusterB, nil
+}
+
+func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
+	var customCronJobs []CustomCronJob
+
+	scanner := bufio.NewScanner(cronTabFile)
 
 	var lineCount int
 
 	for scanner.Scan() {
-		lineCount++
-
 		line := scanner.Text()
 
-		// TODO: there are (as always) infinite possibilities of what could be wrong with each line...
+		lineCount++
+
+		// TODO: (as always) there are infinite possibilities of what could be wrong with each line...
 
 		// skip empty lines and comments
 		if len(line) == 0 || strings.HasPrefix(line, "#") {
@@ -118,88 +182,74 @@ func main() {
 
 		// TODO: handle different problem cases, eg. where the schedule or command are empty or invalid (or leave it to the AddJo)
 
-		id := uuid.NewString()
-
-		topic := topicFlag
-
-		var client *kgo.Client
-
-		switch cluster {
-		case "cluster-a":
-			client = clientClusterA
-		case "cluster-b":
-			client = clientClusterB
+		customCronJob := CustomCronJob{
+			ID:       uuid.NewString(),
+			Schedule: schedule,
+			Command:  command,
+			Cluster:  cluster,
+			Topic:    topicFlag,
+			Client:   nil, // this is provided later
 		}
 
-		job := CustomCronJob{
-			ID:          id,
-			Schedule:    schedule,
-			Command:     command,
-			Cluster:     cluster,
-			KafkaClient: client,
-			Topic:       topic,
-			Context:     ctx,
-		}
-
-		entryID, err := cronScheduler.AddJob(schedule, job)
-		if err != nil {
-			log.Printf("error: failed to add cronjob: %v\n", err)
-			continue
-		}
-
-		log.Printf("cronjob scheduled with entry ID: %d\n", entryID)
+		customCronJobs = append(customCronJobs, customCronJob)
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatalf("error: failed reading through crontab file: %v\n", err)
+		return nil, fmt.Errorf("error: failed reading through crontab file: %w", err)
 	}
 
-	log.Println("cron scheduler starting...")
+	return customCronJobs, nil
+}
 
-	cronScheduler.Start()
+func ScheduleCustomCronJobs(customCronJobs []CustomCronJob, clientClusterA *kgo.Client, clientClusterB *kgo.Client) *cron.Cron {
+	cronParser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	cronScheduler := cron.New(cron.WithParser(cronParser))
 
-	// wait for the termination signal
-	<-signalChannel
+	for _, customCronJob := range customCronJobs {
+		switch customCronJob.Cluster {
+		case "cluster-a":
+			customCronJob.Client = clientClusterA
+		case "cluster-b":
+			customCronJob.Client = clientClusterB
+		}
 
-	log.Println("cancelling the producer context...")
+		entryID, err := cronScheduler.AddJob(customCronJob.Schedule, customCronJob)
+		if err != nil {
+			log.Printf("error: failed to schedule cron job: %v\n", err)
+			continue
+		}
+		log.Printf("cron job scheduled | entryID: %.2d | customCronJob: %v\n", entryID, customCronJob)
+	}
 
-	// cancel the producer context
-	cancel()
-
-	log.Println("cron scheduler stopping...")
-
-	cronScheduler.Stop()
-
-	log.Println("cron scheduler stopped")
+	return cronScheduler
 }
 
 type CustomCronJob struct {
-	ID          string
-	Schedule    string
-	Command     string
-	Cluster     string
-	KafkaClient *kgo.Client
-	Topic       string
-	Context     context.Context
+	ID       string
+	Schedule string
+	Command  string
+	Cluster  string
+	Topic    string
+	Client   *kgo.Client
 }
 
 type CustomCronJobValue struct {
-	Cluster  string `json:"cluster"`
-	ID       string `json:"id"`
-	Schedule string `json:"schedule"`
-	Command  string `json:"command"`
+	ID            string `json:"id"`
+	Cluster       string `json:"cluster"`
+	Schedule      string `json:"schedule"`
+	Command       string `json:"command"`
+	RetryAttempts int    `json:"retry_attempts"`
 }
 
 // func (c *cron.Cron) AddJob(spec string, cmd cron.Job) (cron.EntryID, error)
 // ^ to satisfy the Job interface that has a single method Run()
 func (cj CustomCronJob) Run() {
-	log.Println("running cron job...")
-
 	value := CustomCronJobValue{
-		Cluster:  cj.Cluster,
-		ID:       cj.ID,
-		Schedule: cj.Schedule,
-		Command:  cj.Command,
+		ID:            cj.ID,
+		Cluster:       cj.Cluster,
+		Schedule:      cj.Schedule,
+		Command:       cj.Command,
+		RetryAttempts: 3, // TODO: hardcoded
 	}
 
 	valueJSON, err := json.Marshal(value)
@@ -217,9 +267,10 @@ func (cj CustomCronJob) Run() {
 		Value: valueJSON,
 	}
 
-	log.Println("kafka client producing new record...")
+	log.Println("producing new record...")
 
-	cj.KafkaClient.Produce(cj.Context, record, func(_ *kgo.Record, err error) {
+	// TODO: fix the context here
+	cj.Client.Produce(context.Background(), record, func(_ *kgo.Record, err error) {
 		if err != nil {
 			log.Printf("error: failed to produce record: %v\n", err)
 			return
@@ -227,5 +278,5 @@ func (cj CustomCronJob) Run() {
 		log.Printf("produced record:\n\tcluster:%s\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\n\tkey:%s\n\tvalue:%s\n", cj.Cluster, record.Topic, record.Partition, record.Offset, record.Timestamp, record.Key, record.Value)
 	})
 
-	// TODO: how are errors handled from this Run() function...
+	// TODO: But how are errors handled from this Run() function...?
 }
