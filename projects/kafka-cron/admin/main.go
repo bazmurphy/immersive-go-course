@@ -28,6 +28,7 @@ func main() {
 	flag.IntVar(&replicationFactorFlag, "replication-factor", 0, "the replication factor")
 
 	flag.Parse()
+	// log.Println("DEBUG | clusterASeedsFlag:", clusterASeedsFlag, "clusterBSeedsFlag:", clusterBSeedsFlag, "topicFlag:", topicFlag, "partitionsFlag:", partitionsFlag, "replicationFactorFlag:", replicationFactorFlag)
 
 	// TODO: handle the flag errors more specifically
 	if clusterASeedsFlag == "" || clusterBSeedsFlag == "" || topicFlag == "" || partitionsFlag == 0 || replicationFactorFlag == 0 {

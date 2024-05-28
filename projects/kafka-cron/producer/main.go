@@ -32,7 +32,7 @@ func main() {
 	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
 
 	flag.Parse()
-	// log.Println("DEBUG | crontabFilePathFlag", crontabFilePathFlag, "clusterASeedsFlag", clusterASeedsFlag, "clusterBSeedsFlag", clusterBSeedsFlag, "topicFlag", topicFlag, "partitionsFlag")
+	log.Println("DEBUG | crontabFilePathFlag:", crontabFilePathFlag, "clusterASeedsFlag:", clusterASeedsFlag, "clusterBSeedsFlag:", clusterBSeedsFlag, "topicFlag:", topicFlag)
 
 	// TODO: handle the flag errors more specifically
 	if crontabFilePathFlag == "" || clusterASeedsFlag == "" || clusterBSeedsFlag == "" || topicFlag == "" {
@@ -141,6 +141,15 @@ func ClusterConnections() (*kgo.Client, *kgo.Client, error) {
 	return clientClusterA, clientClusterB, nil
 }
 
+type CustomCronJob struct {
+	ID       string
+	Schedule string
+	Command  string
+	Cluster  string
+	Topic    string
+	Client   *kgo.Client
+}
+
 func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 	var customCronJobs []CustomCronJob
 
@@ -180,7 +189,7 @@ func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 			continue
 		}
 
-		// TODO: handle different problem cases, eg. where the schedule or command are empty or invalid (or leave it to the AddJo)
+		// TODO: handle different problem cases, eg. where the schedule or command are empty or invalid (or leave it to the AddJob() ?)
 
 		customCronJob := CustomCronJob{
 			ID:       uuid.NewString(),
@@ -222,15 +231,6 @@ func ScheduleCustomCronJobs(customCronJobs []CustomCronJob, clientClusterA *kgo.
 	}
 
 	return cronScheduler
-}
-
-type CustomCronJob struct {
-	ID       string
-	Schedule string
-	Command  string
-	Cluster  string
-	Topic    string
-	Client   *kgo.Client
 }
 
 type CustomCronJobValue struct {
