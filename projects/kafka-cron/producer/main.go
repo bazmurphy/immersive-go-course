@@ -1,3 +1,5 @@
+// go run . -path=customcrontab -cluster-a-seeds=localhost:9092,localhost:9093,localhost:9094 -cluster-b-seeds=localhost:9095,localhost:9096,localhost:9097 -topic=cron-topic
+
 package main
 
 import (
