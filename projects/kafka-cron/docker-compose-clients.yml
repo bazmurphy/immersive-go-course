@@ -11,7 +11,7 @@ services:
       --topic "cron-topic"
       --partitions 3
       --replication-factor 3
-    network_mode: host # why do i have to use this...
+    network_mode: host
 
   producer1:
     build:
@@ -28,7 +28,7 @@ services:
       --topic "cron-topic"
     depends_on:
       - admin1
-    network_mode: host # why do i have to use this...
+    network_mode: host
 
   consumer1:
     build:
@@ -42,7 +42,7 @@ services:
     depends_on:
       - admin1
       - producer1
-    network_mode: host # why do i have to use this...
+    network_mode: host
   
   consumer2:
     build:
@@ -56,7 +56,7 @@ services:
     depends_on:
       - admin1
       - producer1
-    network_mode: host # why do i have to use this...
+    network_mode: host
 
   consumer3:
     build:
@@ -70,7 +70,7 @@ services:
     depends_on:
       - admin1
       - producer1
-    network_mode: host # why do i have to use this...
+    network_mode: host
 
   consumer4:
     build:
@@ -84,7 +84,7 @@ services:
     depends_on:
       - admin1
       - producer1
-    network_mode: host # why do i have to use this...
+    network_mode: host
 
   consumer5:
     build:
@@ -98,7 +98,7 @@ services:
     depends_on:
       - admin1
       - producer1
-    network_mode: host # why do i have to use this...
+    network_mode: host
 
   consumer6:
     build:
@@ -112,4 +112,4 @@ services:
     depends_on:
       - admin1
       - producer1
-    network_mode: host # why do i have to use this...
+    network_mode: host
