@@ -1,4 +1,4 @@
-// go run . -seeds=localhost:9092,localhost:9093,localhost:9094 -topic=cron-topic -retry-topic=false
+// go run . -topic=cluster-a
 
 package main
 
@@ -29,17 +29,16 @@ type CustomCronJobValue struct {
 	ID            string `json:"id"`
 	Schedule      string `json:"schedule"`
 	Command       string `json:"command"`
-	Cluster       string `json:"cluster"`
+	Topic         string `json:"topic"`
 	RetryAttempts int    `json:"retry_attempts"`
 }
 
 func main() {
-	flag.StringVar(&seedsFlag, "seeds", "", "the kafka broker addresses")
+	flag.StringVar(&seedsFlag, "seeds", "localhost:9092", "the kafka broker addresses")
 	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
-	flag.BoolVar(&retryTopicFlag, "retry-topic", false, "whether to consume from the retry topic")
 
 	flag.Parse()
-	// log.Println("DEBUG | seedsFlag:", seedsFlag, "topicFlag:", topicFlag, "retryTopicFlag:", retryTopicFlag)
+	// log.Println("DEBUG | seedsFlag:", seedsFlag, "topicFlag:", topicFlag)
 
 	// TODO: handle the flag errors more specifically
 	if seedsFlag == "" || topicFlag == "" {
@@ -51,7 +50,7 @@ func main() {
 
 	log.Println("connecting to the cluster...")
 
-	client, err := clusterConnection()
+	client, err := kafkaClient()
 	if err != nil {
 		log.Fatalf("error: failed to establish connection to the cluster: %v", err)
 	}
@@ -114,38 +113,44 @@ func main() {
 			if err != nil {
 				log.Printf("error: failed to execute cron job command: %v\n", err)
 
-				// (!) Part 3 Retry Logic:
-				if cronJobValue.RetryAttempts == 0 {
-					log.Printf("error: out of retry attempts: %v\n", err)
-					continue
-				}
-
 				if cronJobValue.RetryAttempts > 0 {
-					log.Printf("attempting retry %d...\n", cronJobValue.RetryAttempts)
-
+					// 1. make a copy of the original cronjob value
 					retryCronJobValue := cronJobValue
 
-					// 1. reduce the number of attempts
+					retryTopic := retryCronJobValue.Topic
+					// 2. if it's the first time we are retrying adjust the topic
+					if retryCronJobValue.RetryAttempts == 3 {
+						retryTopic = cronJobValue.Topic + "-retry"
+					}
+
+					// 3. update the cron job value topic
+					retryCronJobValue.Topic = retryTopic
+
+					// 4. reduce the number of retry attempts
 					retryCronJobValue.RetryAttempts--
 
-					// 2. convert the retry value into json
+					// 5. convert the retry value into json
 					retryValueJSON, err := json.Marshal(retryCronJobValue)
 					if err != nil {
 						log.Printf("error: failed to marshal retry cron job value to json: %v\n", err)
 						continue
 					}
 
-					// 3. define the retry topic
-					retryTopic := topicFlag + "-retry"
-
-					// 4. create the new retry record
+					// 6. create the new retry record
 					retryRecord := &kgo.Record{
 						Topic: retryTopic,
 						Key:   record.Key,
 						Value: retryValueJSON,
 					}
 
-					log.Println("producing new retry record...")
+					// attempt 3 = 5 seconds, attempt 2 = 10 seconds, attempt 1 = 15 seconds
+					baseSeconds := 20
+					sleepSeconds := baseSeconds - cronJobValue.RetryAttempts*5
+					log.Printf("sleeping for %d seconds before retrying...\n", sleepSeconds)
+
+					time.Sleep(time.Duration(sleepSeconds) * time.Second)
+
+					// 8. produce the retry record to the -retry topic
 
 					// TODO: fix the context here
 					client.Produce(context.Background(), retryRecord, func(_ *kgo.Record, err error) {
@@ -153,8 +158,14 @@ func main() {
 							log.Printf("error: failed to produce retry record: %v\n", err)
 							return
 						}
-						log.Printf("produced retry record:\n\tcluster:%s\n\ttopic:%s\n\tpartition:%d\n\toffset:%d\n\ttimestamp:%v\n\tkey:%s\n\tvalue:%s\n", cronJobValue.Cluster, retryRecord.Topic, retryRecord.Partition, retryRecord.Offset, retryRecord.Timestamp, retryRecord.Key, retryRecord.Value)
+
+						printRetryProducedRecord(retryRecord)
 					})
+				}
+
+				if cronJobValue.RetryAttempts == 0 {
+					log.Printf("error: out of retry attempts: %v\n", err)
+					continue
 				}
 			} else {
 				printCommandOutput(output)
@@ -163,7 +174,7 @@ func main() {
 	}
 }
 
-func clusterConnection() (*kgo.Client, error) {
+func kafkaClient() (*kgo.Client, error) {
 	seeds := strings.Split(seedsFlag, ",")
 
 	topic := topicFlag
@@ -220,4 +231,24 @@ func printCommandOutput(output []byte) {
 	log.Printf("%sCommand Output%s:\n\t%s%s%s\n",
 		yellow, reset,
 		magenta, output, reset)
+}
+
+func printRetryProducedRecord(cj *kgo.Record) {
+	red := "\x1b[31m"
+	green := "\x1b[32m"
+	// yellow := "\x1b[33m"
+	blue := "\x1b[34m"
+	magenta := "\x1b[35m"
+	reset := "\x1b[0m"
+
+	log.Printf(
+		"%sProduced Retry Record%s:\n\t%sTopic%s: %s%s%s\n\t%sPartition%s: %s%d%s\n\t%sOffset%s: %s%d%s\n\t%sTimestamp%s: %s%v%s\n\t%sKey%s: %s%s%s\n\t%sValue%s: %s%s%s\n",
+		red, reset,
+		blue, reset, red, cj.Topic, reset,
+		blue, reset, magenta, cj.Partition, reset,
+		blue, reset, magenta, cj.Offset, reset,
+		blue, reset, magenta, cj.Timestamp, reset,
+		blue, reset, green, string(cj.Key), reset,
+		blue, reset, green, string(cj.Value), reset,
+	)
 }

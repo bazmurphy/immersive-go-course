@@ -1,4 +1,4 @@
-// go run . -path=customcrontab -cluster-a-seeds=localhost:9092,localhost:9093,localhost:9094 -cluster-b-seeds=localhost:9095,localhost:9096,localhost:9097 -topic=cron-topic
+// go run . -path=customcrontab
 
 package main
 
@@ -23,22 +23,18 @@ import (
 
 var (
 	crontabFilePathFlag string
-	clusterASeedsFlag   string
-	clusterBSeedsFlag   string
-	topicFlag           string
+	seedsFlag           string
 )
 
 func main() {
 	flag.StringVar(&crontabFilePathFlag, "path", "", "the path to the crontab file")
-	flag.StringVar(&clusterASeedsFlag, "cluster-a-seeds", "", "the kafka broker addresses of cluster a")
-	flag.StringVar(&clusterBSeedsFlag, "cluster-b-seeds", "", "the kafka broker addresses of cluster b")
-	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
+	flag.StringVar(&seedsFlag, "seeds", "localhost:9092", "the kafka broker addresses")
 
 	flag.Parse()
-	// log.Println("DEBUG | crontabFilePathFlag:", crontabFilePathFlag, "clusterASeedsFlag:", clusterASeedsFlag, "clusterBSeedsFlag:", clusterBSeedsFlag, "topicFlag:", topicFlag)
+	// log.Println("DEBUG | crontabFilePathFlag:", crontabFilePathFlag, "seedsFlag:", seedsFlag)
 
 	// TODO: handle the flag errors more specifically
-	if crontabFilePathFlag == "" || clusterASeedsFlag == "" || clusterBSeedsFlag == "" || topicFlag == "" {
+	if crontabFilePathFlag == "" || seedsFlag == "" {
 		flag.Usage()
 		log.Fatalf("error: missing or invalid flag values")
 	}
@@ -50,16 +46,15 @@ func main() {
 
 	// --------------------------------------------
 
-	log.Println("establishing cluster connections...")
+	log.Println("establishing cluster connection...")
 
-	clientClusterA, clientClusterB, err := ClusterConnections()
+	client, err := kafkaClient()
 	if err != nil {
-		log.Fatalf("error: failed to establish cluster connections: %v", err)
+		log.Fatalf("error: failed to establish cluster connection: %v", err)
 	}
-	defer clientClusterA.Close()
-	defer clientClusterB.Close()
+	defer client.Close()
 
-	log.Println("cluster connections established")
+	log.Println("cluster connection established")
 
 	// --------------------------------------------
 
@@ -86,7 +81,7 @@ func main() {
 
 	log.Println("scheduling cron jobs...")
 
-	cronScheduler := ScheduleCustomCronJobs(customCronJobs, clientClusterA, clientClusterB)
+	cronScheduler := ScheduleCustomCronJobs(customCronJobs, client)
 
 	log.Printf("scheduled %d cron jobs\n", len(cronScheduler.Entries()))
 
@@ -106,43 +101,26 @@ func main() {
 	// --------------------------------------------
 }
 
-func ClusterConnections() (*kgo.Client, *kgo.Client, error) {
-	clusterASeeds := strings.Split(clusterASeedsFlag, ",")
-	clusterBSeeds := strings.Split(clusterBSeedsFlag, ",")
+func kafkaClient() (*kgo.Client, error) {
+	seeds := strings.Split(seedsFlag, ",")
 
-	clientClusterA, err := kgo.NewClient(
-		kgo.SeedBrokers(clusterASeeds...),
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(seeds...),
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error: failed to create new cluster-a kafka client: %w", err)
+		return nil, fmt.Errorf("error: failed to create new client: %w", err)
 	}
 	// defer clientClusterA.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = clientClusterA.Ping(ctx)
+	err = client.Ping(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error: failed to ping cluster-a: %w", err)
+		return nil, fmt.Errorf("error: failed to ping cluster: %w", err)
 	}
 
-	clientClusterB, err := kgo.NewClient(
-		kgo.SeedBrokers(clusterBSeeds...),
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error: failed create new cluster-b kafka client: %w", err)
-	}
-	// defer clientClusterB.Close()
-
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = clientClusterB.Ping(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error: failed to ping cluster-b: %w", err)
-	}
-
-	return clientClusterA, clientClusterB, nil
+	return client, nil
 }
 
 type CustomCronJob struct {
@@ -186,10 +164,10 @@ func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 
 		command := strings.Join(fields[6:len(fields)-2], " ")
 
-		cluster := fields[len(fields)-2] // TODO: this could panic and/or be totally incorrect
+		topic := fields[len(fields)-2] // TODO: this could panic and/or be totally incorrect
 
-		if cluster != "cluster-a" && cluster != "cluster-b" {
-			log.Printf("warn: crontab file line %d invalid: cluster name\n", lineCount)
+		if topic != "cluster-a" && topic != "cluster-b" {
+			log.Printf("warn: crontab file line %d invalid: topic name\n", lineCount)
 			continue
 		}
 
@@ -207,10 +185,9 @@ func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 			ID:            uuid.NewString(),
 			Schedule:      schedule,
 			Command:       command,
-			Cluster:       cluster,
 			RetryAttempts: retryAttempts,
-			Topic:         topicFlag,
-			Client:        nil, // this is provided later
+			Topic:         topic,
+			Client:        nil, // this is set later by ScheduleCustomCronJobs
 		}
 
 		customCronJobs = append(customCronJobs, customCronJob)
@@ -223,23 +200,19 @@ func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 	return customCronJobs, nil
 }
 
-func ScheduleCustomCronJobs(customCronJobs []CustomCronJob, clientClusterA *kgo.Client, clientClusterB *kgo.Client) *cron.Cron {
+func ScheduleCustomCronJobs(customCronJobs []CustomCronJob, client *kgo.Client) *cron.Cron {
 	cronParser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	cronScheduler := cron.New(cron.WithParser(cronParser))
 
 	for _, customCronJob := range customCronJobs {
-		switch customCronJob.Cluster {
-		case "cluster-a":
-			customCronJob.Client = clientClusterA
-		case "cluster-b":
-			customCronJob.Client = clientClusterB
-		}
+		customCronJob.Client = client
 
 		entryID, err := cronScheduler.AddJob(customCronJob.Schedule, customCronJob)
 		if err != nil {
 			log.Printf("error: failed to schedule cron job: %v\n", err)
 			continue
 		}
+
 		log.Printf("cron job scheduled | entryID: %.2d | customCronJob: %v\n", entryID, customCronJob)
 	}
 
@@ -250,7 +223,7 @@ type CustomCronJobValue struct {
 	ID            string `json:"id"`
 	Schedule      string `json:"schedule"`
 	Command       string `json:"command"`
-	Cluster       string `json:"cluster"`
+	Topic         string `json:"topic"`
 	RetryAttempts int    `json:"retry_attempts"`
 }
 
@@ -259,9 +232,9 @@ type CustomCronJobValue struct {
 func (cj CustomCronJob) Run() {
 	value := CustomCronJobValue{
 		ID:            cj.ID,
-		Cluster:       cj.Cluster,
 		Schedule:      cj.Schedule,
 		Command:       cj.Command,
+		Topic:         cj.Topic,
 		RetryAttempts: cj.RetryAttempts,
 	}
 
@@ -280,21 +253,22 @@ func (cj CustomCronJob) Run() {
 		Value: valueJSON,
 	}
 
-	log.Println("producing new record...")
+	// TODO: fix the context here to allow cancellation
+	ctx := context.Background()
 
-	// TODO: fix the context here
-	cj.Client.Produce(context.Background(), record, func(_ *kgo.Record, err error) {
+	cj.Client.Produce(ctx, record, func(_ *kgo.Record, err error) {
 		if err != nil {
 			log.Printf("error: failed to produce record: %v\n", err)
 			return
 		}
-		printProducedRecord(record, cj.Cluster)
+
+		printProducedRecord(record)
 	})
 
 	// TODO: But how are errors handled from this Run() function...?
 }
 
-func printProducedRecord(cj *kgo.Record, cluster string) {
+func printProducedRecord(cj *kgo.Record) {
 	red := "\x1b[31m"
 	green := "\x1b[32m"
 	yellow := "\x1b[33m"
@@ -304,9 +278,8 @@ func printProducedRecord(cj *kgo.Record, cluster string) {
 	reset := "\x1b[0m"
 
 	log.Printf(
-		"%sProduced Record%s:\n\t%sCluster%s: %s%s%s\n\t%sTopic%s: %s%s%s\n\t%sPartition%s: %s%d%s\n\t%sOffset%s: %s%d%s\n\t%sTimestamp%s: %s%v%s\n\t%sKey%s: %s%s%s\n\t%sValue%s: %s%s%s\n",
+		"%sProduced Record%s:\n\t%sTopic%s: %s%s%s\n\t%sPartition%s: %s%d%s\n\t%sOffset%s: %s%d%s\n\t%sTimestamp%s: %s%v%s\n\t%sKey%s: %s%s%s\n\t%sValue%s: %s%s%s\n",
 		yellow, reset,
-		blue, reset, red, cluster, reset,
 		blue, reset, red, cj.Topic, reset,
 		blue, reset, magenta, cj.Partition, reset,
 		blue, reset, magenta, cj.Offset, reset,

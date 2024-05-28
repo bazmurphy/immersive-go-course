@@ -1,15 +1,15 @@
 # Makefile
 
-.PHONY: clusters-up clusters-down clients-up clients-down
+.PHONY: kafka-up kafka-down cron-up cron-down
 
-clusters-up:
-	docker compose -f docker-compose-clusters.yml up
+kafka-up:
+	docker compose -f docker-compose-kafka.yml up
 
-clusters-down:
-	docker compose -f docker-compose-clusters.yml down
+kafka-down:
+	docker compose -f docker-compose-kafka.yml down
 
-clients-up:
-	docker compose -f docker-compose-clients.yml up --build
+cron-up:
+	docker compose -f docker-compose-cron.yml up --build
 
-clients-down:
-	docker compose -f docker-compose-clients.yml down
+cron-down:
+	docker compose -f docker-compose-cron.yml down
