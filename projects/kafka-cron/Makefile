@@ -1,15 +1,9 @@
 # Makefile
 
-.PHONY: kafka-up kafka-down cron-up cron-down
+.PHONY: up down
 
-kafka-up:
-	docker compose -f docker-compose-kafka.yml up
+up:
+	docker compose up --build
 
-kafka-down:
-	docker compose -f docker-compose-kafka.yml down
-
-cron-up:
-	docker compose -f docker-compose-cron.yml up --build
-
-cron-down:
-	docker compose -f docker-compose-cron.yml down
+down:
+	docker compose down --remove-orphans
