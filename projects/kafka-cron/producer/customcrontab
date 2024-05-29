@@ -1,16 +1,11 @@
 # second|minute|hour|dayofmonth|month|dayofweek|command~|cluster|retryattempts
-# 0 * * * * * echo "here is a command running every 0th second" cluster-a 3
-# 5 * * * * * echo "here is a command running every 5th second" cluster-b 3
-# 10 * * * * * echo "here is a command running every 10th second" cluster-a 3
-# 15 * * * * * echo "here is a command running every 15th second" cluster-b 3
-# 20 * * * * * echo "here is a command running every 20th second" cluster-a 3
-# 25 * * * * * echo "here is a command running every 25th second" cluster-b 3
-# 30 * * * * * echo "here is a command running every 30th second" cluster-a 3
-# 35 * * * * * echo "here is a command running every 35th second" cluster-b 3
-# 40 * * * * * echo "here is a command running every 40th second" cluster-a 3
-# 45 * * * * * echo "here is a command running every 45th second" cluster-b 3
-# 50 * * * * * echo "here is a command running every 50th second" cluster-a 3
-# 55 * * * * * echo "here is a command running every 55th second" cluster-b 3
+0 * * * * * echo "here is the sample output of a command that runs every 15th second" cluster-a 3
+10 * * * * * echo "here is the sample output of a command that runs every 10th second" cluster-b 3
+20 * * * * * echo "here is the sample output of a command that runs every 20th second" cluster-a 3
+30 * * * * * echo "here is the sample output of a command that runs every 30th second" cluster-b 3
+40 * * * * * echo "here is the sample output of a command that runs every 40th second" cluster-a 3
+50 * * * * * echo "here is the sample output of a command that runs every 50th second" cluster-b 3
 
-0 * * * * * invalidcommand cluster-a 3
-# 30 * * * * * invalidcommand cluster-b 3
+# invalid commands running every minute
+* 0 * * * * invalidcommand cluster-a 3
+* 0 * * * * invalidcommand cluster-b 3
