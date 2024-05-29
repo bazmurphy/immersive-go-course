@@ -28,7 +28,7 @@ func PrintConsumedRecord(cj *kgo.Record) {
 	)
 }
 
-func PrintCommandOutput(output []byte) {
+func PrintCommandOutput(output []byte, executionTime float64) {
 	log.Printf("%sCommand Output%s:\n\t%s%s%s\n",
 		yellow, reset,
 		green, string(output), reset)

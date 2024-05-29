@@ -110,8 +110,15 @@ func ScheduleCustomCronJobs(customCronJobs []CustomCronJob, client *kgo.Client) 
 		entryID, err := cronScheduler.AddJob(customCronJob.Schedule, customCronJob)
 		if err != nil {
 			log.Printf("error: failed to schedule cron job: %v\n", err)
+
+			// metrics
+			cronJobSchedulingFailures.Inc()
+
 			continue
 		}
+
+		// metrics
+		cronJobsScheduled.Inc()
 
 		log.Printf("cron job scheduled | entryID: %.2d | customCronJob: %v\n", entryID, customCronJob)
 	}
@@ -151,7 +158,15 @@ func (cj CustomCronJob) Run() {
 	cj.Client.Produce(ctx, record, func(_ *kgo.Record, err error) {
 		if err != nil {
 			log.Printf("error: failed to produce record: %v\n", err)
+
+			// metrics
+			cronJobProducingFailures.Inc()
+
+			return
 		}
+
+		// metrics
+		cronJobsProduced.Inc()
 
 		PrintProducedRecord(record)
 	})

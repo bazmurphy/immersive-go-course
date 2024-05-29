@@ -9,11 +9,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -70,6 +73,24 @@ func main() {
 
 	// --------------------------------------------
 
+	log.Println("starting metrics server...")
+
+	metricsServer := &http.Server{
+		Addr:    ":8080",
+		Handler: nil,
+	}
+
+	http.Handle("/metrics", promhttp.Handler())
+
+	go func() {
+		err := metricsServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatal("error: failed to start metrics server")
+		}
+	}()
+
+	// --------------------------------------------
+
 	log.Println("consumer (polling loop) starting...")
 
 	// polling loop (outer)
@@ -94,6 +115,9 @@ func main() {
 		for !iterator.Done() {
 			record := iterator.Next()
 
+			// metrics
+			cronJobsConsumed.Inc()
+
 			PrintConsumedRecord(record)
 
 			var cronJobValue CustomCronJobValue
@@ -104,15 +128,37 @@ func main() {
 				continue
 			}
 
+			executionStartTime := time.Now()
+
 			cmd := exec.Command("sh", "-c", cronJobValue.Command)
 
 			output, err := cmd.Output()
+
+			executionTime := time.Since(executionStartTime).Seconds() // this needs to be a float64
+
 			if err != nil {
 				log.Printf("error: failed to execute cron job command: %v\n", err)
+
+				// metrics
+				cronJobsFailedExecution.Inc()
+
 				RetryFailedCronJob(client, record, cronJobValue)
 			} else {
-				PrintCommandOutput(output)
+				// metrics
+				cronJobsExecuted.Inc()
+				cronJobExecutionTime.WithLabelValues(cronJobValue.ID, cronJobValue.Command, cronJobValue.Topic).Observe(executionTime)
+
+				PrintCommandOutput(output, executionTime)
 			}
 		}
 	}
+
+	// --------------------------------------------
+
+	err = metricsServer.Shutdown(context.Background()) // TODO: should i use ctx from above for this?
+	if err != nil {
+		log.Printf("error: failed to shut down metrics server: %v\n", err)
+	}
+
+	log.Println("metrics server shut down")
 }
