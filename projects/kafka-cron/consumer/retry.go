@@ -12,7 +12,7 @@ import (
 
 func RetryFailedCronJob(client *kgo.Client, record *kgo.Record, cronJobValue CustomCronJobValue) {
 	// 1. if it's the first time we are retrying, then produce it to the retry topic (eg. cluster-a-retry)
-	// [this conditional check is hacky and wrong]
+	// [this conditional check is hacky and wrong - please suggest better]
 	if !strings.Contains(record.Topic, "retry") {
 		// define the retry topic for where to produce the retry record to
 		retryTopic := record.Topic + "-retry"
@@ -49,6 +49,9 @@ func RetryFailedCronJob(client *kgo.Client, record *kgo.Record, cronJobValue Cus
 
 	// 2. if we have no more retry attempts
 	if cronJobValue.RetryAttempts == 0 {
+		// metrics
+		cronJobsRetryFailed.Inc()
+
 		log.Printf("error: out of retry attempts: cronjob failed to run: %v\n", cronJobValue)
 		return
 	}
@@ -70,18 +73,20 @@ func RetryFailedCronJob(client *kgo.Client, record *kgo.Record, cronJobValue Cus
 		Value: retryValueJSON,
 	}
 
-	// calculate the retry delay
-	// (20 - 3*5 = 15 => 5 seconds | 20 - 2*5 => 10 seconds | 20 - 1*5 => 15 seconds)
-	// TODO: this is very fixed to the "20" magic number, it needs to be dynamic and adaptable if we have more than 3 RetryAttempts
-	retryDelay := time.Duration(20 - cronJobValue.RetryAttempts*5)
-	log.Printf("warn: sleeping for %d seconds then producing retry cron job to retry topic...\n", retryDelay)
-	time.Sleep(retryDelay * time.Second)
+	retryDelay := time.Duration(retryCronJobValue.RetryDelay) * time.Second
+
+	log.Printf("warn: sleeping for %v then producing retry cron job to retry topic...\n", retryDelay)
+
+	time.Sleep(retryDelay)
 
 	client.Produce(context.Background(), retryRecord, func(_ *kgo.Record, err error) {
 		if err != nil {
 			log.Printf("error: failed to produce retry record: %v\n", err)
 			return
 		}
+
+		// metrics
+		cronJobsRetried.Inc()
 
 		PrintRetryProducedRecord(retryRecord)
 	})

@@ -17,7 +17,7 @@ var (
 )
 
 func main() {
-	flag.StringVar(&seedsFlag, "seeds", "kafka1:19092", "the kafka broker addresses")
+	flag.StringVar(&seedsFlag, "seeds", "kafka:19092", "the kafka broker addresses")
 	flag.StringVar(&topicsFlag, "topics", "", "the name of the topics")
 	flag.IntVar(&partitionsFlag, "partitions", 1, "the number of partitions")
 	flag.IntVar(&replicationFactorFlag, "replication-factor", 1, "the replication factor")

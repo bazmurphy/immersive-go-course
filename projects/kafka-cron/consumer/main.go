@@ -31,10 +31,11 @@ type CustomCronJobValue struct {
 	Command       string `json:"command"`
 	Topic         string `json:"topic"`
 	RetryAttempts int    `json:"retry_attempts"`
+	RetryDelay    int    `json:"retry_delay"`
 }
 
 func main() {
-	flag.StringVar(&seedsFlag, "seeds", "kafka1:19092", "the kafka broker addresses")
+	flag.StringVar(&seedsFlag, "seeds", "kafka:19092", "the kafka broker addresses")
 	flag.StringVar(&topicFlag, "topic", "", "the name of the topic")
 
 	flag.Parse()
@@ -129,13 +130,11 @@ func main() {
 			}
 
 			executionStartTime := time.Now()
+			executionDelayStart := executionStartTime.Sub(record.Timestamp).Seconds()
 
 			cmd := exec.Command("sh", "-c", cronJobValue.Command)
 
 			output, err := cmd.Output()
-
-			executionTime := time.Since(executionStartTime).Seconds() // this needs to be a float64
-
 			if err != nil {
 				log.Printf("error: failed to execute cron job command: %v\n", err)
 
@@ -144,11 +143,19 @@ func main() {
 
 				RetryFailedCronJob(client, record, cronJobValue)
 			} else {
+				executionEndTime := time.Now()
+
+				// these need to be a float64 for prometheus
+				executionDelayEnd := executionEndTime.Sub(record.Timestamp).Seconds()
+				executionDuration := executionEndTime.Sub(executionStartTime).Seconds()
+
 				// metrics
 				cronJobsExecuted.Inc()
-				cronJobExecutionTime.WithLabelValues(cronJobValue.ID, cronJobValue.Command, cronJobValue.Topic).Observe(executionTime)
+				cronJobExecutionDuration.WithLabelValues(cronJobValue.Topic).Observe(executionDuration)
+				cronJobExecutionDelayStart.WithLabelValues(cronJobValue.Topic).Observe(executionDelayStart)
+				cronJobExecutionDelayEnd.WithLabelValues(cronJobValue.Topic).Observe(executionDelayEnd)
 
-				PrintCommandOutput(output, executionTime)
+				PrintCommandOutput(output, executionDuration)
 			}
 		}
 	}

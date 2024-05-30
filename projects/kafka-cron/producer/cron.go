@@ -21,6 +21,7 @@ type CustomCronJob struct {
 	Command       string
 	Cluster       string
 	RetryAttempts int
+	RetryDelay    int
 	Topic         string
 	Client        *kgo.Client
 }
@@ -31,6 +32,7 @@ type CustomCronJobValue struct {
 	Command       string `json:"command"`
 	Topic         string `json:"topic"`
 	RetryAttempts int    `json:"retry_attempts"`
+	RetryDelay    int    `json:"retry_delay"`
 }
 
 func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
@@ -64,18 +66,26 @@ func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 
 		command := strings.Join(fields[6:len(fields)-2], " ")
 
-		topic := fields[len(fields)-2] // TODO: this could panic and/or be totally incorrect
+		topic := fields[len(fields)-3] // TODO: this could panic and/or be totally incorrect
 
 		if topic != "cluster-a" && topic != "cluster-b" {
 			log.Printf("warn: crontab file line %d invalid: topic name\n", lineCount)
 			continue
 		}
 
-		retryAttemptsString := fields[len(fields)-1] // TODO: this could panic and/or be totally incorrect
+		retryAttemptsString := fields[len(fields)-2] // TODO: this could panic and/or be totally incorrect
 
 		retryAttempts, err := strconv.Atoi(retryAttemptsString)
 		if err != nil {
 			log.Printf("warn: crontab file line %d invalid: retry attempt value\n", lineCount)
+			continue
+		}
+
+		retryDelayString := fields[len(fields)-1] // // TODO: this could panic and/or be totally incorrect
+
+		retryDelay, err := strconv.Atoi(retryDelayString)
+		if err != nil {
+			log.Printf("warn: crontab file line %d invalid: retry delay value\n", lineCount)
 			continue
 		}
 
@@ -86,6 +96,7 @@ func ParseCronTabFile(cronTabFile *os.File) ([]CustomCronJob, error) {
 			Schedule:      schedule,
 			Command:       command,
 			RetryAttempts: retryAttempts,
+			RetryDelay:    retryDelay,
 			Topic:         topic,
 			Client:        nil, // this is set later by ScheduleCustomCronJobs
 		}
@@ -120,7 +131,7 @@ func ScheduleCustomCronJobs(customCronJobs []CustomCronJob, client *kgo.Client) 
 		// metrics
 		cronJobsScheduled.Inc()
 
-		log.Printf("cron job scheduled | entryID: %.2d | customCronJob: %v\n", entryID, customCronJob)
+		log.Printf("✅ cron job scheduled | entryID: %d | customCronJob: %v\n", entryID, customCronJob)
 	}
 
 	return cronScheduler
@@ -135,6 +146,7 @@ func (cj CustomCronJob) Run() {
 		Command:       cj.Command,
 		Topic:         cj.Topic,
 		RetryAttempts: cj.RetryAttempts,
+		RetryDelay:    cj.RetryDelay,
 	}
 
 	valueJSON, err := json.Marshal(value)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -12,6 +13,7 @@ const (
 	yellow  = "\x1b[33m"
 	blue    = "\x1b[34m"
 	magenta = "\x1b[35m"
+	cyan    = "\x1b[36m"
 	reset   = "\x1b[0m"
 )
 
@@ -28,9 +30,10 @@ func PrintConsumedRecord(cj *kgo.Record) {
 	)
 }
 
-func PrintCommandOutput(output []byte, executionTime float64) {
-	log.Printf("%sCommand Output%s:\n\t%s%s%s\n",
+func PrintCommandOutput(output []byte, executionDuration float64) {
+	log.Printf("%sCommand Executed%s:\n\tExecution Duration:%s%v%s\n\tOutput:%s%s%s\n",
 		yellow, reset,
+		magenta, time.Duration(executionDuration*float64(time.Second)), reset,
 		green, string(output), reset)
 }
 

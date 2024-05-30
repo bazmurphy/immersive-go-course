@@ -21,7 +21,7 @@ var (
 
 func main() {
 	flag.StringVar(&crontabFilePathFlag, "path", "", "the path to the crontab file")
-	flag.StringVar(&seedsFlag, "seeds", "kafka1:19092", "the kafka broker addresses")
+	flag.StringVar(&seedsFlag, "seeds", "kafka:19092", "the kafka broker addresses")
 
 	flag.Parse()
 	// log.Println("DEBUG | crontabFilePathFlag:", crontabFilePathFlag, "seedsFlag:", seedsFlag)
