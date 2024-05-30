@@ -22,76 +22,17 @@
   "links": [],
   "panels": [
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "collapsed": false,
       "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 2,
+        "h": 1,
+        "w": 24,
+        "x": 0,
         "y": 0
       },
-      "id": 3,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "cron_jobs_scheduled_total",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Cron Jobs Scheduled Successfully",
-      "type": "stat"
+      "id": 22,
+      "panels": [],
+      "title": "Cron Job Scheduling & Producing",
+      "type": "row"
     },
     {
       "datasource": {
@@ -122,9 +63,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 6,
-        "y": 0
+        "w": 4,
+        "x": 1,
+        "y": 1
       },
       "id": 2,
       "options": {
@@ -182,6 +123,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           }
@@ -190,9 +135,77 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 9,
-        "y": 0
+        "w": 5,
+        "x": 5,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "cron_jobs_scheduled_total",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Cron Jobs Scheduled Successfully",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 11,
+        "y": 1
       },
       "id": 5,
       "options": {
@@ -263,9 +276,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 13,
-        "y": 0
+        "w": 4,
+        "x": 16,
+        "y": 1
       },
       "id": 10,
       "options": {
@@ -328,9 +341,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 1,
-        "y": 5
+        "w": 5,
+        "x": 5,
+        "y": 6
       },
       "id": 4,
       "options": {
@@ -396,9 +409,90 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 5,
-        "y": 5
+        "w": 5,
+        "x": 11,
+        "y": 6
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "cron_jobs_consumed_total{job=\"consumer-cluster-b\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Cron Jobs Consumed - Cluster B",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 21,
+      "panels": [],
+      "title": "Cron Job Execution",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 12
       },
       "id": 7,
       "options": {
@@ -456,6 +550,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
               }
             ]
           }
@@ -464,11 +562,11 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 9,
-        "y": 5
+        "w": 5,
+        "x": 5,
+        "y": 12
       },
-      "id": 6,
+      "id": 15,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -493,8 +591,9 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "cron_jobs_consumed_total{job=\"consumer-cluster-b\"}",
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "cron_jobs_execution_failed_total{job=\"consumer-cluster-a\"}",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -504,7 +603,7 @@
           "useBackend": false
         }
       ],
-      "title": "Cron Jobs Consumed - Cluster B",
+      "title": "Cron Jobs Failed Execution - Cluster A",
       "type": "stat"
     },
     {
@@ -532,9 +631,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 13,
-        "y": 5
+        "w": 5,
+        "x": 11,
+        "y": 12
       },
       "id": 9,
       "options": {
@@ -600,218 +699,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 0,
-        "y": 10
-      },
-      "id": 15,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "cron_jobs_execution_failed_total{job=\"consumer-cluster-a\"}",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Cron Jobs Failed Execution - Cluster A",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 3,
-        "y": 10
-      },
-      "id": 17,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "expr": "cron_jobs_retried_total{job=\"consumer-cluster-a-retry\"}",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Cron Job Retries Total - Cluster A Retry",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 6,
-        "y": 10
-      },
-      "id": 19,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "expr": "cron_jobs_retry_failed_total{job=\"consumer-cluster-a-retry\"}",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Cron Job Retries Total Failure - Cluster A",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 9,
-        "y": 10
+        "w": 5,
+        "x": 16,
+        "y": 12
       },
       "id": 16,
       "options": {
@@ -883,9 +773,145 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 12,
-        "y": 10
+        "w": 5,
+        "x": 0,
+        "y": 17
+      },
+      "id": 17,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "cron_jobs_retried_total{job=\"consumer-cluster-a-retry\"}",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Cron Job Retries Total - Cluster A Retry",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 17
+      },
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "cron_jobs_retry_failed_total{job=\"consumer-cluster-b-retry\"}",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Cron Jobs Retry Total Failure - Cluster B Retry",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 11,
+        "y": 17
       },
       "id": 18,
       "options": {
@@ -951,11 +977,11 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 15,
-        "y": 10
+        "w": 5,
+        "x": 16,
+        "y": 17
       },
-      "id": 20,
+      "id": 19,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -980,15 +1006,28 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "editorMode": "code",
-          "expr": "cron_jobs_retry_failed_total{job=\"consumer-cluster-b-retry\"}",
+          "expr": "cron_jobs_retry_failed_total{job=\"consumer-cluster-a-retry\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Cron Jobs Retry Total Failure - Cluster B Retry",
+      "title": "Cron Job Retries Total Failure - Cluster A",
       "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 23,
+      "panels": [],
+      "title": "Cron Job Execution Duration 95th Percentile",
+      "type": "row"
     },
     {
       "datasource": {
@@ -1055,9 +1094,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 9,
+        "w": 10,
         "x": 0,
-        "y": 15
+        "y": 23
       },
       "id": 1,
       "options": {
@@ -1158,9 +1197,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 9,
-        "x": 9,
-        "y": 15
+        "w": 10,
+        "x": 11,
+        "y": 23
       },
       "id": 8,
       "options": {
@@ -1192,6 +1231,19 @@
       ],
       "title": "Cron Job Execution Duration (0.95) - Cluster B",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 24,
+      "panels": [],
+      "title": "Cron Job Schedule to Execute Start / Complete",
+      "type": "row"
     },
     {
       "datasource": {
@@ -1253,7 +1305,7 @@
         "h": 8,
         "w": 5,
         "x": 0,
-        "y": 23
+        "y": 32
       },
       "id": 11,
       "options": {
@@ -1348,9 +1400,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 4,
+        "w": 5,
         "x": 5,
-        "y": 23
+        "y": 32
       },
       "id": 13,
       "options": {
@@ -1442,8 +1494,8 @@
       "gridPos": {
         "h": 8,
         "w": 5,
-        "x": 9,
-        "y": 23
+        "x": 11,
+        "y": 32
       },
       "id": 12,
       "options": {
@@ -1535,9 +1587,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 4,
-        "x": 14,
-        "y": 23
+        "w": 5,
+        "x": 16,
+        "y": 32
       },
       "id": 14,
       "options": {
@@ -1571,14 +1623,14 @@
       "type": "timeseries"
     }
   ],
-  "refresh": "",
+  "refresh": "10s",
   "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-5m",
     "to": "now"
   },
   "timeRangeUpdatedDuringEditOrView": false,

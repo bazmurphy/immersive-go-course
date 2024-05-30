@@ -33,7 +33,7 @@ services:
       KAFKA_JMX_HOSTNAME: ${DOCKER_HOST_IP:-127.0.0.1}
       KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
       KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
-      # this needed adjusting from 0.14.0 to 0.17.2 (or 0.18.0 for latest)
+      # this needed adjusting from 0.14.0 to 0.18.0 for latest
       KAFKA_OPTS: -javaagent:/usr/share/java/cp-base-new/jmx_prometheus_javaagent-0.18.0.jar=8999:/kafka-jmx-config.yml 
     volumes:
       - ./config/prometheus/kafka-jmx-config.yml:/kafka-jmx-config.yml
