@@ -1,0 +1,19 @@
+FROM golang:latest
+
+WORKDIR /app
+
+COPY go.mod ./
+COPY go.sum ./
+
+RUN go mod download
+
+COPY api ./api
+COPY cmd/api-server ./cmd/api-server
+
+RUN go build -o api-server ./cmd/api-server
+
+EXPOSE 8081
+
+ENTRYPOINT ["/app/api-server"]
+
+CMD ["--port", "8081"]
