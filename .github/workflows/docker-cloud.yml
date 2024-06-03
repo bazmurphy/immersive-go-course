@@ -1,0 +1,65 @@
+name: docker-cloud
+
+on: [push]
+
+defaults:
+  run:
+    working-directory: projects/docker-cloud
+
+# for Open ID Connect
+# permission can be added at job level or workflow level
+permissions:
+  id-token: write # request the OIDC token
+  contents: read # read the repository contents
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'projects/docker-cloud/go.mod'
+          cache-dependency-path: 'projects/docker-cloud/go.sum'
+          cache: true
+
+      - name: Install the Dependencies
+        run: go get .
+
+      - name: Run the Tests
+        run: go test -v ./...
+
+  publish:
+    needs: test
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.ECR_AWS_ROLE_ARN }} #arn:aws:iam::123456789012:role/my-github-actions-role
+          aws-region: ${{ vars.ECR_AWS_REGION }} # aws-region-1 (!!!) this must be us-east-1 for ECR Public
+
+      - name: Login to the Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Build, Tag, and Push the Docker Image to the Amazon ECR Public
+        env:
+          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          REGISTRY_ALIAS: ${{ vars.ECR_REGISTRY_ALIAS }} #my-ecr-public-registry-alias
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }} #my-ecr-public-repo
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
