@@ -1,0 +1,35 @@
+groups:  
+  # - name: JVMMemory 
+  #   rules:
+  #     - alert: JVMMemoryThresholdCrossed
+  #       # Condition for alerting
+  #       expr: jvm_memory_committed_bytes{region="heap"}/jvm_memory_max_bytes{region="heap"} > 0.8
+  #       # Annotation - additional informational labels to store more information
+  #       annotations:
+  #         title: 'Instance  has crossed 80% heap memory usage'
+  #         description: ' of job  has crossed 80% heap memory usage'
+  #       # Labels - additional labels to be attached to the alert
+  #       labels:
+  #         severity: 'critical'
+  
+  - name: HighExecutionDelayStartClusterA
+    rules:
+      - alert: HighExecutionDelayStartClusterA
+        expr: histogram_quantile(0.95, sum by(le, topic) (cron_job_execution_delay_start_seconds_bucket{topic="cluster-a"})) > 500
+        for: 5m
+        annotations:
+          title: "cluster-a is experiencing high delay in executing cron jobs"
+          description: "the delay between original scheduling and starting execution of cron jobs on cluster-a is above 30 seconds for the last 5 minutes"
+        labels:
+          severity: 'warning'
+    
+  - name: HighExecutionDelayStartClusterB
+    rules:
+      - alert: HighExecutionDelayStartClusterB
+        expr: histogram_quantile(0.95, sum by(le, topic) (cron_job_execution_delay_start_seconds_bucket{topic="cluster-b"})) > 500
+        for: 5m
+        annotations:
+          title: "cluster-b is experiencing high delay in executing cron jobs"
+          description: "the delay between original scheduling and starting execution of cron jobs on cluster-b is above 30 seconds for the last 5 minutes"
+        labels:
+          severity: 'warning'
