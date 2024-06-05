@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/CodeYourFuture/immersive-go-course/buggy-app/api"
 	"github.com/CodeYourFuture/immersive-go-course/buggy-app/util"
-	"golang.org/x/net/context"
 )
 
 func main() {

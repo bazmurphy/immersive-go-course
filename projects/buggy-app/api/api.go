@@ -53,13 +53,15 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		as.config.Log.Printf("api: route handler reached with invalid auth context")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
 	}
 
 	// Use the "model" layer to get a list of the owner's notes
 	notes, err := model.GetNotesForOwner(ctx, as.pool, owner)
 	if err != nil {
-		fmt.Printf("api: GetNotesForOwner failed: %v\n", err)
+		as.config.Log.Printf("api: GetNotesForOwner failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 
 	response := struct {
@@ -68,15 +70,20 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 		Notes: notes,
 	}
 
+	indent := r.URL.Query().Get("indent")
+
 	// Convert the []Row into JSON
-	res, err := util.MarshalWithIndent(response, "")
+	// [BUG]
+	// res, err := util.MarshalWithIndent(response, "")
+	res, err := util.MarshalWithIndent(response, indent)
 	if err != nil {
-		fmt.Printf("api: response marshal failed: %v\n", err)
+		as.config.Log.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 
 	// Write it back out!
-	w.Header().Add("Content-Type", "text/json")
+	w.Header().Add("Content-Type", "application/json")
 	w.Write(res)
 }
 
@@ -84,26 +91,40 @@ func (as *Service) handleMyNotes(w http.ResponseWriter, r *http.Request) {
 func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// Get the authenticated user from the context -- this will have been written earlier
-	_, ok := authuserctx.FromAuthenticatedContext(ctx)
+	requestUser, ok := authuserctx.FromAuthenticatedContext(ctx)
 	if !ok {
 		as.config.Log.Printf("api: route handler reached with invalid auth context")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
 	}
 
 	// The URL.Path will be something like /1/my/notes/abc123.json.
 	// path.Base strips everything but "abc123.json". We then Replace out the ".json" to give us
 	// just the ID.
-	id := strings.Replace(path.Base(r.URL.Path), ".json", "", 1)
-	if id == "" {
-		fmt.Printf("api: no ID supplied: url path %v\n", r.URL.Path)
+	noteId := strings.Replace(path.Base(r.URL.Path), ".json", "", 1)
+
+	if noteId == "" {
+		as.config.Log.Printf("api: no note id supplied: url path %v\n", r.URL.Path)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
 	}
 
 	// Use the "model" layer to get a list of the owner's notes
-	note, err := model.GetNoteById(ctx, as.pool, id)
+	note, err := model.GetNoteById(ctx, as.pool, noteId)
+
+	// if we get a note back but it is not owned by the request user then reject as unauthorized
+	if err == nil && note.Owner != requestUser {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
 	if err != nil {
-		fmt.Printf("api: GetNoteById failed: %v\n", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		if err.Error() == "model: note not found" {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		} else {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		return
 	}
 
 	response := struct {
@@ -112,15 +133,20 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 		Note: note,
 	}
 
+	indent := r.URL.Query().Get("indent")
+
 	// Convert the []Row into JSON
-	res, err := util.MarshalWithIndent(response, "")
+	// [BUG]
+	// res, err := util.MarshalWithIndent(response, "")
+	res, err := util.MarshalWithIndent(response, indent)
 	if err != nil {
-		fmt.Printf("api: response marshal failed: %v\n", err)
+		as.config.Log.Printf("api: response marshal failed: %v\n", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 
 	// Write it back out!
-	w.Header().Add("Content-Type", "text/json")
+	w.Header().Add("Content-Type", "application/json")
 	w.Write(res)
 }
 
@@ -128,7 +154,9 @@ func (as *Service) handleMyNoteById(w http.ResponseWriter, r *http.Request) {
 // rather than running the whole server.
 func (as *Service) Handler() http.Handler {
 	mux := new(http.ServeMux)
-	mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	// [BUG]
+	// mux.HandleFunc("/1/my/note/", as.wrapAuth(as.authClient, as.handleMyNoteById))
+	mux.HandleFunc("/1/my/notes/", as.wrapAuth(as.authClient, as.handleMyNoteById))
 	mux.HandleFunc("/1/my/notes.json", as.wrapAuth(as.authClient, as.handleMyNotes))
 	return httplogger.HTTPLogger(mux)
 }
@@ -169,7 +197,7 @@ func (as *Service) Run(ctx context.Context) error {
 	// Wait for a signal to shut down...
 	<-ctx.Done()
 	// ... and then do it as gracefully as possible.
-	server.Shutdown(context.TODO())
+	server.Shutdown(context.Background())
 
 	wg.Wait()
 	return runErr
