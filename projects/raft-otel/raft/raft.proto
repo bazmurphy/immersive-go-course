@@ -5,6 +5,7 @@ option go_package = "/raft_proto";
 service RaftKVService {
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
+  rpc Cas(CasRequest) returns (CasResponse) {}
 }
 
 message SetRequest {
@@ -21,6 +22,15 @@ message GetRequest {
 
 message GetResponse {
     string value = 1;
+}
+
+message CasRequest {
+    string keyname = 1;
+    string expected_value = 2;
+    string new_value = 3;
+}
+
+message CasResponse {
 }
 
 service RaftService {

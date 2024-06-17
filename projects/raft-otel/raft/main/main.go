@@ -14,6 +14,16 @@ import (
 
 const port = 7600
 
+// parses command line flags
+// gets the node's own ip address
+// creates channels: ready and commitChan
+// initialises a new key-value store (raft.NewMapStorage())
+// initialises a new raft server with the parameters
+// starts serving the raft server a raft.NewKV()
+// looks up the ip addresses associated with the provided dns addresses
+// connects to all peer nodes by iterating over the ip addresses, and establishes connections using server.ConnectToPeer
+// closes the ready channel to signal the raft server is ready to start
+// waits for a graceful shutdown and performs cleanup by disconnecting from all peers and shutting down the server
 func main() {
 	addr := flag.String("dns", "raft", "dns address for raft cluster")
 	if_addr := flag.String("if", "eth0", "use IPV4 address of this interface") // eth0 works on docker, may vary for other platforms
@@ -72,6 +82,8 @@ func main() {
 	server.Shutdown()
 }
 
+// retries the node's IP address based on the provided network interface name
+// iterates over the network interfaces and their addresses to find the corresponding IPv4 address
 func getOwnAddr(intf string) string {
 	ifs, err := net.Interfaces()
 	if err != nil {
@@ -97,16 +109,19 @@ func getOwnAddr(intf string) string {
 	return ""
 }
 
+// checks if a given address is an IPv4 address by splitting it and checking the number of parts
 func isIPV4(addr string) bool {
 	parts := strings.Split(addr, "::")
 	return len(parts) == 1
 }
 
+// extracts the IP address from a given address string by splitting it and parsing the IP using net.ParseIP
 func getIP(addr string) net.IP {
 	parts := strings.Split(addr, "/")
 	return net.ParseIP(parts[0])
 }
 
+// compares a given IP address with the node's OWN address to determine if they are the same
 func ownAddr(ip net.IP, myAddr string) bool {
 	res := ip.String() == myAddr
 	return res

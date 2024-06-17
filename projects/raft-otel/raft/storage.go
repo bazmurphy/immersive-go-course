@@ -5,6 +5,7 @@ package raft
 import "sync"
 
 // Storage is an interface implemented by stable storage providers.
+// defines the methods that a 'stable storage provider' must implement
 type Storage interface {
 	Set(key string, value []byte)
 
@@ -20,6 +21,7 @@ type MapStorage struct {
 	m  map[string][]byte
 }
 
+// constructor that creates a new instance of MapStorage with an initialized empty map
 func NewMapStorage() *MapStorage {
 	m := make(map[string][]byte)
 	return &MapStorage{
@@ -27,6 +29,8 @@ func NewMapStorage() *MapStorage {
 	}
 }
 
+// retrieves the value associated with a key from the map
+// and returns the value along with a boolean indicating whether the key was found
 func (ms *MapStorage) Get(key string) ([]byte, bool) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -34,12 +38,14 @@ func (ms *MapStorage) Get(key string) ([]byte, bool) {
 	return v, found
 }
 
+// sets the value for the given key in the map
 func (ms *MapStorage) Set(key string, value []byte) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.m[key] = value
 }
 
+// checks if any key-value pairs have been set in the map
 func (ms *MapStorage) HasData() bool {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()

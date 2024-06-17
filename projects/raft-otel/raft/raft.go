@@ -17,10 +17,14 @@ import (
 
 const DebugCM = 1
 
+// represents a command and contains fields for the command name and its arguments
 type CommandImpl struct {
 	Command string
 	Args    []string
 }
+
+// the CommitEntry struct represents an entry that has been committed by the Raft consensus
+// it contains the command, log index, and term
 
 // CommitEntry is the data reported by Raft to the commit channel. Each commit
 // entry notifies the client that consensus was reached on a command and it can
@@ -36,6 +40,8 @@ type CommitEntry struct {
 	Term int
 }
 
+// an integer that represents the state of the Consensus Module (CM)
+// can be one of the following: Follower, Candidate, Leader, or Dead
 type CMState int
 
 const (
@@ -45,6 +51,7 @@ const (
 	Dead
 )
 
+// returns a string representation of the Consensus Module (CM) state
 func (s CMState) String() string {
 	switch s {
 	case Follower:
@@ -60,12 +67,14 @@ func (s CMState) String() string {
 	}
 }
 
+// represents an entry in the Raft log and contains the command and the term in which it was logged
 type LogEntry struct {
 	Command CommandImpl
 	Term    int
 }
 
 // ConsensusModule (CM) implements a single node of Raft consensus.
+// this is the core of the Raft consensus algorithm implementation
 type ConsensusModule struct {
 	// mu protects concurrent access to a CM.
 	mu sync.Mutex
@@ -112,6 +121,11 @@ type ConsensusModule struct {
 	matchIndex map[string]int
 }
 
+// a constructor that creates a new instance of ConsensusModule with the provided parameters
+// it initializes the CM's state,
+// restores data from storage if available,
+// and starts a goroutine to wait for the ready signal
+
 // NewConsensusModule creates a new CM with the given ID, list of peer IDs and
 // server. The ready channel signals the CM that all peers are connected and
 // it's safe to start its state machine. commitChan is going to be used by the
@@ -150,11 +164,13 @@ func NewConsensusModule(id string, server *Server, storage Storage, ready <-chan
 	return cm
 }
 
+// adds a peer ID to the CM's list of peer IDs
 func (cm *ConsensusModule) AddPeerID(peerId string) {
 	cm.peerIds[peerId] = true
 }
 
 // Report reports the state of this CM.
+// returns the current state of the CM, including its ID, current term, and whether it is the leader
 func (cm *ConsensusModule) Report() (id string, term int, isLeader bool) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -245,6 +261,7 @@ func (cm *ConsensusModule) persistToStorage() {
 }
 
 // dlog logs a debugging message is DebugCM > 0.
+// a utility function for logging debug messages
 func (cm *ConsensusModule) dlog(format string, args ...interface{}) {
 	if DebugCM > 0 {
 		format = fmt.Sprintf("[%s] ", cm.id) + format
@@ -253,6 +270,7 @@ func (cm *ConsensusModule) dlog(format string, args ...interface{}) {
 }
 
 // See figure 2 in the paper.
+// represents the arguments for the RequestVote RPC
 type RequestVoteArgs struct {
 	Term         int
 	CandidateId  string
@@ -260,12 +278,15 @@ type RequestVoteArgs struct {
 	LastLogTerm  int
 }
 
+// represents the reply for the RequestVote RPC
 type RequestVoteReply struct {
 	Term        int
 	VoteGranted bool
 }
 
 // RequestVote RPC.
+// handles the RequestVote RPC
+// it checks the term and log consistency before granting a vote to the candidate
 func (cm *ConsensusModule) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -273,7 +294,7 @@ func (cm *ConsensusModule) RequestVote(args RequestVoteArgs, reply *RequestVoteR
 		return nil
 	}
 	lastLogIndex, lastLogTerm := cm.lastLogIndexAndTerm()
-	cm.dlog("RequestVote: %+v [currentTerm=%d, votedFor=%d, log index/term=(%d, %d)]", args, cm.currentTerm, cm.votedFor, lastLogIndex, lastLogTerm)
+	cm.dlog("RequestVote: %+v [currentTerm=%d, votedFor=%v, log index/term=(%d, %d)]", args, cm.currentTerm, cm.votedFor, lastLogIndex, lastLogTerm)
 
 	if args.Term > cm.currentTerm {
 		cm.dlog("... term out of date in RequestVote")
@@ -297,6 +318,7 @@ func (cm *ConsensusModule) RequestVote(args RequestVoteArgs, reply *RequestVoteR
 }
 
 // See figure 2 in the paper.
+// represent the arguments for the AppendEntries RPC
 type AppendEntriesArgs struct {
 	Term     int
 	LeaderId string
@@ -307,6 +329,7 @@ type AppendEntriesArgs struct {
 	LeaderCommit int
 }
 
+// represent the reply for the AppendEntries RPC
 type AppendEntriesReply struct {
 	Term    int
 	Success bool
@@ -317,6 +340,8 @@ type AppendEntriesReply struct {
 	ConflictTerm  int
 }
 
+// handles the AppendEntries RPC
+// it checks the term and log consistency before appending entries to its log
 func (cm *ConsensusModule) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -417,6 +442,9 @@ func (cm *ConsensusModule) electionTimeout() time.Duration {
 	}
 }
 
+// implements the election timer
+// it runs in a separate goroutine and starts an election if no heartbeat is received within the election timeout
+
 // runElectionTimer implements an election timer. It should be launched whenever
 // we want to start a timer towards becoming a candidate in a new election.
 //
@@ -464,7 +492,12 @@ func (cm *ConsensusModule) runElectionTimer() {
 	}
 }
 
-// startElection starts a new election with this CM as a candidate.
+// starts a new election with the Consensus Module as a candidate
+// it increments the term,
+// votes for itself,
+// and sends RequestVote RPCs to all other servers
+
+// startElection starts a new election with this Consensus Module (CM) as a candidate.
 // Expects cm.mu to be locked.
 func (cm *ConsensusModule) startElection() {
 	cm.state = Candidate
@@ -527,6 +560,7 @@ func (cm *ConsensusModule) startElection() {
 
 // becomeFollower makes cm a follower and resets its state.
 // Expects cm.mu to be locked.
+// transitions the Consensus Module to the follower state and resets its state
 func (cm *ConsensusModule) becomeFollower(term int) {
 	cm.dlog("becomes Follower with term=%d; log=%v", term, cm.log)
 	cm.state = Follower
@@ -539,6 +573,7 @@ func (cm *ConsensusModule) becomeFollower(term int) {
 
 // startLeader switches cm into a leader state and begins process of heartbeats.
 // Expects cm.mu to be locked.
+// transitions the Consensus Module to the leader state and begins sending heartbeats to followers
 func (cm *ConsensusModule) startLeader() {
 	cm.state = Leader
 
@@ -596,6 +631,7 @@ func (cm *ConsensusModule) startLeader() {
 
 // leaderSendAEs sends a round of AEs to all peers, collects their
 // replies and adjusts cm's state.
+// sends a round of AppendEntries RPCs to all followers and processes their replies
 func (cm *ConsensusModule) leaderSendAEs() {
 	cm.mu.Lock()
 	if cm.state != Leader {
@@ -692,6 +728,7 @@ func (cm *ConsensusModule) leaderSendAEs() {
 // lastLogIndexAndTerm returns the last log index and the last log entry's term
 // (or -1 if there's no log) for this server.
 // Expects cm.mu to be locked.
+// returns the index and term of the last log entry
 func (cm *ConsensusModule) lastLogIndexAndTerm() (int, int) {
 	if len(cm.log) > 0 {
 		lastIndex := len(cm.log) - 1
@@ -707,6 +744,8 @@ func (cm *ConsensusModule) lastLogIndexAndTerm() (int, int) {
 // background goroutine; cm.commitChan may be buffered and will limit how fast
 // the client consumes new committed entries. Returns when newCommitReadyChan is
 // closed.
+// responsible for sending committed entries on the commit channel
+// it runs in a separate goroutine and watches for new commits
 func (cm *ConsensusModule) commitChanSender() {
 	for range cm.newCommitReadyChan {
 		// Find which entries we have to apply.
@@ -731,6 +770,7 @@ func (cm *ConsensusModule) commitChanSender() {
 	cm.dlog("commitChanSender done")
 }
 
+// returns the minimum of two integers
 func intMin(a, b int) int {
 	if a < b {
 		return a

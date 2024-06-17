@@ -45,15 +45,46 @@ func main() {
 	}
 
 	for {
-		for _, c := range clients {
+		for i, c := range clients {
 			n := time.Now().Second()
-			res, err := c.Set(context.TODO(), &raft_proto.SetRequest{Keyname: "cursec", Value: fmt.Sprintf("%d", n)})
-			fmt.Printf("Called set cursec %d, got %v, %v\n", n, res, err)
+			setResponse, err := c.Set(context.TODO(), &raft_proto.SetRequest{
+				Keyname: "current_second",
+				Value:   fmt.Sprintf("%d", n),
+			})
+			if err != nil {
+				log.Printf("CLIENT %d | SET Failure | Key: current_second | Error: %v\n", i+1, err)
+			} else {
+				log.Printf("CLIENT %d | SET Success | Key: current_second | Response: %v\n", i+1, setResponse)
 
-			time.Sleep(1 * time.Second) // allow consensus to happen
+				time.Sleep(1 * time.Second) // allow consensus to happen
+			}
 
-			getres, err := c.Get(context.TODO(), &raft_proto.GetRequest{Keyname: "cursec"})
-			fmt.Printf("Called get cursec, got %v, %v\n", getres, err)
+			getResponse, err := c.Get(context.TODO(), &raft_proto.GetRequest{
+				Keyname: "current_second"},
+			)
+			if err != nil {
+				log.Printf("CLIENT %d | GET Failure | Key: current_second | Error: %v\n", i+1, err)
+			} else {
+				log.Printf("CLIENT %d | GET Success | Key: current_second | Response: %v\n", i+1, getResponse)
+			}
+
+			// if the GET was successful, then we have an expectedValue to try a CAS with
+			if getResponse != nil {
+				n = time.Now().Second()
+
+				casResponse, err := c.Cas(context.TODO(), &raft_proto.CasRequest{
+					Keyname:       "current_second",
+					ExpectedValue: getResponse.Value,
+					NewValue:      fmt.Sprintf("%d", n)},
+				)
+				if err != nil {
+					log.Printf("CLIENT %d | CAS Failure | Key: current_second | Error: %v \n", i+1, err)
+					continue
+				}
+				log.Printf("CLIENT %d | CAS Success | Key: current_second | Response: %v\n", i+1, casResponse)
+
+				time.Sleep(1 * time.Second) // allow consensus to happen
+			}
 		}
 		time.Sleep(5 * time.Second)
 	}
