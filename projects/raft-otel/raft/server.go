@@ -339,6 +339,10 @@ func (s *Server) AppendEntries(ctx context.Context, req *raft_proto.AppendEntrie
 // - returns a SetResponse (empty denoting success?)
 func (s *Server) Set(ctx context.Context, req *raft_proto.SetRequest) (*raft_proto.SetResponse, error) {
 	// TODO proxy to leader if not leader
+	if s.cm.state != Leader {
+		return &raft_proto.SetResponse{LeaderAddress: s.currentLeaderAddress()}, nil
+	}
+
 	cmd := CommandImpl{
 		Command: "set",
 		Args:    []string{req.Keyname, req.Value},
@@ -360,7 +364,7 @@ func (s *Server) Set(ctx context.Context, req *raft_proto.SetRequest) (*raft_pro
 func (s *Server) Get(ctx context.Context, req *raft_proto.GetRequest) (*raft_proto.GetResponse, error) {
 	// TODO allow gets from non-leader if the query specified
 	if s.cm.state != Leader {
-		return &raft_proto.GetResponse{}, status.Error(codes.Unavailable, "not the leader")
+		return &raft_proto.GetResponse{LeaderAddress: s.currentLeaderAddress()}, nil
 	}
 
 	res := s.fsm.get(req.Keyname)
@@ -374,6 +378,10 @@ func (s *Server) Get(ctx context.Context, req *raft_proto.GetRequest) (*raft_pro
 // - if there is an error, returns a gRPC error status code
 // - returns a CasResponse
 func (s *Server) Cas(ctx context.Context, req *raft_proto.CasRequest) (*raft_proto.CasResponse, error) {
+	if s.cm.state != Leader {
+		return &raft_proto.CasResponse{LeaderAddress: s.currentLeaderAddress()}, nil
+	}
+
 	cmd := CommandImpl{
 		Command: "cas",
 		Args:    []string{req.Keyname, req.ExpectedValue, req.NewValue},
@@ -385,6 +393,12 @@ func (s *Server) Cas(ctx context.Context, req *raft_proto.CasRequest) (*raft_pro
 	}
 
 	return &raft_proto.CasResponse{}, nil
+}
+
+func (s *Server) currentLeaderAddress() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cm.leaderId
 }
 
 // reads commits from the commitChan

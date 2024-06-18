@@ -85,6 +85,9 @@ type ConsensusModule struct {
 	// peerIds lists the IDs of our peers in the cluster.
 	peerIds map[string]bool
 
+	// this is the current leader address:port
+	leaderId string
+
 	// server is the server containing this CM. It's used to issue RPC calls
 	// to peers.
 	server *Server
@@ -360,7 +363,8 @@ func (cm *ConsensusModule) AppendEntries(args AppendEntriesArgs, reply *AppendEn
 			cm.becomeFollower(args.Term)
 		}
 		cm.electionResetEvent = time.Now()
-
+		// add the leader id to the consensus module
+		cm.leaderId = args.LeaderId
 		// Does our log contain an entry at PrevLogIndex whose term matches
 		// PrevLogTerm? Note that in the extreme case of PrevLogIndex=-1 this is
 		// vacuously true.
@@ -566,6 +570,8 @@ func (cm *ConsensusModule) becomeFollower(term int) {
 	cm.state = Follower
 	cm.currentTerm = term
 	cm.votedFor = ""
+	// reset the leader id
+	cm.leaderId = ""
 	cm.electionResetEvent = time.Now()
 
 	go cm.runElectionTimer()
@@ -576,6 +582,8 @@ func (cm *ConsensusModule) becomeFollower(term int) {
 // transitions the Consensus Module to the leader state and begins sending heartbeats to followers
 func (cm *ConsensusModule) startLeader() {
 	cm.state = Leader
+	// make the leader id the node's own id
+	cm.leaderId = cm.id
 
 	for peerId := range cm.peerIds {
 		cm.nextIndex[peerId] = len(cm.log)

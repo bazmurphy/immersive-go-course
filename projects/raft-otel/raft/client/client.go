@@ -45,40 +45,31 @@ func main() {
 	}
 
 	for {
-		for i, c := range clients {
+		for i, client := range clients {
 			n := time.Now().Second()
-			setResponse, err := c.Set(context.TODO(), &raft_proto.SetRequest{
-				Keyname: "current_second",
-				Value:   fmt.Sprintf("%d", n),
-			})
+
+			setResponse, err := setWithRetries(client, "current_second", fmt.Sprintf("%d", n), 3)
 			if err != nil {
-				log.Printf("CLIENT %d | SET Failure | Key: current_second | Error: %v\n", i+1, err)
-			} else {
-				log.Printf("CLIENT %d | SET Success | Key: current_second | Response: %v\n", i+1, setResponse)
-
-				time.Sleep(1 * time.Second) // allow consensus to happen
+				log.Printf("CLIENT %d | SET Failure | Key: current_second | Response: %v | Error: %v\n", i+1, setResponse, err)
+				continue
 			}
+			log.Printf("CLIENT %d | SET Success | Key: current_second | Response: %v\n", i+1, setResponse)
 
-			getResponse, err := c.Get(context.TODO(), &raft_proto.GetRequest{
-				Keyname: "current_second"},
-			)
+			time.Sleep(1 * time.Second) // allow consensus to happen
+
+			getResponse, err := getWithRetries(client, "current_second", 3)
 			if err != nil {
-				log.Printf("CLIENT %d | GET Failure | Key: current_second | Error: %v\n", i+1, err)
-			} else {
-				log.Printf("CLIENT %d | GET Success | Key: current_second | Response: %v\n", i+1, getResponse)
+				log.Printf("CLIENT %d | GET Failure | Key: current_second | Response: %v | Error: %v\n", i+1, getResponse, err)
+				continue
 			}
+			log.Printf("CLIENT %d | GET Success | Key: current_second | Response: %v\n", i+1, getResponse)
 
-			// if the GET was successful, then we have an expectedValue to try a CAS with
-			if getResponse != nil {
+			// if we have a GET value, we can then make a CAS with it
+			if getResponse.Value != "" {
 				n = time.Now().Second()
-
-				casResponse, err := c.Cas(context.TODO(), &raft_proto.CasRequest{
-					Keyname:       "current_second",
-					ExpectedValue: getResponse.Value,
-					NewValue:      fmt.Sprintf("%d", n)},
-				)
+				casResponse, err := casWithRetries(client, "current_second", getResponse.Value, fmt.Sprintf("%d", n), 3)
 				if err != nil {
-					log.Printf("CLIENT %d | CAS Failure | Key: current_second | Error: %v \n", i+1, err)
+					log.Printf("CLIENT %d | CAS Failure | Key: current_second | Response: %v | Error: %v\n", i+1, casResponse, err)
 					continue
 				}
 				log.Printf("CLIENT %d | CAS Success | Key: current_second | Response: %v\n", i+1, casResponse)
@@ -88,4 +79,93 @@ func main() {
 		}
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func setWithRetries(client raft_proto.RaftKVServiceClient, keyname, value string, retries int) (*raft_proto.SetResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	setRequest := &raft_proto.SetRequest{
+		Keyname: keyname,
+		Value:   value,
+	}
+
+	setResponse, err := client.Set(ctx, setRequest)
+	if err != nil {
+		return nil, fmt.Errorf("SET FAILED: %v", err)
+	}
+
+	if setResponse.LeaderAddress != "" {
+		if retries > 0 {
+			newConn, err := grpc.Dial(fmt.Sprintf("%s:%d", setResponse.LeaderAddress, port), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				return nil, err
+			}
+			client = raft_proto.NewRaftKVServiceClient(newConn)
+			return setWithRetries(client, keyname, value, retries-1)
+		} else {
+			return nil, fmt.Errorf("SET FAILED: out of retries")
+		}
+	}
+
+	return setResponse, nil
+}
+
+func getWithRetries(client raft_proto.RaftKVServiceClient, keyname string, retries int) (*raft_proto.GetResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	getRequest := &raft_proto.GetRequest{
+		Keyname: keyname,
+	}
+
+	getResponse, err := client.Get(ctx, getRequest)
+	if err != nil {
+		return nil, fmt.Errorf("GET FAILED: %v", err)
+	}
+
+	if getResponse.LeaderAddress != "" {
+		if retries > 0 {
+			newConn, err := grpc.Dial(fmt.Sprintf("%s:%d", getResponse.LeaderAddress, port), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				return nil, err
+			}
+			client = raft_proto.NewRaftKVServiceClient(newConn)
+			return getWithRetries(client, keyname, retries-1)
+		} else {
+			return nil, fmt.Errorf("GET FAILED: out of retries")
+		}
+	}
+
+	return getResponse, nil
+}
+
+func casWithRetries(client raft_proto.RaftKVServiceClient, keyname, expectedValue, newValue string, retries int) (*raft_proto.CasResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	casRequest := &raft_proto.CasRequest{
+		Keyname:       keyname,
+		ExpectedValue: expectedValue,
+		NewValue:      newValue,
+	}
+	casResponse, err := client.Cas(ctx, casRequest)
+	if err != nil {
+		return nil, fmt.Errorf("CAS FAILED: %v", err)
+	}
+
+	if casResponse.LeaderAddress != "" {
+		if retries > 0 {
+			newConn, err := grpc.Dial(fmt.Sprintf("%s:%d", casResponse.LeaderAddress, port), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				return nil, err
+			}
+			client = raft_proto.NewRaftKVServiceClient(newConn)
+			return casWithRetries(client, keyname, expectedValue, newValue, retries-1)
+		} else {
+			return nil, fmt.Errorf("CAS FAILED: out of retries")
+		}
+	}
+
+	return casResponse, nil
 }
