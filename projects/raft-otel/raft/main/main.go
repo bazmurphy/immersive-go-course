@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -10,6 +12,15 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"go.opentelemetry.io/contrib/processors/baggage/baggagetrace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 )
 
 const port = 7600
@@ -35,6 +46,57 @@ func main() {
 
 	id := getOwnAddr(*if_addr)
 	fmt.Printf("My address/node ID is %s\n", id)
+
+	// ---------- OTEL START ----------
+	ctx := context.Background()
+
+	grpcTraceClient := otlptracegrpc.NewClient()
+
+	traceExporter, err := otlptrace.New(ctx, grpcTraceClient)
+	if err != nil {
+		log.Fatalf("failed to create otel trace exporter: %v", err)
+	}
+	defer func() {
+		err := traceExporter.Shutdown(ctx)
+		if err != nil {
+			log.Fatalf("failed shutting down otel trace exporter: %v", err)
+		}
+	}()
+
+	resource, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("raft-server-"+id+"-service-name"),
+		),
+	)
+	if err != nil {
+		log.Fatalf("failed to create otel resource: %v", err)
+	}
+
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(traceExporter),
+		sdktrace.WithResource(resource),
+		sdktrace.WithSpanProcessor(baggagetrace.New()), // (!) for passing baggage down
+	)
+	defer func() {
+		err = tracerProvider.Shutdown(ctx)
+		if err != nil {
+			log.Fatalf("failed shutting down otel tracer provider: %v", err)
+		}
+	}()
+
+	// register the global tracer provider
+	otel.SetTracerProvider(tracerProvider)
+
+	// register the W3C trace context and baggage propagators so data is propagated across services/processes
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{},
+			propagation.Baggage{},
+		),
+	)
+	// ---------- OTEL END ----------
 
 	ready := make(chan interface{})
 	storage := raft.NewMapStorage()

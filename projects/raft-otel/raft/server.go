@@ -13,9 +13,13 @@ import (
 	"raft/raft_proto"
 	"sync"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -64,6 +68,9 @@ type Server struct {
 	// a pointer to the KV instance which represents the finite state machine (key-value store) that is managed by raft
 	// (!) this is the key-value store that the Clients interact with
 	fsm *KV
+
+	// a tracer for open telemetry distributed tracing
+	tracer trace.Tracer
 }
 
 // represents a key-value store and has a map vals to store key-value pairs
@@ -90,6 +97,7 @@ func NewServer(serverId string, ip string, storage Storage, ready <-chan interfa
 	s.commitChan = commitChan
 	s.quit = make(chan interface{})
 	s.listenPort = listenPort
+	s.tracer = otel.Tracer("raft-server-" + serverId + "-tracer")
 	return s
 }
 
@@ -113,7 +121,9 @@ func (s *Server) Serve(fsm *KV) {
 
 	s.listener = lis
 
-	gs := grpc.NewServer()
+	gs := grpc.NewServer(
+	// grpc.StatsHandler(otelgrpc.NewServerHandler()), // (!!!) for otel grpc automatic context propagation (! BUT this traces ALL the AppendEntries)
+	)
 	s.grpcServer = gs
 
 	raft_proto.RegisterRaftServiceServer(gs, s)
@@ -165,7 +175,10 @@ func (s *Server) ConnectToPeer(peerId string, peerAddr string) error {
 	defer s.mu.Unlock()
 
 	if s.peerClients[peerId] == nil {
-		conn, err := grpc.Dial(peerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.Dial(peerAddr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			// grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // (!!!) for otel grpc automatic context propagation (! BUT this traces ALL the AppendEntries)
+		)
 		if err != nil {
 			return err
 		}
@@ -192,10 +205,64 @@ func (s *Server) DisconnectPeer(peerId string) error {
 // - constructs a RequestVoteRequest message (using the args)
 // - sends the message to the peer using the peer client
 // - populates the RequestVoteReply with the response
-func (s *Server) CallRequestVote(id string, args RequestVoteArgs, reply *RequestVoteReply) error {
+func (s *Server) CallRequestVote(ctx context.Context, id string, args RequestVoteArgs, reply *RequestVoteReply) error {
 	s.mu.Lock()
 	peer := s.peerClients[id]
 	s.mu.Unlock()
+
+	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 001 ctx: %v\n", ctx)
+
+	ctx, callRequestVoteChildSpan := s.tracer.Start(ctx, "CallRequestVote-Layer2")
+	defer callRequestVoteChildSpan.End()
+	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 002 ctx: %v\n", ctx)
+
+	currentSpan := trace.SpanFromContext(ctx)
+	traceID := currentSpan.SpanContext().TraceID()
+	spanID := currentSpan.SpanContext().SpanID()
+	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 003 traceID: %v | spanID: %v\n", traceID, spanID)
+
+	// make new grpc metadata
+	md := metadata.New(nil)
+	// attach the metadata to the context
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	// injects "correlation"? context and span context into the grpc metadata
+	otelgrpc.Inject(ctx, &md) // but i don't want to use otelgrpc to do this injection... (see below)
+	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 004 ctx: %v\n", ctx)
+
+	currentSpan = trace.SpanFromContext(ctx)
+	traceID = currentSpan.SpanContext().TraceID()
+	spanID = currentSpan.SpanContext().SpanID()
+	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 005 traceID: %v | spanID: %v\n", traceID, spanID)
+
+	// md := metadata.New(map[string]string{
+	// 	"baz-test-key": "baz-test-value",
+	// })
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 003 md: %v\n", md)
+
+	// // make new empty grpc metadata
+	// md := metadata.New(nil)
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 003 md: %v\n", md)
+
+	// // check the fields set by Inject previously
+	// fields := otel.GetTextMapPropagator().Fields()
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 004 fields BEFORE: %v\n", fields)
+
+	// for _, field := range fields {
+	// 	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 005 field: %v\n", field)
+	// }
+
+	// // inject the trace context into the metadata
+	// otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(md))
+
+	// fields = otel.GetTextMapPropagator().Fields()
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 006 fields AFTER: %v\n", fields)
+
+	// // create a new context with the metadata
+	// ctx = metadata.NewOutgoingContext(ctx, md)
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 007 ctx: %v\n", ctx)
+
+	// md2, _ := metadata.FromIncomingContext(ctx)
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 008 md2: %v\n", md2)
 
 	// If this is called after shutdown (where client.Close is called), it will
 	// return an error.
@@ -208,7 +275,7 @@ func (s *Server) CallRequestVote(id string, args RequestVoteArgs, reply *Request
 			LastLogIndex: int64(args.LastLogIndex),
 			LastLogTerm:  int64(args.LastLogTerm),
 		}
-		resp, err := peer.RequestVote(context.TODO(), &req)
+		resp, err := peer.RequestVote(ctx, &req)
 		if err != nil {
 			return err
 		}
@@ -226,6 +293,56 @@ func (s *Server) CallRequestVote(id string, args RequestVoteArgs, reply *Request
 // - returns a RequestVoteResponse
 func (s *Server) RequestVote(ctx context.Context, req *raft_proto.RequestVoteRequest) (*raft_proto.RequestVoteResponse, error) {
 	fmt.Printf("[%s] received RequestVote %+v\n", s.serverId, req)
+
+	log.Printf("---------- DEBUG | RequestVote-Layer3 | 001 ctx: %v\n", ctx)
+
+	currentSpan := trace.SpanFromContext(ctx)
+	traceID := currentSpan.SpanContext().TraceID()
+	spanID := currentSpan.SpanContext().SpanID()
+	log.Printf("---------- DEBUG | RequestVote-Layer3 | 002 traceID: %v | spanID: %v\n", traceID, spanID)
+
+	incomingMetadata, ok := metadata.FromIncomingContext(ctx)
+	log.Printf("---------- DEBUG | RequestVote-Layer3 | 003 incomingMetadata: %v | ok: %v\n", incomingMetadata, ok)
+
+	baggage, traceSpanContext := otelgrpc.Extract(ctx, &incomingMetadata) // but i don't want to use otelgrpc to do this extraction... (see below)
+	log.Printf("---------- DEBUG | RequestVote-Layer3 | 004 baggage: %v | traceSpanContext: %v\n", baggage, traceSpanContext)
+
+	traceID = traceSpanContext.TraceID()
+	spanID = traceSpanContext.SpanID()
+	log.Printf("---------- DEBUG | RequestVote-Layer3 | 005 traceID: %v | spanID: %v\n", traceID, spanID)
+
+	// ctx = trace.ContextWithSpanContext(ctx, traceSpanContext)
+	// ctx = trace.ContextWithRemoteSpanContext(ctx, traceSpanContext)
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 006 ctx: %v\n", ctx)
+
+	// ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(incomingMetadata))
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 003 ctx: %v\n", ctx)
+
+	// since it cannot find the parent on the ctx, it starts itself as a new root span...
+	// ctx, requestVoteChildSpan := s.tracer.Start(ctx, "RequestVote-Layer3")
+	// defer requestVoteChildSpan.End()
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 004 ctx: %v\n", ctx)
+
+	// // extract the OpenTelemetry context from the gRPC metadata (from the incoming request)
+	// incomingMetadata, ok := metadata.FromIncomingContext(ctx)
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 002 incomingMetadata: %v | ok: %v\n", incomingMetadata, ok)
+	// if ok {
+	// 	ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(incomingMetadata))
+	// }
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 003 ctx: %v\n", ctx)
+
+	// spanContextFromContext := trace.SpanContextFromContext(ctx)
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 004 spanContextFromContext: %v\n", spanContextFromContext)
+	// spanFromContext := trace.SpanFromContext(ctx)
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 005 spanFromContext: %v\n", spanFromContext)
+
+	// // inject the updated OpenTelemetry context into the gRPC metadata (for outgoing requests)
+	// outgoingMetadata, ok := metadata.FromOutgoingContext(ctx)
+	// if !ok {
+	// 	outgoingMetadata = metadata.New(nil) // REMOVE THIS AND CHECK AFTER
+	// }
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | outgoingMetadata: %v | ok: %v\n", outgoingMetadata, ok)
+	// otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(outgoingMetadata))
 
 	rva := RequestVoteArgs{
 		Term:         int(req.GetTerm()),

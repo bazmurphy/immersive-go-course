@@ -4,6 +4,9 @@ services:
     deploy:
       mode: replicated
       replicas: 3
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS}   
   client:
     build:
       dockerfile: ./Dockerfile.client

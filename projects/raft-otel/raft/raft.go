@@ -6,6 +6,7 @@ package raft
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -13,6 +14,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const DebugCM = 1
@@ -504,12 +507,22 @@ func (cm *ConsensusModule) runElectionTimer() {
 // startElection starts a new election with this Consensus Module (CM) as a candidate.
 // Expects cm.mu to be locked.
 func (cm *ConsensusModule) startElection() {
+	ctx, startElectionRootSpan := cm.server.tracer.Start(context.Background(), "LeaderElection-Layer0")
+	defer startElectionRootSpan.End()
+
+	startElectionRootSpan.SetAttributes(
+		attribute.String("raft_server_id", cm.id),
+		attribute.Int64("raft_term", int64(cm.currentTerm)),
+	)
+
 	cm.state = Candidate
 	cm.currentTerm += 1
 	savedCurrentTerm := cm.currentTerm
 	cm.electionResetEvent = time.Now()
 	cm.votedFor = cm.id
 	cm.dlog("becomes Candidate (currentTerm=%d); log=%v", savedCurrentTerm, cm.log)
+
+	startElectionRootSpan.AddEvent(cm.id + " becomes Candidate")
 
 	votesReceived := 1
 
@@ -527,34 +540,57 @@ func (cm *ConsensusModule) startElection() {
 				LastLogTerm:  savedLastLogTerm,
 			}
 
+			ctx, leaderElectionRequestVoteChildSpan := cm.server.tracer.Start(ctx, "LeaderElectionRequestVote-Layer1")
+			leaderElectionRequestVoteChildSpan.SetAttributes(
+				attribute.String("raft_candidate_id", cm.id),
+				attribute.String("raft_peer_id", peerId),
+				attribute.Int64("raft_term", int64(savedCurrentTerm)),
+			)
+
 			cm.dlog("sending RequestVote to %s: %+v", peerId, args)
+			leaderElectionRequestVoteChildSpan.AddEvent("Sending RequestVote to peerId:" + peerId)
 			var reply RequestVoteReply
-			if err := cm.server.CallRequestVote(peerId, args, &reply); err == nil {
+			if err := cm.server.CallRequestVote(ctx, peerId, args, &reply); err == nil { // added ctx here
 				cm.mu.Lock()
 				defer cm.mu.Unlock()
 				cm.dlog("received RequestVoteReply %+v", reply)
+				leaderElectionRequestVoteChildSpan.AddEvent("Received RequestVoteReply from peerId:" + peerId)
 
 				if cm.state != Candidate {
 					cm.dlog("while waiting for reply, state = %v", cm.state)
+					leaderElectionRequestVoteChildSpan.AddEvent("Candidate changed state:" + cm.state.String())
+					leaderElectionRequestVoteChildSpan.End()
 					return
 				}
 
 				if reply.Term > savedCurrentTerm {
 					cm.dlog("term out of date in RequestVoteReply")
+					leaderElectionRequestVoteChildSpan.AddEvent("Term Out Of Date In RequestVoteReply")
+					leaderElectionRequestVoteChildSpan.End()
 					cm.becomeFollower(reply.Term)
 					return
 				} else if reply.Term == savedCurrentTerm {
 					if reply.VoteGranted {
 						votesReceived += 1
+						leaderElectionRequestVoteChildSpan.AddEvent("Vote Received from peerId:" + peerId)
+						leaderElectionRequestVoteChildSpan.SetAttributes(
+							attribute.Int("raft_votes_received", votesReceived),
+						)
 						if votesReceived*2 > len(cm.peerIds)+1 {
 							// Won the election!
 							cm.dlog("wins election with %d votes", votesReceived)
+							leaderElectionRequestVoteChildSpan.SetAttributes(
+								attribute.Int("raft_votes_received", votesReceived),
+							)
+							leaderElectionRequestVoteChildSpan.AddEvent(cm.id + " Wins Election")
+							leaderElectionRequestVoteChildSpan.End()
 							cm.startLeader()
 							return
 						}
 					}
 				}
 			}
+			leaderElectionRequestVoteChildSpan.End()
 		}(peerId)
 	}
 
