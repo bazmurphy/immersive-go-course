@@ -505,8 +505,7 @@ func (s *Server) Get(ctx context.Context, req *raft_proto.GetRequest) (*raft_pro
 		log.Printf("---------- DEBUG | staleBy: %v\n", staleBy)
 		if staleBy <= staleMax {
 			value := s.fsm.get(req.Keyname)
-			// but i want to try to preserve the precision on this like staleBy: 113.594µs"
-			// staleByMilliseconds := float32(staleBy.Milliseconds())
+			// i want to try to preserve the precision on this like staleBy: 113.594µs
 			staleByMilliseconds := float64(staleBy.Nanoseconds()) / 1e6 // found this
 			log.Printf("---------- DEBUG | staleByMilliseconds: %v\n", staleByMilliseconds)
 			return &raft_proto.GetResponse{Value: value, IsStale: true, StaleBy: staleByMilliseconds}, nil
