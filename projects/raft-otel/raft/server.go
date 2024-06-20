@@ -19,7 +19,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -122,7 +121,7 @@ func (s *Server) Serve(fsm *KV) {
 	s.listener = lis
 
 	gs := grpc.NewServer(
-	// grpc.StatsHandler(otelgrpc.NewServerHandler()), // (!!!) for otel grpc automatic context propagation (! BUT this traces ALL the AppendEntries)
+		grpc.StatsHandler(otelgrpc.NewServerHandler()), // (!!!) for otel grpc automatic context propagation (! BUT this traces ALL the AppendEntries)
 	)
 	s.grpcServer = gs
 
@@ -177,7 +176,7 @@ func (s *Server) ConnectToPeer(peerId string, peerAddr string) error {
 	if s.peerClients[peerId] == nil {
 		conn, err := grpc.Dial(peerAddr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			// grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // (!!!) for otel grpc automatic context propagation (! BUT this traces ALL the AppendEntries)
+			grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // (!!!) for otel grpc automatic context propagation (! BUT this traces ALL the AppendEntries)
 		)
 		if err != nil {
 			return err
@@ -210,29 +209,34 @@ func (s *Server) CallRequestVote(ctx context.Context, id string, args RequestVot
 	peer := s.peerClients[id]
 	s.mu.Unlock()
 
-	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 001 ctx: %v\n", ctx)
-
-	ctx, callRequestVoteChildSpan := s.tracer.Start(ctx, "CallRequestVote-Layer2")
-	defer callRequestVoteChildSpan.End()
-	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 002 ctx: %v\n", ctx)
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 001 ctx: %v\n", ctx)
 
 	currentSpan := trace.SpanFromContext(ctx)
 	traceID := currentSpan.SpanContext().TraceID()
 	spanID := currentSpan.SpanContext().SpanID()
-	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 003 traceID: %v | spanID: %v\n", traceID, spanID)
+	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | traceID: %v | spanID: %v\n", traceID, spanID)
 
-	// make new grpc metadata
-	md := metadata.New(nil)
-	// attach the metadata to the context
-	ctx = metadata.NewOutgoingContext(ctx, md)
-	// injects "correlation"? context and span context into the grpc metadata
-	otelgrpc.Inject(ctx, &md) // but i don't want to use otelgrpc to do this injection... (see below)
-	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 004 ctx: %v\n", ctx)
+	ctx, callRequestVoteChildSpan := s.tracer.Start(ctx, "CallRequestVote-Layer2")
+	defer callRequestVoteChildSpan.End()
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 002 ctx: %v\n", ctx)
 
-	currentSpan = trace.SpanFromContext(ctx)
-	traceID = currentSpan.SpanContext().TraceID()
-	spanID = currentSpan.SpanContext().SpanID()
-	log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 005 traceID: %v | spanID: %v\n", traceID, spanID)
+	// currentSpan := trace.SpanFromContext(ctx)
+	// traceID := currentSpan.SpanContext().TraceID()
+	// spanID := currentSpan.SpanContext().SpanID()
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 003 traceID: %v | spanID: %v\n", traceID, spanID)
+
+	// // make new grpc metadata
+	// md := metadata.New(nil)
+	// // attach the metadata to the context
+	// ctx = metadata.NewOutgoingContext(ctx, md)
+	// // injects "correlation"? context and span context into the grpc metadata
+	// otelgrpc.Inject(ctx, &md) // but i don't want to use otelgrpc to do this injection... (see below)
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 004 ctx: %v\n", ctx)
+
+	// currentSpan = trace.SpanFromContext(ctx)
+	// traceID = currentSpan.SpanContext().TraceID()
+	// spanID = currentSpan.SpanContext().SpanID()
+	// log.Printf("---------- DEBUG | CallRequestVote-Layer2 | 005 traceID: %v | spanID: %v\n", traceID, spanID)
 
 	// md := metadata.New(map[string]string{
 	// 	"baz-test-key": "baz-test-value",
@@ -294,22 +298,30 @@ func (s *Server) CallRequestVote(ctx context.Context, id string, args RequestVot
 func (s *Server) RequestVote(ctx context.Context, req *raft_proto.RequestVoteRequest) (*raft_proto.RequestVoteResponse, error) {
 	fmt.Printf("[%s] received RequestVote %+v\n", s.serverId, req)
 
-	log.Printf("---------- DEBUG | RequestVote-Layer3 | 001 ctx: %v\n", ctx)
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 001 ctx: %v\n", ctx)
 
 	currentSpan := trace.SpanFromContext(ctx)
 	traceID := currentSpan.SpanContext().TraceID()
 	spanID := currentSpan.SpanContext().SpanID()
-	log.Printf("---------- DEBUG | RequestVote-Layer3 | 002 traceID: %v | spanID: %v\n", traceID, spanID)
+	log.Printf("---------- DEBUG | RequestVote-Layer3 | traceID: %v | spanID: %v\n", traceID, spanID)
 
-	incomingMetadata, ok := metadata.FromIncomingContext(ctx)
-	log.Printf("---------- DEBUG | RequestVote-Layer3 | 003 incomingMetadata: %v | ok: %v\n", incomingMetadata, ok)
+	_, requestVoteChildSpan := s.tracer.Start(ctx, "RequestVote-Layer3")
+	defer requestVoteChildSpan.End()
 
-	baggage, traceSpanContext := otelgrpc.Extract(ctx, &incomingMetadata) // but i don't want to use otelgrpc to do this extraction... (see below)
-	log.Printf("---------- DEBUG | RequestVote-Layer3 | 004 baggage: %v | traceSpanContext: %v\n", baggage, traceSpanContext)
+	// currentSpan := trace.SpanFromContext(ctx)
+	// traceID := currentSpan.SpanContext().TraceID()
+	// spanID := currentSpan.SpanContext().SpanID()
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 002 traceID: %v | spanID: %v\n", traceID, spanID)
 
-	traceID = traceSpanContext.TraceID()
-	spanID = traceSpanContext.SpanID()
-	log.Printf("---------- DEBUG | RequestVote-Layer3 | 005 traceID: %v | spanID: %v\n", traceID, spanID)
+	// incomingMetadata, ok := metadata.FromIncomingContext(ctx)
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 003 incomingMetadata: %v | ok: %v\n", incomingMetadata, ok)
+
+	// baggage, traceSpanContext := otelgrpc.Extract(ctx, &incomingMetadata) // but i don't want to use otelgrpc to do this extraction... (see below)
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 004 baggage: %v | traceSpanContext: %v\n", baggage, traceSpanContext)
+
+	// traceID = traceSpanContext.TraceID()
+	// spanID = traceSpanContext.SpanID()
+	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 005 traceID: %v | spanID: %v\n", traceID, spanID)
 
 	// ctx = trace.ContextWithSpanContext(ctx, traceSpanContext)
 	// ctx = trace.ContextWithRemoteSpanContext(ctx, traceSpanContext)
@@ -319,7 +331,7 @@ func (s *Server) RequestVote(ctx context.Context, req *raft_proto.RequestVoteReq
 	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 003 ctx: %v\n", ctx)
 
 	// since it cannot find the parent on the ctx, it starts itself as a new root span...
-	// ctx, requestVoteChildSpan := s.tracer.Start(ctx, "RequestVote-Layer3")
+	// _, requestVoteChildSpan := s.tracer.Start(ctx, "RequestVote-Layer3")
 	// defer requestVoteChildSpan.End()
 	// log.Printf("---------- DEBUG | RequestVote-Layer3 | 004 ctx: %v\n", ctx)
 
