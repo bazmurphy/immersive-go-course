@@ -19,11 +19,15 @@ message SetResponse {
 
 message GetRequest {
     string keyname = 1;
+    bool stale_read = 2;
+    int64 stale_max = 3;
 }
 
 message GetResponse {
     string value = 1;
-    string leader_address = 2;
+    bool is_stale = 2;
+    double stale_by = 3;
+    string leader_address = 4;
 }
 
 message CasRequest {

@@ -12,6 +12,7 @@ import (
 	"net"
 	"raft/raft_proto"
 	"sync"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
@@ -492,12 +493,27 @@ func (s *Server) Set(ctx context.Context, req *raft_proto.SetRequest) (*raft_pro
 // - returns a GetResponse
 func (s *Server) Get(ctx context.Context, req *raft_proto.GetRequest) (*raft_proto.GetResponse, error) {
 	// TODO allow gets from non-leader if the query specified
-	if s.cm.state != Leader {
-		return &raft_proto.GetResponse{LeaderAddress: s.currentLeaderAddress()}, nil
+	if s.cm.state == Leader {
+		res := s.fsm.get(req.Keyname)
+		return &raft_proto.GetResponse{Value: res}, nil
 	}
 
-	res := s.fsm.get(req.Keyname)
-	return &raft_proto.GetResponse{Value: res}, nil
+	if req.StaleRead {
+		lastHeartbeat := s.cm.lastHeartbeat
+		staleBy := time.Since(lastHeartbeat)
+		staleMax := time.Duration(req.StaleMax) * time.Millisecond
+		log.Printf("---------- DEBUG | staleBy: %v\n", staleBy)
+		if staleBy <= staleMax {
+			value := s.fsm.get(req.Keyname)
+			// but i want to try to preserve the precision on this like staleBy: 113.594µs"
+			// staleByMilliseconds := float32(staleBy.Milliseconds())
+			staleByMilliseconds := float64(staleBy.Nanoseconds()) / 1e6 // found this
+			log.Printf("---------- DEBUG | staleByMilliseconds: %v\n", staleByMilliseconds)
+			return &raft_proto.GetResponse{Value: value, IsStale: true, StaleBy: staleByMilliseconds}, nil
+		}
+	}
+
+	return &raft_proto.GetResponse{LeaderAddress: s.currentLeaderAddress()}, nil
 }
 
 // the gRPC handler for the Cas RPC

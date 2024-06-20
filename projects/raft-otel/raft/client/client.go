@@ -55,16 +55,23 @@ func main() {
 			}
 			log.Printf("CLIENT %d | SET Success | Key: current_second | Response: %v\n", i+1, setResponse)
 
+			getStaleResponse, err := getWithRetries(client, "current_second", 3, true, 100)
+			if err != nil {
+				log.Printf("CLIENT %d | GET STALE Failure | Key: current_second | Response: %v | Error: %v\n", i+1, getStaleResponse, err)
+				continue
+			}
+			log.Printf("CLIENT %d | GET STALE Success | Key: current_second | Response: %v\n", i+1, getStaleResponse)
+
 			time.Sleep(1 * time.Second) // allow consensus to happen
 
-			getResponse, err := getWithRetries(client, "current_second", 3)
+			getResponse, err := getWithRetries(client, "current_second", 3, false, 0)
 			if err != nil {
 				log.Printf("CLIENT %d | GET Failure | Key: current_second | Response: %v | Error: %v\n", i+1, getResponse, err)
 				continue
 			}
 			log.Printf("CLIENT %d | GET Success | Key: current_second | Response: %v\n", i+1, getResponse)
 
-			// if we have a GET value, we can then make a CAS with it
+			// if we have a GET value, we can attempt a CAS with it
 			if getResponse.Value != "" {
 				n = time.Now().Second()
 				casResponse, err := casWithRetries(client, "current_second", getResponse.Value, fmt.Sprintf("%d", n), 3)
@@ -111,17 +118,23 @@ func setWithRetries(client raft_proto.RaftKVServiceClient, keyname, value string
 	return setResponse, nil
 }
 
-func getWithRetries(client raft_proto.RaftKVServiceClient, keyname string, retries int) (*raft_proto.GetResponse, error) {
+func getWithRetries(client raft_proto.RaftKVServiceClient, keyname string, retries int, staleRead bool, staleMax int64) (*raft_proto.GetResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	getRequest := &raft_proto.GetRequest{
-		Keyname: keyname,
+		Keyname:   keyname,
+		StaleRead: staleRead,
+		StaleMax:  staleMax,
 	}
 
 	getResponse, err := client.Get(ctx, getRequest)
 	if err != nil {
 		return nil, fmt.Errorf("GET FAILED: %v", err)
+	}
+
+	if getResponse.IsStale {
+		return getResponse, nil
 	}
 
 	if getResponse.LeaderAddress != "" {
@@ -131,7 +144,7 @@ func getWithRetries(client raft_proto.RaftKVServiceClient, keyname string, retri
 				return nil, err
 			}
 			client = raft_proto.NewRaftKVServiceClient(newConn)
-			return getWithRetries(client, keyname, retries-1)
+			return getWithRetries(client, keyname, retries-1, false, 0)
 		} else {
 			return nil, fmt.Errorf("GET FAILED: out of retries")
 		}

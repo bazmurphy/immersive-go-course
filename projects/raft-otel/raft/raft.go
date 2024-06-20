@@ -88,9 +88,6 @@ type ConsensusModule struct {
 	// peerIds lists the IDs of our peers in the cluster.
 	peerIds map[string]bool
 
-	// this is the current leader address:port
-	leaderId string
-
 	// server is the server containing this CM. It's used to issue RPC calls
 	// to peers.
 	server *Server
@@ -125,6 +122,13 @@ type ConsensusModule struct {
 	// Volatile Raft state on leaders
 	nextIndex  map[string]int
 	matchIndex map[string]int
+
+	// additionals I added:
+
+	// this is the current leader address:port
+	leaderId string
+
+	lastHeartbeat time.Time
 }
 
 // a constructor that creates a new instance of ConsensusModule with the provided parameters
@@ -366,7 +370,9 @@ func (cm *ConsensusModule) AppendEntries(args AppendEntriesArgs, reply *AppendEn
 			cm.becomeFollower(args.Term)
 		}
 		cm.electionResetEvent = time.Now()
-		// add the leader id to the consensus module
+		// (!) add the last heartbeat to the consensus module
+		cm.lastHeartbeat = time.Now()
+		// (!) add the leader id to the consensus module
 		cm.leaderId = args.LeaderId
 		// Does our log contain an entry at PrevLogIndex whose term matches
 		// PrevLogTerm? Note that in the extreme case of PrevLogIndex=-1 this is
