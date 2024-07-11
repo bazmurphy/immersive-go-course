@@ -1,0 +1,17 @@
+name: file-parsing tests
+on: [push]
+defaults:
+  run:
+    working-directory: projects/file-parsing/
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "projects/file-parsing/go.mod"
+          cache: false
+      - name: Test
+        run: go test -v
