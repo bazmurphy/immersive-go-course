@@ -2,7 +2,7 @@
 ##
 ## BASE
 ##
-FROM golang:1.19-bullseye as base
+FROM golang:1.22.2-bullseye as base
 
 # Ignore APT warnings about not having a TTY
 ENV DEBIAN_FRONTEND noninteractive
@@ -15,7 +15,7 @@ RUN apt-get update && \
 RUN apt-get -q -y install libjpeg-dev libpng-dev libtiff-dev \
     libgif-dev libx11-dev --no-install-recommends
 
-ENV IMAGEMAGICK_VERSION=6.9.10-11
+ENV IMAGEMAGICK_VERSION=6.9.13-9
 
 # Install ImageMagick
 RUN cd && \
@@ -46,7 +46,8 @@ COPY go.sum ./
 
 RUN go mod download
 
-COPY *.go ./
+COPY . ./
+
 COPY inputs /inputs
 RUN mkdir -p /outputs
 
@@ -58,14 +59,15 @@ RUN go build -o /out
 ##
 FROM base as test
 
-ENTRYPOINT [ "go", "test", "-v" ]
+ENTRYPOINT [ "go", "test", "-v", "./..." ]
 
 ##
 ## DEVELOP
 ##
 FROM base as develop
 
-COPY .bash_history /root/.bash_history
+# TODO: this causes an error (investigate)
+# COPY .bash_history /root/.bash_history
 ENTRYPOINT [ "/bin/bash" ]
 
 ##
@@ -74,4 +76,4 @@ ENTRYPOINT [ "/bin/bash" ]
 FROM base as run
 
 WORKDIR /
-ENTRYPOINT /out --input /inputs/gradient.jpg --output /outputs/gradient_bw.jpg
+ENTRYPOINT /out --input /inputs/unsplash.csv --output /outputs/unsplash.csv

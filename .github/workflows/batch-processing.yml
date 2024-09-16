@@ -7,11 +7,17 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: "projects/batch-processing/go.mod"
           cache: false
+      - name: Create .env file
+        run: |
+          echo "BP_AWS_REGION=${{ vars.BP_AWS_REGION }}" >> .env
+          echo "BP_AWS_ACCESS_KEY_ID=${{ secrets.BP_AWS_ACCESS_KEY_ID }}" >> .env
+          echo "BP_AWS_SECRET_ACCESS_KEY=${{ secrets.BP_AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "BP_AWS_S3_BUCKET=${{ secrets.BP_AWS_S3_BUCKET }}" >> .env
       - name: Test
         run: make test
