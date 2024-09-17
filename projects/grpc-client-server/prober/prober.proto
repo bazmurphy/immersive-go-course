@@ -12,10 +12,14 @@ service Prober {
 // The request message 
 message ProbeRequest {
   string endpoint = 1;
+  // "Add a field to the ProbeRequest for the number of requests to make."
+  int32 number_of_probes = 2;
 }
 
 // The response message containing the result
 message ProbeReply {
-  float latency_msecs = 1;
+  // float latency_msecs = 1;
+  // "Rename the field in ProbeReply (and perhaps add a comment) to make clear it's the average response time of the several requests."
+  float average_latency_msecs = 1;
 }
 

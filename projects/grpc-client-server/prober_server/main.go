@@ -22,26 +22,64 @@ type server struct {
 	pb.UnimplementedProberServer
 }
 
-func (s *server) DoProbes(ctx context.Context, in *pb.ProbeRequest) (*pb.ProbeReply, error) {
-	// TODO: support a number of repetitions and return average latency
-	start := time.Now()
-	_, _ = http.Get(in.GetEndpoint())	// TODO: add error handling here and check the response code
-	elapsed := time.Since(start)
-	elapsedMsecs := float32(elapsed / time.Millisecond)
+func (s *server) DoProbes(ctx context.Context, request *pb.ProbeRequest) (*pb.ProbeReply, error) {
+	// get the number of probes from the probe request
+	numberOfProbes := request.GetNumberOfProbes()
+	// fmt.Printf("DoProbes | numberOfProbes %v\n", numberOfProbes)
 
-	return &pb.ProbeReply{LatencyMsecs: elapsedMsecs}, nil
+	// initialise a total time
+	var totalTime time.Duration
+
+	// support a number of repetitions and return average latency
+	for i := 0; i < int(numberOfProbes); i++ {
+		startTime := time.Now()
+		// fmt.Printf("DoProbes | startTime %v\n", startTime)
+
+		// make the request to the endpoint
+		response, err := http.Get(request.GetEndpoint())
+
+		// if the request errors
+		if err != nil {
+			return nil, fmt.Errorf("error: DoProbes request failed: %v", err)
+		}
+
+		// remember to close the response body
+		defer response.Body.Close()
+
+		// if the request status code is not OK
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("error: response was not OK: %v", err)
+		}
+
+		// get the elapsed time
+		elapsedTime := time.Since(startTime)
+		// fmt.Printf("DoProbes | elapsedTime %v\n", elapsedTime)
+
+		// add the elapsed time to the total time
+		totalTime += elapsedTime
+		// fmt.Printf("DoProbes | totalTime %v\n", totalTime)
+	}
+
+	// calculate the average latency in milliseconds
+	// (!) i am deliberately not using milliseconds here, so i can get more precision on the float, but why do i need to do this, this feels janky :/
+	averageLatencyMsecs := float32(totalTime.Microseconds()) / float32(numberOfProbes) / 1000
+
+	fmt.Printf("DoProbes | totalTime %v | numberOfProbes %d | averageLatencyMsecs %v\n", totalTime, numberOfProbes, averageLatencyMsecs)
+
+	// return a probe reply
+	return &pb.ProbeReply{AverageLatencyMsecs: averageLatencyMsecs}, nil
 }
 
 func main() {
 	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
-	pb.RegisterProberServer(s, &server{})
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
+	grpcServer := grpc.NewServer()
+	pb.RegisterProberServer(grpcServer, &server{})
+	log.Printf("server listening at %v", listener.Addr())
+	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
