@@ -1,0 +1,7 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  args_bin = ["--path", "../../assets", "--port", "8082"]
+  bin = "./tmp/main"
+  cmd = "go build -o ./tmp/main ."
