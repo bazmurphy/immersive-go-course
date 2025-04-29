@@ -185,9 +185,12 @@ func TestMyNotesAuthPass(t *testing.T) {
 
 	rows := mock.NewRows([]string{"id", "owner", "content"})
 
-	mock.ExpectQuery("^SELECT (.+) FROM public.note$").WillReturnRows(rows)
+	mock.ExpectQuery("^SELECT (.+) FROM public.note WHERE owner = (.+)$").WillReturnRows(rows)
 
 	req, err := http.NewRequest("GET", "/1/my/notes.json", strings.NewReader(""))
+
+	fmt.Println("DEBUG | req", req)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -219,7 +222,7 @@ func TestMyNotesOneNone(t *testing.T) {
 	rows := mock.NewRows([]string{"id", "owner", "content", "created", "modified"}).
 		AddRow(noteId, id, content, created, modified)
 
-	mock.ExpectQuery("^SELECT (.+) FROM public.note$").WillReturnRows(rows)
+	mock.ExpectQuery("^SELECT (.+) FROM public.note WHERE owner = (.+)$").WillReturnRows(rows)
 
 	req, err := http.NewRequest("GET", "/1/my/notes.json", strings.NewReader(""))
 	if err != nil {
@@ -265,7 +268,7 @@ func TestMyNotesNonOwnedNote(t *testing.T) {
 		AddRow(noteId, id, content, created, modified).
 		AddRow("pqr123", "mno456", "Non-owned note", created, modified)
 
-	mock.ExpectQuery("^SELECT (.+) FROM public.note$").WillReturnRows(rows)
+	mock.ExpectQuery("^SELECT (.+) FROM public.note WHERE owner = (.+)$").WillReturnRows(rows)
 
 	req, err := http.NewRequest("GET", "/1/my/notes.json", strings.NewReader(""))
 	if err != nil {
@@ -312,7 +315,7 @@ func TestMyNoteById(t *testing.T) {
 
 	mock.ExpectQuery("^SELECT (.+) FROM public.note WHERE id = (.+)$").WillReturnRows(rows)
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("/1/my/note/%s.json", noteId), strings.NewReader(""))
+	req, err := http.NewRequest("GET", fmt.Sprintf("/1/my/notes/%s.json", noteId), strings.NewReader(""))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -355,7 +358,7 @@ func TestMyNoteByIdWithTags(t *testing.T) {
 
 	mock.ExpectQuery("^SELECT (.+) FROM public.note WHERE id = (.+)$").WillReturnRows(rows)
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("/1/my/note/%s.json", noteId), strings.NewReader(""))
+	req, err := http.NewRequest("GET", fmt.Sprintf("/1/my/notes/%s.json", noteId), strings.NewReader(""))
 	if err != nil {
 		log.Fatal(err)
 	}

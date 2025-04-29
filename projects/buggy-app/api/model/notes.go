@@ -32,7 +32,9 @@ func GetNotesForOwner(ctx context.Context, conn dbConn, owner string) (Notes, er
 		return nil, errors.New("model: owner not supplied")
 	}
 
-	queryRows, err := conn.Query(ctx, "SELECT id, owner, content, created, modified FROM public.note")
+	// [BUG]
+	// queryRows, err := conn.Query(ctx, "SELECT id, owner, content, created, modified FROM public.note")
+	queryRows, err := conn.Query(ctx, "SELECT id, owner, content, created, modified FROM public.note WHERE owner = $1", owner)
 	if err != nil {
 		return nil, fmt.Errorf("model: could not query notes: %w", err)
 	}
@@ -68,6 +70,9 @@ func GetNoteById(ctx context.Context, conn dbConn, id string) (Note, error) {
 
 	err := row.Scan(&note.Id, &note.Owner, &note.Content, &note.Created, &note.Modified)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return note, fmt.Errorf("model: note not found")
+		}
 		return note, fmt.Errorf("model: query scan failed: %w", err)
 	}
 	note.Tags = extractTags(note.Content)
@@ -77,7 +82,9 @@ func GetNoteById(ctx context.Context, conn dbConn, id string) (Note, error) {
 // Extract tags from the note. We're looking for #something. There could be
 // multiple tags, so we FindAll.
 func extractTags(input string) []string {
-	re := regexp.MustCompile(`#([^#]+)`)
+	// re := regexp.MustCompile(`#([^#]+)`)
+	// new regular expression to fix reported bug
+	re := regexp.MustCompile(`#([\w]+)`)
 	matches := re.FindAllStringSubmatch(input, -1)
 	tags := make([]string, 0, len(matches))
 	for _, f := range matches {

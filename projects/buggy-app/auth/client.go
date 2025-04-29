@@ -1,11 +1,11 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/CodeYourFuture/immersive-go-course/buggy-app/auth/cache"
 	pb "github.com/CodeYourFuture/immersive-go-course/buggy-app/auth/service"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

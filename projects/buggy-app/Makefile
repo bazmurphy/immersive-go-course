@@ -55,7 +55,7 @@ run:
 	docker compose --profile run up
 
 run-database:
-	docker compose up
+	docker compose up postgres
 
 build-run: | build run
 

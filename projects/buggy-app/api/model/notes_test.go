@@ -26,3 +26,15 @@ func TestTagsTrim(t *testing.T) {
 		t.Fatalf("expected %v, got %v", expected, tags)
 	}
 }
+
+// newly added test to address bug report
+func TestTagsBugReport(t *testing.T) {
+	text := "#Monday Remember to take time for self-care"
+	expected := []string{"Monday"}
+
+	tags := extractTags(text)
+
+	if !reflect.DeepEqual(expected, tags) {
+		t.Fatalf("expected %v, got %v", expected, tags)
+	}
+}
