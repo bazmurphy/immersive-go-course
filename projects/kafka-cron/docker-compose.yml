@@ -1,0 +1,176 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_SERVERS: zookeeper:2888:3888
+
+  kafka:
+    image: confluentinc/cp-kafka
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+      - "9999:9999" # kafka jmx port
+      - "8999:8999" # this needed adding: prometheus jmx exporter port
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9092,DOCKER://host.docker.internal:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_BROKER_ID: 1
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: ${DOCKER_HOST_IP:-127.0.0.1}
+      KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
+      # this needed adjusting from 0.14.0 to 0.18.0 for latest
+      KAFKA_OPTS: -javaagent:/usr/share/java/cp-base-new/jmx_prometheus_javaagent-0.18.0.jar=8999:/kafka-jmx-config.yml 
+    volumes:
+      - ./config/prometheus/kafka-jmx-config.yml:/kafka-jmx-config.yml
+    depends_on:
+     - zookeeper
+    healthcheck:
+      # i searched around and although this is basic it works for now...
+      test: nc -z localhost 9092 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  admin:
+    build:
+      context: admin
+      dockerfile: ../Dockerfile
+    hostname: admin
+    container_name: admin
+    command: >
+      --topics "cluster-a,cluster-b"
+      --partitions 2
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  producer:
+    build:
+      context: producer
+      dockerfile: ../Dockerfile
+    hostname: producer
+    container_name: producer
+    volumes:
+      - ./customcrontab:/app/customcrontab
+    command: >
+      --path "customcrontab"
+    ports:
+      - "8080:8080"
+    depends_on:
+      admin:
+        condition: service_completed_successfully
+
+  consumer-cluster-a:
+    build:
+      context: consumer
+      dockerfile: ../Dockerfile
+    hostname: consumer-cluster-a
+    container_name: consumer-cluster-a
+    command: >
+      --topic "cluster-a"
+    ports:
+      - "8081:8080"
+    depends_on:
+      admin:
+        condition: service_completed_successfully
+  
+  consumer-cluster-a-retry:
+    build:
+      context: consumer
+      dockerfile: ../Dockerfile
+    hostname: consumer-cluster-a-retry
+    container_name: consumer-cluster-a-retry
+    command: >
+      --topic "cluster-a-retry"
+    ports:
+      - "8082:8080"
+    depends_on:
+      admin:
+        condition: service_completed_successfully
+
+  consumer-cluster-b:
+    build:
+      context: consumer
+      dockerfile: ../Dockerfile
+    hostname: consumer-cluster-b
+    container_name: consumer-cluster-b
+    command: >
+      --topic "cluster-b"
+    ports:
+      - "8083:8080"
+    depends_on:
+      admin:
+        condition: service_completed_successfully
+
+  consumer-cluster-b-retry:
+    build:
+      context: consumer
+      dockerfile: ../Dockerfile
+    hostname: consumer-cluster-b-retry
+    container_name: consumer-cluster-b-retry
+    command: >
+      --topic "cluster-b-retry"
+    ports:
+      - "8084:8080"
+    depends_on:
+      admin:
+        condition: service_completed_successfully
+
+  prometheus:
+    image: prom/prometheus
+    hostname: prometheus
+    container_name: prometheus
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    links:
+      - alertmanager:alertmanager
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    hostname: grafana
+    container_name: grafana
+    volumes:
+      - ./config/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    ports:
+      - 3000:3000
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    hostname: alertmanager
+    volumes:
+      - ./config/alertmanager/alertmanager.conf:/etc/alertmanager/alertmanager.conf
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.conf'
+    ports:
+      - 9093:9093
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}

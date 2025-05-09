@@ -1,0 +1,15 @@
+# second|minute|hour|dayofmonth|month|dayofweek|command~|cluster|retryattempts|retrydelay
+0 * * * * * echo "this sample output of a command that runs every 0th second" cluster-a 0 0
+10 * * * * * echo "this sample output of a command that runs every 10th second" cluster-b 0 0
+20 * * * * * echo "this sample output of a command that runs every 20th second" cluster-a 0 0
+30 * * * * * echo "this sample output of a command that runs every 30th second" cluster-b 0 0
+40 * * * * * echo "this sample output of a command that runs every 40th second" cluster-a 0 0
+50 * * * * * echo "this sample output of a command that runs every 50th second" cluster-b 0 0
+
+# retry testing with invalid commands
+20 * * * * * invalidcommand cluster-a 3 10
+50 * * * * * invalidcommand cluster-b 3 10
+
+# delay testing with sleep commands
+# 15 * * * * * sleep 2 && echo "this output runs every 15th second but when executing sleeps for 2 seconds before printing this" cluster-a 3 5
+# 45 * * * * * sleep 2 && echo "this output that runs every 45th second but when executing sleeps for 2 seconds before printing this" cluster-b 3 5
